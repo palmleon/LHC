@@ -1,0 +1,58 @@
+import java_cup.runtime.*;
+import java.util.HashMap;
+
+parser code {:
+
+	public boolean isCorrect = true;
+	
+	public void syntax_error(java_cup.runtime.Symbol current) {
+		report_error(current);
+	}
+	
+    public void report_error(Object info) {
+        System.err.print("ERROR: Syntax error");
+		isCorrect = false;
+        if (info instanceof Symbol)
+            if (((Symbol)info).left != -1){
+                int line = (((Symbol)info).left)+1;
+                int column = (((Symbol)info).right)+1;
+                System.err.print(" (line "+line+", column "+column+"): ");
+            } else System.err.print(": ");
+        else System.err.print(": ");
+    }
+	
+:};
+
+action code {:
+
+	// Symbol Table
+	public HashMap<String, Object> symTable = new HashMap<>();
+	
+	
+:};
+
+/////////////////////////////////
+///	TERMINALS (lowercase)     ///
+/////////////////////////////////
+
+/////////////////////////////////
+///	NON TERMINALS (uppercase) ///
+/////////////////////////////////
+
+start with PROGRAM;
+
+/////////////////////////////////
+///	PRODUCTION RULES          ///
+/////////////////////////////////
+
+PROGRAM ::= /*EMPTY PROGRAM */ 
+		| FUNCT_PART IMPER_PART
+;
+
+IMPER_PART ::= main eq IMPER_STMTS
+;
+
+IO_ACTIONS ::= 
+
+
+
