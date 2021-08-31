@@ -1,4 +1,4 @@
-# HAHASkell
+# HASkell
 Compiler for the Haskell Programming Language.  
 Built using JFlex and Cup tools.  
 Currently supported features of the Language:  
