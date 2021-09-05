@@ -3,11 +3,10 @@ all: clean scanner parser
 	javac *.java
 
 scanner:
-
 	jflex scanner.jflex
 	
 parser:
-	java java_cup.MainDrawTree parser.cup
+	java java_cup.MainDrawTree -expect 1 parser.cup
 	
 clean:
 

@@ -35,9 +35,53 @@ action code {:
 ///	TERMINALS (lowercase)     ///
 /////////////////////////////////
 
+terminal main;
+terminal eq, clns, cm, pipe, ro, rc, bo, bc, us, arrow, sep;
+terminal plus, minus, times, div, mod, exp, uminus, and, or, not;
+terminal releq, relge, relgt, relle, rellt;
+terminal conc, cons;
+terminal indent, dedent;
+terminal do, if, then, else, let, in, where, print;
+terminal int, double, bool, char;
+terminal int_type, double_type, bool_type, char_type;
+terminal id;
+
 /////////////////////////////////
 ///	NON TERMINALS (uppercase) ///
 /////////////////////////////////
+
+non terminal PROGRAM;
+non terminal FUNCT_PART, IMPER_PART;
+non terminal IO_ACTIONS, IO_ACTION;
+non terminal PRINT, IF_IMPER;
+non terminal COND, EXPR, EXPR_NOTUNARYOP, LEXPR;
+non terminal ACTARG, LACTARG;
+non terminal WHERE, GUARDS, GUARD;
+non terminal LET_STMTS, WHERE_STMTS;
+non terminal DECL_TYPE, DECL_VALUE, DECL_FUNCT;
+non terminal TYPE;
+non terminal VALUE_TYPE, FUNC_TYPE;
+non terminal TUPLE_TYPE, LIST_TYPE, BASIC_TYPE;
+non terminal VALUE;
+non terminal VALUE_LIST, VALUE_TUPLE;
+non terminal LVALUE_TYPE;
+non terminal PATTERN, LPATTERN;
+non terminal PATTERN_LIST, PATTERN_TUPLE;
+non terminal LFORMARG;
+
+/////////////////////////////////
+/// PRECEDENCE RULES		  ///
+/////////////////////////////////
+
+precedence left conc;
+precedence right cons;
+precedence left and, or;
+precedence nonassoc releq, relgt, relge, rellt, relle;
+precedence left plus, minus;
+precedence left times, div;
+precedence right exp;
+precedence nonassoc not, uminus;
+//mod, not, uminus
 
 start with PROGRAM;
 
@@ -45,14 +89,211 @@ start with PROGRAM;
 ///	PRODUCTION RULES          ///
 /////////////////////////////////
 
-PROGRAM ::= /*EMPTY PROGRAM */ 
-		| FUNCT_PART IMPER_PART
+PROGRAM ::= /* empty program */ 
+		  | indent FUNCT_PART IMPER_PART dedent
 ;
 
-IMPER_PART ::= main eq IMPER_STMTS
+IMPER_PART ::= main eq indent IO_ACTION dedent
 ;
 
-IO_ACTIONS ::= 
+IO_ACTION ::= PRINT
+            | do indent IO_ACTIONS dedent
+			| IF_IMPER
+;
+
+// TODO: check alignment (all io_actions are aligned to the first one)
+IO_ACTIONS ::= IO_ACTION
+			 | IO_ACTIONS sep IO_ACTION
+			 | let indent LET_STMTS dedent IO_ACTIONS
+;
+
+IF_IMPER ::= if COND then IO_ACTION else IO_ACTION
+;
+
+PRINT ::= print ACTARG
+;
+
+// TODO: check the alignment
+LET_STMTS ::= /* empty body */
+			| LET_STMTS sep DECL_TYPE
+            | LET_STMTS sep DECL_VALUE
+		    | LET_STMTS sep DECL_FUNCT
+			| DECL_TYPE 
+			| DECL_VALUE
+			| DECL_FUNCT
+;
+
+FUNCT_PART ::= /* empty Functional section */
+			  | FUNCT_PART DECL_TYPE sep
+		      | FUNCT_PART DECL_VALUE sep
+		      | FUNCT_PART DECL_FUNCT sep
+;
+
+/* special expression management for boolean conditions */
+COND ::= EXPR 
+;
+
+DECL_TYPE ::= id cm DECL_TYPE
+			| id clns TYPE
+; 
+
+/* pattern and expr should be of the same type */
+DECL_VALUE ::= PATTERN eq EXPR
+;
+
+// no nullary functions
+DECL_FUNCT ::= id LFORMARG eq EXPR WHERE
+			 | id LFORMARG GUARDS WHERE
+;
+
+GUARDS ::= GUARDS GUARD
+         | GUARD
+;
+
+GUARD ::= pipe COND eq EXPR
+;
+
+WHERE ::= /* no where section */
+        | where indent WHERE_STMTS dedent
+;
+		
+WHERE_STMTS ::= WHERE_STMTS sep DECL_TYPE
+              | WHERE_STMTS sep DECL_VALUE
+			  | WHERE_STMTS sep DECL_FUNCT
+			  | DECL_TYPE 
+			  | DECL_VALUE 
+			  | DECL_FUNCT 
+;
+
+LFORMARG ::= LFORMARG PATTERN
+		   | PATTERN
+;
+
+PATTERN ::= ro PATTERN_LIST rc
+		  | ro PATTERN_TUPLE rc
+		  | ro PATTERN rc
+		  | us
+		  | id
+;
+
+PATTERN_LIST ::= PATTERN cons PATTERN
+;
+
+PATTERN_TUPLE ::= LPATTERN
+;
+
+LPATTERN ::= PATTERN cm PATTERN
+		   | LPATTERN cm PATTERN
+;
+
+EXPR ::= EXPR plus EXPR_NOTUNARYOP
+	   | EXPR minus EXPR_NOTUNARYOP
+	   | EXPR times EXPR_NOTUNARYOP
+	   | EXPR div EXPR_NOTUNARYOP
+	   | mod ACTARG ACTARG 
+	   | EXPR exp EXPR_NOTUNARYOP
+	   | EXPR and EXPR_NOTUNARYOP
+	   | EXPR or EXPR_NOTUNARYOP
+	   | EXPR releq EXPR_NOTUNARYOP
+	   | EXPR relgt EXPR_NOTUNARYOP
+	   | EXPR relge EXPR_NOTUNARYOP
+	   | EXPR rellt EXPR_NOTUNARYOP
+	   | EXPR relle EXPR_NOTUNARYOP
+	   | EXPR cons EXPR_NOTUNARYOP
+	   | EXPR conc EXPR_NOTUNARYOP
+	   | ro EXPR rc
+	   | not EXPR   
+	   | minus EXPR 		%prec uminus 
+	   | let indent LET_STMTS dedent in EXPR
+	   | if COND then EXPR else EXPR
+	   | id LACTARG 
+	   | VALUE
+;
+
+EXPR_NOTUNARYOP ::= EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP minus EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP times EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP div EXPR_NOTUNARYOP
+	   | mod ACTARG ACTARG 
+	   | EXPR_NOTUNARYOP exp EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP and EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP or EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP releq EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP relgt EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP relge EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP rellt EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP relle EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP cons EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
+	   | ro EXPR rc
+	   | let indent LET_STMTS in dedent EXPR
+	   | if COND then EXPR else EXPR
+	   | id LACTARG 
+	   | VALUE
+;
+
+VALUE ::= int
+		| double
+		| bool
+		| char
+		| VALUE_LIST
+		| VALUE_TUPLE
+;
+
+VALUE_LIST ::= bo LEXPR bc
+			 | bo EXPR bc
+			 | bo bc
+;
+
+VALUE_TUPLE ::= ro LEXPR rc 
+			  | ro rc
+;
+
+LEXPR ::= EXPR cm EXPR
+		 | LEXPR cm EXPR
+;
+
+ACTARG ::= id 
+         | VALUE
+		 | ro EXPR rc
+;
+
+// list of input arguments for function call
+LACTARG ::= /* empty list of args: we call a variable */
+		  | LACTARG ACTARG
+;
+
+// both basic types and compound
+TYPE ::= VALUE_TYPE
+	   | FUNC_TYPE
+;
+
+VALUE_TYPE ::= TUPLE_TYPE
+			 | LIST_TYPE
+			 | BASIC_TYPE
+;
+
+BASIC_TYPE ::= int_type
+			 | double_type
+			 | bool_type
+			 | char_type
+;
+
+LIST_TYPE ::= bo VALUE_TYPE bc
+;
+
+TUPLE_TYPE ::= ro rc 
+			 | ro LVALUE_TYPE rc
+;
+
+// no higher order functions
+FUNC_TYPE ::= VALUE_TYPE arrow FUNC_TYPE
+		    | VALUE_TYPE arrow VALUE_TYPE
+;
+
+LVALUE_TYPE ::= VALUE_TYPE
+			  | LVALUE_TYPE cm VALUE_TYPE
+;
 
 
 
