@@ -3,7 +3,27 @@ import java.util.HashMap;
 
 parser code {:
 
+	/* Variables that enables indent, dedent and separators scanning */
+	private boolean indentEnable = false;
+	private boolean dedentEnable = false;
+
 	public boolean isCorrect = true;
+	
+	public boolean getIndentEnable(){
+		return this.indentEnable;
+	}
+	
+	public boolean getDedentEnable(){
+		return this.dedentEnable;
+	}
+	
+	public void setIndentEnable(boolean indentEnable){
+		this.indentEnable = indentEnable;
+	}
+	
+	public void setDedentEnable(boolean dedentEnable){
+		this.dedentEnable = dedentEnable;
+	}
 	
 	public void syntax_error(java_cup.runtime.Symbol current) {
 		report_error(current);
@@ -22,6 +42,8 @@ parser code {:
     }
 	
 :};
+
+scan with {: return scanner.next_token_custom(); :};
 
 action code {:
 
@@ -42,8 +64,8 @@ terminal releq, relge, relgt, relle, rellt;
 terminal conc, cons;
 terminal indent, dedent;
 terminal do, if, then, else, let, in, where, print;
-terminal int, double, bool, char;
-terminal int_type, double_type, bool_type, char_type;
+terminal int, double, bool, char, string;
+terminal int_type, double_type, bool_type, char_type, string_type;
 terminal id;
 
 /////////////////////////////////
@@ -60,11 +82,11 @@ non terminal WHERE, GUARDS, GUARD;
 non terminal LET_STMTS, WHERE_STMTS;
 non terminal DECL_TYPE, DECL_VALUE, DECL_FUNCT;
 non terminal TYPE;
-non terminal VALUE_TYPE, FUNC_TYPE;
-non terminal TUPLE_TYPE, LIST_TYPE, BASIC_TYPE;
+non terminal TYPE_VALUE, TYPE_FUNC;
+non terminal TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
 non terminal VALUE;
-non terminal VALUE_LIST, VALUE_TUPLE;
-non terminal LVALUE_TYPE;
+non terminal VALUE_LIST, VALUE_TUPLE, VALUE_BASIC;
+non terminal LTYPE_VALUE;
 non terminal PATTERN, LPATTERN;
 non terminal PATTERN_LIST, PATTERN_TUPLE;
 non terminal LFORMARG;
@@ -93,7 +115,7 @@ PROGRAM ::= /* empty program */
 		  | indent FUNCT_PART IMPER_PART dedent
 ;
 
-IMPER_PART ::= main eq indent IO_ACTION dedent
+IMPER_PART ::= main eq IO_ACTION 
 ;
 
 IO_ACTION ::= PRINT
@@ -114,19 +136,21 @@ PRINT ::= print ACTARG
 ;
 
 // TODO: check the alignment
-LET_STMTS ::= /* empty body */
-			| LET_STMTS sep DECL_TYPE
+LET_STMTS ::= LET_STMTS sep DECL_TYPE
             | LET_STMTS sep DECL_VALUE
 		    | LET_STMTS sep DECL_FUNCT
-			| DECL_TYPE 
+			| DECL_TYPE
 			| DECL_VALUE
 			| DECL_FUNCT
 ;
-
+ 
 FUNCT_PART ::= /* empty Functional section */
-			  | FUNCT_PART DECL_TYPE sep
-		      | FUNCT_PART DECL_VALUE sep
-		      | FUNCT_PART DECL_FUNCT sep
+			 | FUNCT_PART DECL_TYPE sep
+		     | FUNCT_PART DECL_VALUE sep
+		     | FUNCT_PART DECL_FUNCT sep
+			 | DECL_TYPE sep
+			 | DECL_VALUE sep
+			 | DECL_FUNCT sep
 ;
 
 /* special expression management for boolean conditions */
@@ -141,7 +165,7 @@ DECL_TYPE ::= id cm DECL_TYPE
 DECL_VALUE ::= PATTERN eq EXPR
 ;
 
-// no nullary functions
+/* no nullary functions */
 DECL_FUNCT ::= id LFORMARG eq EXPR WHERE
 			 | id LFORMARG GUARDS WHERE
 ;
@@ -226,18 +250,22 @@ EXPR_NOTUNARYOP ::= EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP cons EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
 	   | ro EXPR rc
-	   | let indent LET_STMTS in dedent EXPR
+	   | let indent LET_STMTS dedent in EXPR
 	   | if COND then EXPR else EXPR
 	   | id LACTARG 
 	   | VALUE
 ;
 
-VALUE ::= int
-		| double
-		| bool
-		| char
+VALUE ::= VALUE_BASIC
 		| VALUE_LIST
 		| VALUE_TUPLE
+;
+
+VALUE_BASIC ::= int
+			  | double
+			  | bool
+			  | char
+			  | string
 ;
 
 VALUE_LIST ::= bo LEXPR bc
@@ -264,35 +292,36 @@ LACTARG ::= /* empty list of args: we call a variable */
 ;
 
 // both basic types and compound
-TYPE ::= VALUE_TYPE
-	   | FUNC_TYPE
+TYPE ::= TYPE_VALUE
+	   | TYPE_FUNC
 ;
 
-VALUE_TYPE ::= TUPLE_TYPE
-			 | LIST_TYPE
-			 | BASIC_TYPE
+TYPE_VALUE ::= TYPE_TUPLE
+			 | TYPE_LIST
+			 | TYPE_BASIC
 ;
 
-BASIC_TYPE ::= int_type
+TYPE_BASIC ::= int_type
 			 | double_type
 			 | bool_type
 			 | char_type
+			 | string_type
 ;
 
-LIST_TYPE ::= bo VALUE_TYPE bc
+TYPE_LIST ::= bo TYPE_VALUE bc
 ;
 
-TUPLE_TYPE ::= ro rc 
-			 | ro LVALUE_TYPE rc
+TYPE_TUPLE ::= ro rc 
+			 | ro LTYPE_VALUE rc
 ;
 
 // no higher order functions
-FUNC_TYPE ::= VALUE_TYPE arrow FUNC_TYPE
-		    | VALUE_TYPE arrow VALUE_TYPE
+TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
+		    | TYPE_VALUE arrow TYPE_VALUE
 ;
 
-LVALUE_TYPE ::= VALUE_TYPE
-			  | LVALUE_TYPE cm VALUE_TYPE
+LTYPE_VALUE ::= TYPE_VALUE
+			  | LTYPE_VALUE cm TYPE_VALUE
 ;
 
 

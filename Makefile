@@ -6,7 +6,7 @@ scanner:
 	jflex scanner.jflex
 	
 parser:
-	java java_cup.MainDrawTree -expect 1 parser.cup
+	java java_cup.MainDrawTree -expect 4 parser.cup
 	
 clean:
 
