@@ -1,15 +1,18 @@
 import java_cup.runtime.*;
+import java.util.LinkedList;
+import java.util.Stack;
+import java.io.IOException;
 
 %%
 
-%class scanner
+%class Scanner
 %unicode
 %line
 %column
 %cup
-%state DEDENTSEP // TODO check if it must be excluding
 
 %{
+	
 	private Symbol createSymbol(int id) {
 		return new Symbol(id, yyline+1, yycolumn+1);
 	}
@@ -18,11 +21,23 @@ import java_cup.runtime.*;
 		return new Symbol(id, yyline+1, yycolumn+1, value);
 	}
 	
-	private LinkedList<Symbol> tokenQueue = new LinkedList<>;
+	private LinkedList<Symbol> tokenQueue = new LinkedList<>();
 	
-	private Stack<Integer> indentStack = new Stack<>;
+	private Stack<Integer> indentStack = new Stack<>();
 	
-	private boolean computeDedent = false;
+	// boolean variable that prepares the lexer for scanning an indent
+	// the next time (i.e. after scanning a do, let, where, ...)
+	private boolean lookForIndent = true;
+	private boolean indentEnable = true;
+	private boolean dedentEnable = false;
+	private boolean endOfCode = false;
+	
+	public void report_error(String errorType) {
+		System.err.print("ERROR: Lexical error");
+		System.err.print("(" + errorType + ")");
+		System.err.print(" (line "+yyline+", column "+yycolumn+"): ");
+		System.err.println("on token" + yytext());
+	}
 	
 	/* Custom scanning method that aims to empty the Token Queue
 	 * before trying to find new tokens;
@@ -30,17 +45,18 @@ import java_cup.runtime.*;
 	 * or a Dedent must be scanned
 	 * Returns: the next Token for the Parser
 	 */
-	private Symbol next_token_custom(){
+	public Symbol next_token_custom() throws IOException{
 		// if the token Queue is not empty, extract its content
+		System.out.println("Scanning a token");
+		System.out.println("Current TokenQueue size: " + tokenQueue.size());
 		if (this.tokenQueue.size() > 0) {
 			return this.tokenQueue.remove();
 		}
 		/* if we need to scan either a dedent or a separator,
 		 * the scanner is prepared by entering the DEDENT state
 		 */
-		if (parser.getDedentEnable) {
-			yybegin(DEDENTSEP);
-		}
+		if (lookForIndent) 
+			indentEnable = true;
 		return this.next_token();
 	}
 	
@@ -49,34 +65,60 @@ import java_cup.runtime.*;
 	 * Args: symbols - the symbols to add to the queue
 	 * Returns: the first Token in the Token Queue
 	 */
-	private Symbol manageToken(Symbol... symbols) {
-		int indentColumn, dedentColumn;
-		if (parser.getIndentEnable()) {
-			indentColumn = yycolumn+1();
-			indentStack.push(indentColumn);
-			tokenQueue.add(createSymbol(sym.indent));
+	private Symbol manageToken(int... symbols) {
+		Integer indentColumn, dedentColumn, indentColumnTopLevel;
+		System.out.println ("Matched text: " + yytext());
+		System.out.println("Current value of indentEnable: " + indentEnable);
+		System.out.println("Current value of dedentEnable: " + dedentEnable);
+		if (indentEnable) {
+			indentColumn = yycolumn+1;
+			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
+				indentStack.push(indentColumn);
+				tokenQueue.add(createSymbol(sym.indent));
+				System.out.println("Indent added (column " + indentColumn + ")");
+			}
+			else {
+				report_error("Nested block not is indented further in than the enclosing expression");
+				tokenQueue.add(createSymbol(sym.error));
+			}
+			System.out.println("INDENT DISABLED");
+			indentEnable = false;
+			dedentEnable = false;
+			lookForIndent = false;
 		}
 		// scan either a dedent or a separator
-		if (computeDedent) {
-			dedentColumn = yycolumn()+1;
+		else if (dedentEnable && !endOfCode) {
+			dedentColumn = yycolumn+1;
+			System.out.println("CURRENT SIZE OF THE INDENT STACK: " + indentStack.size());
 			indentColumn = indentStack.peek();
-			if (indentColumn == dedentColumn) {
+			System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
+			if (indentColumn.equals(dedentColumn)) {
 				// the following statement is not outside of the block
 				// add only a Separator
+				System.out.println("SEPARATOR FOUND");
 				tokenQueue.add(createSymbol(sym.sep));
 			}
-			else (
+			else {
 				// pop the top element of the indent Stack (i.e. exit the block)
 				do {
+					System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
+					System.out.println("DEDENT FOUND");
 					indentColumn = indentStack.pop();
 					tokenQueue.add(createSymbol(sym.dedent));
 					if (!indentStack.empty())
 						indentColumn = indentStack.peek();
 				} while (indentColumn != dedentColumn && !indentStack.empty());
 			}	
-			computeDedent = false;
+			dedentEnable = false;
 		}
-		for (Symbol sym: symbols) {
+		// special dedent management in case of EOF
+		else if (endOfCode) {
+			while (!indentStack.empty()) {
+				indentColumn = indentStack.pop();
+				tokenQueue.add(createSymbol(sym.dedent));
+			}
+		}
+		for (int sym: symbols) {
 			tokenQueue.add(createSymbol(sym));
 		}
 		return this.tokenQueue.remove();
@@ -84,7 +126,10 @@ import java_cup.runtime.*;
 %}
 
 %eofval{
-	return this.manageToken(sym.dedent, sym.EOF);
+	System.out.println("EOFfound");
+	System.out.println("Current value of dedentEnable: " + dedentEnable);
+	endOfCode = true;
+	return this.manageToken(sym.EOF);
 %eofval}
 
 /* About Indent, Dedent
@@ -115,13 +160,9 @@ import java_cup.runtime.*;
  * - it is the beginning of the program,
  * The Dedent State is accessed if:
  * - we have completed a statement and we need to find either a Separator or a Dedent;
- *   it is up to the parser to declare when a statement is complete
- * A Separator (either a semicolon or a newline) is looked for when the Parser
- * needs it; the Parser needs to communicate its state to the Scanner to achieve
- * this behaviour, using two variables: indentEnable, dedentEnable
  */
 
-int = (0|[1-9][0-9]*) 					//unsigned int
+int = 0|[1-9][0-9]* 					//unsigned int
 rational = {int}\.[0-9]+				//unsigned rational
 expform = {rational}[eE]-?{int}
 double = {rational}|{expform}
@@ -138,7 +179,7 @@ ws = [ \t]
 ":"				{return manageToken(sym.cons);}
 "::"			{return manageToken(sym.clns);}
 ","				{return manageToken(sym.cm);}
-"|"				{return manageToken(sym.pipe);}
+//"|"				{return manageToken(sym.pipe);}
 "("				{return manageToken(sym.ro);}
 ")"				{return manageToken(sym.rc);}
 "["				{return manageToken(sym.bo);}
@@ -160,50 +201,41 @@ not				{return manageToken(sym.not);}
 "<="			{return manageToken(sym.relle);}
 "<"				{return manageToken(sym.rellt);}
 "++"			{return manageToken(sym.conc);}
-main			{return manageToken(sym.main);}
-do				{return manageToken(sym.do);}
-if				{return manageToken(sym.if);}
-then			{return manageToken(sym.then);}
-else			{return manageToken(sym.else);}
-let				{return manageToken(sym.let);}
-<<YYINITIAL> in	{return manageToken(sym.in);}
-where			{return manageToken(sym.where);}
-print			{return manageToken(sym.print);}
-Int				{return manageToken(sym.int_type);}
-Double			{return manageToken(sym.double_type);}
-Bool			{return manageToken(sym.bool_type);}
-Char			{return manageToken(sym.char_type);}
-String			{return manageToken(sym.string_type);}
-{int}			{return manageToken(sym.int);}
-{double}		{return manageToken(sym.double);}
-{bool}			{return manageToken(sym.bool);}
-{char}			{return manageToken(sym.char);}
-{string}		{return manageToken(sym.string);}
-{id}			{return manageToken(sym.id);}
-
-<YYINITIAL> {nl}{;}
-{ws}			{;}
-
-<DEDENTSEP> {
-	";"			//separator found, no dedent to check
-				{yybegin(YYINITIAL);
-				 return manageToken(sym.sep);}
-	{nl}		/* newline found, the scanner is made insensitive to 
-				 * other newlines or separators
-				 * However, no token has been found at this moment,
-				 * it is necessary to call the scanner again and return
-				 * the next symbol
-				 */
-				{yybegin(YYINITIAL);
-				 computeDedent = true;
-				 return next_token();}
-	in			{yybegin(YYINITIAL);
+";"				{return manageToken(sym.sep);}
+in				{dedentEnable = false;
+				 indentStack.pop();
 				 return manageToken(sym.dedent, sym.in);}
-}
+main			{return manageToken(sym.main);}
+do				{lookForIndent = true;
+				 return manageToken(sym.do_begin);}
+if				{return manageToken(sym.if_begin);}
+then			{dedentEnable = false;
+				 return manageToken(sym.then);}
+else			{dedentEnable = false;
+				 return manageToken(sym.else_begin);}
+let				{lookForIndent = true;
+				 return manageToken(sym.let);}
+/*where			{dedentEnable = false;
+				 lookForIndent = true;
+				 return manageToken(sym.where);}*/
+print			{return manageToken(sym.print);}
+Int				{return manageToken(sym.type_int);}
+Double			{return manageToken(sym.type_double);}
+Bool			{return manageToken(sym.type_bool);}
+Char			{return manageToken(sym.type_char);}
+String			{return manageToken(sym.type_string);}
+{int}			{return manageToken(sym.val_int);}
+{double}		{return manageToken(sym.val_double);}
+{bool}			{return manageToken(sym.val_bool);}
+{char}			{return manageToken(sym.val_char);}
+{string}		{return manageToken(sym.val_string);}
+{id}			{return manageToken(sym.id);}
+{ws}			{;}
+{nl}			{dedentEnable = true;}
 
 /* Single-line Comment */
-"--"~{nl}		{;}
+"--"~{nl}		{dedentEnable = true;}
 
 /* Lexical error */
-.				{System.err.println("Lexical error on: " + yytext());
+.				{report_error("Not recognized token");
 				 return this.manageToken(sym.error);}

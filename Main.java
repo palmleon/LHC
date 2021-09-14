@@ -1,14 +1,16 @@
 import java.io.*;
 
 public class Main {
+	
     static public void main(String argv[]) {    
         try {
             /* Scanner instantiation */
-            scanner l = new scanner(new FileReader(argv[0]));
+            Scanner scanner = new Scanner(new FileReader(argv[0]));
             /* Parser instantiation */
-            parser p = new parser(l);
+            Parser parser = new Parser(scanner);
+			parser.setOutputFileName(argv[1]);
             /* Run the parser */
-            Object result = p.parse();
+            Object result = parser.parse();
             
         } catch (Exception e) {
             e.printStackTrace();

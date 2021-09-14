@@ -3,26 +3,12 @@ import java.util.HashMap;
 
 parser code {:
 
-	/* Variables that enables indent, dedent and separators scanning */
-	private boolean indentEnable = false;
-	private boolean dedentEnable = false;
+	private String outputFileName;
 
-	public boolean isCorrect = true;
+	public boolean noCompileErrors = true;
 	
-	public boolean getIndentEnable(){
-		return this.indentEnable;
-	}
-	
-	public boolean getDedentEnable(){
-		return this.dedentEnable;
-	}
-	
-	public void setIndentEnable(boolean indentEnable){
-		this.indentEnable = indentEnable;
-	}
-	
-	public void setDedentEnable(boolean dedentEnable){
-		this.dedentEnable = dedentEnable;
+	public void setOutputFileName(String outputFileName) {
+		this.outputFileName = outputFileName;
 	}
 	
 	public void syntax_error(java_cup.runtime.Symbol current) {
@@ -31,11 +17,11 @@ parser code {:
 	
     public void report_error(Object info) {
         System.err.print("ERROR: Syntax error");
-		isCorrect = false;
+		noCompileErrors = false;
         if (info instanceof Symbol)
             if (((Symbol)info).left != -1){
-                int line = (((Symbol)info).left)+1;
-                int column = (((Symbol)info).right)+1;
+                int line = (((Symbol)info).left);
+                int column = (((Symbol)info).right);
                 System.err.print(" (line "+line+", column "+column+"): ");
             } else System.err.print(": ");
         else System.err.print(": ");
@@ -43,29 +29,40 @@ parser code {:
 	
 :};
 
-scan with {: return scanner.next_token_custom(); :};
-
 action code {:
 
 	// Symbol Table
 	public HashMap<String, Object> symTable = new HashMap<>();
 	
-	
 :};
+
+/* Because of a bug in Java Cup, the scan with method does not substitute the default call to next_token, as expected
+ * Instead, the user code is just inserted before the aforementioned call, preventing the user from customizing 
+ * the scanning method (an "Unreachable statement" compiler error arises). 
+ * For this reason, it is necessary to manually force the user code execution and to avoid this compiler error.
+ * This is the reason behind the fake conditional statement below
+ */
+scan with {:   if (true) {
+					Scanner scanner = (Scanner) this.getScanner();
+					Symbol s = scanner.next_token_custom(); 
+					Tree.push(s.toString(), 0);
+					return s;
+				}	:}
 
 /////////////////////////////////
 ///	TERMINALS (lowercase)     ///
 /////////////////////////////////
 
 terminal main;
-terminal eq, clns, cm, pipe, ro, rc, bo, bc, us, arrow, sep;
+terminal eq, clns, cm, ro, rc, bo, bc, us, arrow, sep;
 terminal plus, minus, times, div, mod, exp, uminus, and, or, not;
 terminal releq, relge, relgt, relle, rellt;
 terminal conc, cons;
 terminal indent, dedent;
-terminal do, if, then, else, let, in, where, print;
-terminal int, double, bool, char, string;
-terminal int_type, double_type, bool_type, char_type, string_type;
+//terminal where, pipe;
+terminal do_begin, if_begin, then, else_begin, let, in, print;
+terminal val_int, val_double, val_bool, val_char, val_string;
+terminal type_int, type_double, type_bool, type_char, type_string;
 terminal id;
 
 /////////////////////////////////
@@ -75,12 +72,12 @@ terminal id;
 non terminal PROGRAM;
 non terminal FUNCT_PART, IMPER_PART;
 non terminal IO_ACTIONS, IO_ACTION;
-non terminal PRINT, IF_IMPER;
+non terminal PRINT;
 non terminal COND, EXPR, EXPR_NOTUNARYOP, LEXPR;
 non terminal ACTARG, LACTARG;
-non terminal WHERE, GUARDS, GUARD;
-non terminal LET_STMTS, WHERE_STMTS;
-non terminal DECL_TYPE, DECL_VALUE, DECL_FUNCT;
+//non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
+non terminal LET_STMTS;
+non terminal DECL, DECL_TYPE, DECL_VALUE, DECL_FUNCT;
 non terminal TYPE;
 non terminal TYPE_VALUE, TYPE_FUNC;
 non terminal TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
@@ -97,7 +94,8 @@ non terminal LFORMARG;
 
 precedence left conc;
 precedence right cons;
-precedence left and, or;
+precedence left or;
+precedence left and;
 precedence nonassoc releq, relgt, relge, rellt, relle;
 precedence left plus, minus;
 precedence left times, div;
@@ -111,51 +109,47 @@ start with PROGRAM;
 ///	PRODUCTION RULES          ///
 /////////////////////////////////
 
-PROGRAM ::= /* empty program */ 
-		  | indent FUNCT_PART IMPER_PART dedent
+PROGRAM ::= /* empty program */
+		  | indent FUNCT_PART IMPER_PART dedent {:
+											if (noCompileErrors) {
+												System.out.println("CODE COMPILED SUCCESSFULLY");
+											}	:}
 ;
 
-IMPER_PART ::= main eq IO_ACTION 
+IMPER_PART ::= main eq IO_ACTION {: System.out.println("Reduce: Imperative Part"); :}
 ;
 
-IO_ACTION ::= PRINT
-            | do indent IO_ACTIONS dedent
-			| IF_IMPER
+IO_ACTION ::= PRINT {: System.out.println("Reduce: IO_ACTION"); :}
+            | do_begin indent IO_ACTIONS dedent
+			| let indent LET_STMTS dedent IO_ACTIONS
+			| if_begin COND then IO_ACTION else_begin IO_ACTION
 ;
 
 // TODO: check alignment (all io_actions are aligned to the first one)
 IO_ACTIONS ::= IO_ACTION
 			 | IO_ACTIONS sep IO_ACTION
-			 | let indent LET_STMTS dedent IO_ACTIONS
 ;
 
-IF_IMPER ::= if COND then IO_ACTION else IO_ACTION
-;
-
-PRINT ::= print ACTARG
+PRINT ::= print ACTARG {: System.out.println("Reduce: PRINT"); :}
 ;
 
 // TODO: check the alignment
-LET_STMTS ::= LET_STMTS sep DECL_TYPE
-            | LET_STMTS sep DECL_VALUE
-		    | LET_STMTS sep DECL_FUNCT
-			| DECL_TYPE
-			| DECL_VALUE
-			| DECL_FUNCT
+LET_STMTS ::= LET_STMTS sep DECL 
+			| DECL 
 ;
  
 FUNCT_PART ::= /* empty Functional section */
-			 | FUNCT_PART DECL_TYPE sep
-		     | FUNCT_PART DECL_VALUE sep
-		     | FUNCT_PART DECL_FUNCT sep
-			 | DECL_TYPE sep
-			 | DECL_VALUE sep
-			 | DECL_FUNCT sep
+			 | FUNCT_PART DECL sep 			 
+			 | DECL sep 
 ;
 
 /* special expression management for boolean conditions */
 COND ::= EXPR 
 ;
+
+DECL ::= DECL_TYPE
+	   | DECL_VALUE
+	   | DECL_FUNCT;
 
 DECL_TYPE ::= id cm DECL_TYPE
 			| id clns TYPE
@@ -166,28 +160,23 @@ DECL_VALUE ::= PATTERN eq EXPR
 ;
 
 /* no nullary functions */
-DECL_FUNCT ::= id LFORMARG eq EXPR WHERE
-			 | id LFORMARG GUARDS WHERE
+DECL_FUNCT ::= id LFORMARG eq EXPR //WHERE
 ;
 
-GUARDS ::= GUARDS GUARD
+/* GUARDS ::= GUARDS sep GUARD
          | GUARD
 ;
 
 GUARD ::= pipe COND eq EXPR
-;
+; */
 
-WHERE ::= /* no where section */
+/* WHERE ::= // no where section 
         | where indent WHERE_STMTS dedent
-;
+; */
 		
-WHERE_STMTS ::= WHERE_STMTS sep DECL_TYPE
-              | WHERE_STMTS sep DECL_VALUE
-			  | WHERE_STMTS sep DECL_FUNCT
-			  | DECL_TYPE 
-			  | DECL_VALUE 
-			  | DECL_FUNCT 
-;
+/* WHERE_STMTS ::= WHERE_STMTS sep DECL 
+			  | DECL
+;*/
 
 LFORMARG ::= LFORMARG PATTERN
 		   | PATTERN
@@ -229,7 +218,7 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | not EXPR   
 	   | minus EXPR 		%prec uminus 
 	   | let indent LET_STMTS dedent in EXPR
-	   | if COND then EXPR else EXPR
+	   | if_begin COND then EXPR else_begin EXPR
 	   | id LACTARG 
 	   | VALUE
 ;
@@ -251,7 +240,7 @@ EXPR_NOTUNARYOP ::= EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
 	   | ro EXPR rc
 	   | let indent LET_STMTS dedent in EXPR
-	   | if COND then EXPR else EXPR
+	   | if_begin COND then EXPR else_begin EXPR
 	   | id LACTARG 
 	   | VALUE
 ;
@@ -261,11 +250,11 @@ VALUE ::= VALUE_BASIC
 		| VALUE_TUPLE
 ;
 
-VALUE_BASIC ::= int
-			  | double
-			  | bool
-			  | char
-			  | string
+VALUE_BASIC ::= val_int
+			  | val_double
+			  | val_bool
+			  | val_char
+			  | val_string
 ;
 
 VALUE_LIST ::= bo LEXPR bc
@@ -301,11 +290,11 @@ TYPE_VALUE ::= TYPE_TUPLE
 			 | TYPE_BASIC
 ;
 
-TYPE_BASIC ::= int_type
-			 | double_type
-			 | bool_type
-			 | char_type
-			 | string_type
+TYPE_BASIC ::= type_int
+			 | type_double
+			 | type_bool
+			 | type_char
+			 | type_string
 ;
 
 TYPE_LIST ::= bo TYPE_VALUE bc
