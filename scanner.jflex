@@ -47,8 +47,8 @@ import java.io.IOException;
 	 */
 	public Symbol next_token_custom() throws IOException{
 		// if the token Queue is not empty, extract its content
-		System.out.println("Scanning a token");
-		System.out.println("Current TokenQueue size: " + tokenQueue.size());
+		//System.out.println("Scanning a token");
+		//System.out.println("Current TokenQueue size: " + tokenQueue.size());
 		if (this.tokenQueue.size() > 0) {
 			return this.tokenQueue.remove();
 		}
@@ -67,9 +67,9 @@ import java.io.IOException;
 	 */
 	private Symbol manageToken(int... symbols) {
 		Integer indentColumn, dedentColumn, indentColumnTopLevel;
-		System.out.println ("Matched text: " + yytext());
-		System.out.println("Current value of indentEnable: " + indentEnable);
-		System.out.println("Current value of dedentEnable: " + dedentEnable);
+		//System.out.println ("Matched text: " + yytext());
+		//System.out.println("Current value of indentEnable: " + indentEnable);
+		//System.out.println("Current value of dedentEnable: " + dedentEnable);
 		if (indentEnable) {
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
@@ -78,10 +78,10 @@ import java.io.IOException;
 				System.out.println("Indent added (column " + indentColumn + ")");
 			}
 			else {
-				report_error("Nested block not is indented further in than the enclosing expression");
+				report_error("Nested block is not indented further in than the enclosing expression");
 				tokenQueue.add(createSymbol(sym.error));
 			}
-			System.out.println("INDENT DISABLED");
+			//System.out.println("INDENT DISABLED");
 			indentEnable = false;
 			dedentEnable = false;
 			lookForIndent = false;
@@ -89,20 +89,20 @@ import java.io.IOException;
 		// scan either a dedent or a separator
 		else if (dedentEnable && !endOfCode) {
 			dedentColumn = yycolumn+1;
-			System.out.println("CURRENT SIZE OF THE INDENT STACK: " + indentStack.size());
+			//System.out.println("CURRENT SIZE OF THE INDENT STACK: " + indentStack.size());
 			indentColumn = indentStack.peek();
-			System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
+			//System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
 			if (indentColumn.equals(dedentColumn)) {
 				// the following statement is not outside of the block
 				// add only a Separator
-				System.out.println("SEPARATOR FOUND");
+				//System.out.println("SEPARATOR FOUND");
 				tokenQueue.add(createSymbol(sym.sep));
 			}
 			else {
 				// pop the top element of the indent Stack (i.e. exit the block)
 				do {
-					System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
-					System.out.println("DEDENT FOUND");
+					/*System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
+					System.out.println("DEDENT FOUND");*/
 					indentColumn = indentStack.pop();
 					tokenQueue.add(createSymbol(sym.dedent));
 					if (!indentStack.empty())
@@ -126,8 +126,8 @@ import java.io.IOException;
 %}
 
 %eofval{
-	System.out.println("EOFfound");
-	System.out.println("Current value of dedentEnable: " + dedentEnable);
+	/*System.out.println("EOFfound");
+	System.out.println("Current value of dedentEnable: " + dedentEnable);*/
 	endOfCode = true;
 	return this.manageToken(sym.EOF);
 %eofval}

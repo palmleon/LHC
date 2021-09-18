@@ -116,10 +116,10 @@ PROGRAM ::= /* empty program */
 											}	:}
 ;
 
-IMPER_PART ::= main eq IO_ACTION {: System.out.println("Reduce: Imperative Part"); :}
+IMPER_PART ::= main eq IO_ACTION
 ;
 
-IO_ACTION ::= PRINT {: System.out.println("Reduce: IO_ACTION"); :}
+IO_ACTION ::= PRINT
             | do_begin indent IO_ACTIONS dedent
 			| let indent LET_STMTS dedent IO_ACTIONS
 			| if_begin COND then IO_ACTION else_begin IO_ACTION
@@ -130,7 +130,7 @@ IO_ACTIONS ::= IO_ACTION
 			 | IO_ACTIONS sep IO_ACTION
 ;
 
-PRINT ::= print ACTARG {: System.out.println("Reduce: PRINT"); :}
+PRINT ::= print ACTARG
 ;
 
 // TODO: check the alignment
