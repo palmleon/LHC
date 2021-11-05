@@ -10,7 +10,7 @@ scanner:
 	
 	
 parser:
-	java java_cup.MainDrawTree -parser Parser -expect 4 parser.cup
+	java java_cup.MainDrawTree -parser Parser -expect 1 parser.cup
 	
 clean:
 
@@ -21,9 +21,7 @@ clean:
 build:
 	java Main $(FILE).hs $(FILE).ll
 	
-run:
+run: build
 	lli $(FILE).ll 
-	
-buildrun: build run
 	
 

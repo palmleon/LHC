@@ -1,5 +1,8 @@
 import java_cup.runtime.*;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Stack;
 
 parser code {:
 
@@ -31,27 +34,53 @@ parser code {:
 
 action code {:
 
+	boolean debug_mode = true; // only to print debug information
+
+	private class SymTableEntry {
+		// type of the value/function
+		TypeTree tree;
+		// flag for the Assignment Uniqueness Check
+		boolean alreadyAssigned = false;
+		/*
+		// corresponding name in the intermediate representation
+		String llvm;
+		*/
+		// for functions only: list of all the patterns defined 
+		LinkedList<ArrayList<PatternTree>> patternList; 
+	}
+	
+	private class TypeTree {
+		
+	}
+	
+	private class PatternTree {
+		
+	}
+
 	// Symbol Table
-	public HashMap<String, Object> symTable = new HashMap<>();
+	private HashMap<String, SymTableEntry> currentSymTable;
+
+	// Symbol Table Stack
+	private Stack<HashMap<String, SymTableEntry>> symTableStack = new Stack<>();
 	
 :};
 
-/* Because of a bug in Java Cup, the scan with method does not substitute the default call to next_token, as expected
+/* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token, as expected.
  * Instead, the user code is just inserted before the aforementioned call, preventing the user from customizing 
  * the scanning method (an "Unreachable statement" compiler error arises). 
- * For this reason, it is necessary to manually force the user code execution and to avoid this compiler error.
+ * For this reason, it is necessary to manually force the user code execution
  * This is the reason behind the fake conditional statement below
  */
 scan with {:   if (true) {
 					Scanner scanner = (Scanner) this.getScanner();
 					Symbol s = scanner.next_token_custom(); 
-					Tree.push(s.toString(), 0);
+					Tree.push(s.toString(), 0); // necessary to build the graphical Parsing Tree
 					return s;
 				}	:}
 
-/////////////////////////////////
-///	TERMINALS (lowercase)     ///
-/////////////////////////////////
+/// ///////////////////////// ///
+///	  TERMINALS (lowercase)   ///
+/// ///////////////////////// ///
 
 terminal main;
 terminal eq, clns, cm, ro, rc, bo, bc, us, arrow, sep;
@@ -65,15 +94,16 @@ terminal val_int, val_double, val_bool, val_char, val_string;
 terminal type_int, type_double, type_bool, type_char, type_string;
 terminal id;
 
-/////////////////////////////////
+/// ///////////////////////// ///
 ///	NON TERMINALS (uppercase) ///
-/////////////////////////////////
+/// ///////////////////////// ///
 
 non terminal PROGRAM;
 non terminal FUNCT_PART, IMPER_PART;
 non terminal IO_ACTIONS, IO_ACTION;
 non terminal PRINT;
-non terminal COND, EXPR, EXPR_NOTUNARYOP, LEXPR;
+non terminal COND, EXPR, EXPR_NOTUNARYOP;
+non terminal LEXPR, TEXPR;
 non terminal ACTARG, LACTARG;
 //non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
 non terminal LET_STMTS;
@@ -83,14 +113,14 @@ non terminal TYPE_VALUE, TYPE_FUNC;
 non terminal TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
 non terminal VALUE;
 non terminal VALUE_LIST, VALUE_TUPLE, VALUE_BASIC;
-non terminal LTYPE_VALUE;
-non terminal PATTERN, LPATTERN;
+non terminal TTYPE_VALUE;
+non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
 non terminal PATTERN_LIST, PATTERN_TUPLE;
 non terminal LFORMARG;
 
-/////////////////////////////////
-/// PRECEDENCE RULES		  ///
-/////////////////////////////////
+/// ///////////////////////// ///
+///    PRECEDENCE RULES		  ///
+/// ///////////////////////// ///
 
 precedence left conc;
 precedence right cons;
@@ -101,31 +131,56 @@ precedence left plus, minus;
 precedence left times, div;
 precedence right exp;
 precedence nonassoc not, uminus;
-//mod, not, uminus
 
 start with PROGRAM;
 
-/////////////////////////////////
-///	PRODUCTION RULES          ///
-/////////////////////////////////
-
-PROGRAM ::= /* empty program */
-		  | indent FUNCT_PART IMPER_PART dedent {:
-											if (noCompileErrors) {
-												System.out.println("CODE COMPILED SUCCESSFULLY");
-											}	:}
+/// ///////////////////////// ///
+///	   PRODUCTION RULES       ///
+/// ///////////////////////// ///
+ 
+PROGRAM ::= /* empty program */ 
+			{:
+				if (noCompileErrors) {
+				System.out.println("CODE COMPILED SUCCESSFULLY");
+				}
+			:}
+		  | {:	// push the top-level symtable
+				currentSymTable = new HashMap<String, SymTableEntry>();
+				symTableStack.push(currentSymTable);
+				if (debug_mode) System.out.println("DEBUG: Top-level Symtable pushed");
+			:}
+			indent FUNCT_PART IMPER_PART {:
+					symTableStack.pop();
+					if (debug_mode) System.out.println("DEBUG: Top-level Symtable popped");
+				:}
+			dedent {:  // pop the top-level symtable
+					if (noCompileErrors) {
+						System.out.println("CODE COMPILED SUCCESSFULLY");
+					}	
+				:}
 ;
 
-IMPER_PART ::= main eq IO_ACTION
+/// ////////////////// ///
+///  IMPERATIVE PART   ///
+/// ////////////////// ///
+
+IMPER_PART ::= main eq indent IO_ACTION dedent
 ;
 
 IO_ACTION ::= PRINT
             | do_begin indent IO_ACTIONS dedent
-			| let indent LET_STMTS dedent IO_ACTIONS
+			| let {:
+					currentSymTable = new HashMap<String, SymTableEntry>();
+					symTableStack.push(currentSymTable);
+					if (debug_mode) System.out.println("DEBUG: Sequential Part - Symtable pushed");
+				:}
+			  indent LET_STMTS dedent IO_ACTION {:
+					symTableStack.pop();
+					if (debug_mode) System.out.println("DEBUG: Sequential Part - Symtable popped");
+				:}
 			| if_begin COND then IO_ACTION else_begin IO_ACTION
 ;
 
-// TODO: check alignment (all io_actions are aligned to the first one)
 IO_ACTIONS ::= IO_ACTION
 			 | IO_ACTIONS sep IO_ACTION
 ;
@@ -133,19 +188,26 @@ IO_ACTIONS ::= IO_ACTION
 PRINT ::= print ACTARG
 ;
 
-// TODO: check the alignment
-LET_STMTS ::= LET_STMTS sep DECL 
-			| DECL 
+// DECL_FUNCT not supported (for now)
+LET_STMTS ::= LET_STMTS sep DECL_TYPE
+			| LET_STMTS sep DECL_VALUE
+			| DECL_TYPE
+			| DECL_VALUE
 ;
+
+/// ////////////////// ///
+///  FUNCTIONAL PART   ///
+/// ////////////////// ///
  
 FUNCT_PART ::= /* empty Functional section */
-			 | FUNCT_PART DECL sep 			 
-			 | DECL sep 
+			 | FUNCT_PART DECL sep
 ;
 
 /* special expression management for boolean conditions */
 COND ::= EXPR 
 ;
+
+///  DECLARATIONS  ///
 
 DECL ::= DECL_TYPE
 	   | DECL_VALUE
@@ -178,26 +240,37 @@ GUARD ::= pipe COND eq EXPR
 			  | DECL
 ;*/
 
+///  PATTERN MATCHING   ///
+
 LFORMARG ::= LFORMARG PATTERN
 		   | PATTERN
 ;
 
-PATTERN ::= ro PATTERN_LIST rc
-		  | ro PATTERN_TUPLE rc
-		  | ro PATTERN rc
+PATTERN ::= PATTERN_LIST
+		  | PATTERN_TUPLE
+		  | VALUE_BASIC
 		  | us
 		  | id
 ;
 
-PATTERN_LIST ::= PATTERN cons PATTERN
+PATTERN_LIST ::= ro PATTERN cons LPATTERN_CONS rc
+			   | bo LPATTERN_CM bc
+			   | bo bc
 ;
 
-PATTERN_TUPLE ::= LPATTERN
+LPATTERN_CONS ::= PATTERN
+				| PATTERN cons LPATTERN_CONS
 ;
 
-LPATTERN ::= PATTERN cm PATTERN
-		   | LPATTERN cm PATTERN
+PATTERN_TUPLE ::= ro PATTERN cm LPATTERN_CM rc
+				| ro rc
 ;
+
+LPATTERN_CM ::= PATTERN
+			  | PATTERN cm LPATTERN_CM
+;
+
+///   EXPRESSIONS   ///
 
 EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | EXPR minus EXPR_NOTUNARYOP
@@ -223,7 +296,8 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | VALUE
 ;
 
-EXPR_NOTUNARYOP ::= EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
+EXPR_NOTUNARYOP ::= 
+		 EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP minus EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP times EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP div EXPR_NOTUNARYOP
@@ -245,6 +319,20 @@ EXPR_NOTUNARYOP ::= EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
 	   | VALUE
 ;
 
+///    args for function call   ///
+
+ACTARG ::= id 
+         | VALUE
+		 | ro EXPR rc
+;
+
+// list of input arguments for function call
+LACTARG ::= /* empty list of args: we call a variable */
+		  | LACTARG ACTARG
+;
+
+///   VALUES   ///
+
 VALUE ::= VALUE_BASIC
 		| VALUE_LIST
 		| VALUE_TUPLE
@@ -258,33 +346,27 @@ VALUE_BASIC ::= val_int
 ;
 
 VALUE_LIST ::= bo LEXPR bc
-			 | bo EXPR bc
 			 | bo bc
 ;
 
-VALUE_TUPLE ::= ro LEXPR rc 
+VALUE_TUPLE ::= ro TEXPR rc 
 			  | ro rc
 ;
 
-LEXPR ::= EXPR cm EXPR
-		 | LEXPR cm EXPR
+LEXPR ::= EXPR
+		| LEXPR cm EXPR
 ;
 
-ACTARG ::= id 
-         | VALUE
-		 | ro EXPR rc
+TEXPR ::= EXPR cm EXPR
+		| TEXPR cm EXPR
 ;
+///   TYPES   ///
 
-// list of input arguments for function call
-LACTARG ::= /* empty list of args: we call a variable */
-		  | LACTARG ACTARG
-;
-
-// both basic types and compound
 TYPE ::= TYPE_VALUE
 	   | TYPE_FUNC
 ;
 
+// both basic types and compound
 TYPE_VALUE ::= TYPE_TUPLE
 			 | TYPE_LIST
 			 | TYPE_BASIC
@@ -301,7 +383,7 @@ TYPE_LIST ::= bo TYPE_VALUE bc
 ;
 
 TYPE_TUPLE ::= ro rc 
-			 | ro LTYPE_VALUE rc
+			 | ro TTYPE_VALUE rc
 ;
 
 // no higher order functions
@@ -309,8 +391,8 @@ TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
 		    | TYPE_VALUE arrow TYPE_VALUE
 ;
 
-LTYPE_VALUE ::= TYPE_VALUE
-			  | LTYPE_VALUE cm TYPE_VALUE
+TTYPE_VALUE ::= TYPE_VALUE
+			  | TTYPE_VALUE cm TYPE_VALUE
 ;
 
 

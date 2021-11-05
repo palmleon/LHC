@@ -25,17 +25,21 @@ import java.io.IOException;
 	
 	private Stack<Integer> indentStack = new Stack<>();
 	
-	// boolean variable that prepares the lexer for scanning an indent
-	// the next time (i.e. after scanning a do, let, where, ...)
-	private boolean lookForIndent = true;
+	/* Boolean variable that prepares the lexer for scanning an indent
+	 * the next time (i.e. after scanning a do, let, where, ...)
+	 */
+	private boolean indentEnableNextToken = true;
 	private boolean indentEnable = true;
 	private boolean dedentEnable = false;
+	private boolean mainDetected = false;
 	private boolean endOfCode = false;
+	
+	private boolean debugMode = true;
 	
 	public void report_error(String errorType) {
 		System.err.print("ERROR: Lexical error");
 		System.err.print("(" + errorType + ")");
-		System.err.print(" (line "+yyline+", column "+yycolumn+"): ");
+		System.err.print(" (line " + yyline + ", column " + yycolumn + "): ");
 		System.err.println("on token" + yytext());
 	}
 	
@@ -55,8 +59,9 @@ import java.io.IOException;
 		/* if we need to scan either a dedent or a separator,
 		 * the scanner is prepared by entering the DEDENT state
 		 */
-		if (lookForIndent) 
+		if (indentEnableNextToken) 
 			indentEnable = true;
+			indentEnableNextToken = false;
 		return this.next_token();
 	}
 	
@@ -74,8 +79,9 @@ import java.io.IOException;
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
 				indentStack.push(indentColumn);
+				if (debugMode) System.out.println("SCANNER DEBUG: indent pushed at " + indentColumn);
 				tokenQueue.add(createSymbol(sym.indent));
-				System.out.println("Indent added (column " + indentColumn + ")");
+				//System.out.println("Indent added (column " + indentColumn + ")");
 			}
 			else {
 				report_error("Nested block is not indented further in than the enclosing expression");
@@ -84,7 +90,6 @@ import java.io.IOException;
 			//System.out.println("INDENT DISABLED");
 			indentEnable = false;
 			dedentEnable = false;
-			lookForIndent = false;
 		}
 		// scan either a dedent or a separator
 		else if (dedentEnable && !endOfCode) {
@@ -104,6 +109,7 @@ import java.io.IOException;
 					/*System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
 					System.out.println("DEDENT FOUND");*/
 					indentColumn = indentStack.pop();
+					if (debugMode) System.out.println("SCANNER DEBUG: indent popped at " + indentColumn);
 					tokenQueue.add(createSymbol(sym.dedent));
 					if (!indentStack.empty())
 						indentColumn = indentStack.peek();
@@ -175,11 +181,14 @@ ws = [ \t]
 
 %%
 
-"="				{return manageToken(sym.eq);}
+"="				{if (mainDetected) 
+					{ indentEnableNextToken = true;
+					  mainDetected = false; }
+				 return manageToken(sym.eq);}
 ":"				{return manageToken(sym.cons);}
 "::"			{return manageToken(sym.clns);}
 ","				{return manageToken(sym.cm);}
-//"|"				{return manageToken(sym.pipe);}
+//"|"			{return manageToken(sym.pipe);}
 "("				{return manageToken(sym.ro);}
 ")"				{return manageToken(sym.rc);}
 "["				{return manageToken(sym.bo);}
@@ -191,7 +200,7 @@ ws = [ \t]
 "*"				{return manageToken(sym.times);}
 "/"				{return manageToken(sym.div);}
 mod				{return manageToken(sym.mod);}
-"^"				{return manageToken(sym.exp);}
+"**"			{return manageToken(sym.exp);}
 "&&"			{return manageToken(sym.and);}
 "||"			{return manageToken(sym.or);}
 not				{return manageToken(sym.not);}
@@ -205,18 +214,19 @@ not				{return manageToken(sym.not);}
 in				{dedentEnable = false;
 				 indentStack.pop();
 				 return manageToken(sym.dedent, sym.in);}
-main			{return manageToken(sym.main);}
-do				{lookForIndent = true;
+main			{mainDetected = true;
+				 return manageToken(sym.main);}
+do				{indentEnableNextToken = true;
 				 return manageToken(sym.do_begin);}
 if				{return manageToken(sym.if_begin);}
 then			{dedentEnable = false;
 				 return manageToken(sym.then);}
 else			{dedentEnable = false;
 				 return manageToken(sym.else_begin);}
-let				{lookForIndent = true;
+let				{indentEnableNextToken = true;
 				 return manageToken(sym.let);}
 /*where			{dedentEnable = false;
-				 lookForIndent = true;
+				 indentEnableNextToken = true;
 				 return manageToken(sym.where);}*/
 print			{return manageToken(sym.print);}
 Int				{return manageToken(sym.type_int);}
