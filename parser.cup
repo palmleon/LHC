@@ -57,7 +57,6 @@ action code {:
 		
 	}
 	
-	private HashMap<String, SymTableEntry> patternSymTable;
 	//private ArrayList<PatternTree> patternArray;
 
 	// Symbol Table Stack
@@ -222,17 +221,12 @@ DECL_VALUE ::= PATTERN eq EXPR
 ;
 
 /* no nullary functions */
-DECL_FUNCT ::= id {:
-					// create symTable 
-					patternSymTable = new HashMap<>();
-					if (debug_mode) System.out.println("DEBUG: Function Declaration - Pattern Symtable created");
-				:}
-			   LFORMARG eq {: 
+DECL_FUNCT ::= id {: 
 					HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
-					// TODO popolate the symTable with elemets from patternSymTable
 					symTableStack.push(currentSymTable);
 					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable pushed");
 			   :}
+			   LFORMARG eq 
 			   EXPR {:
 					symTableStack.pop();
 					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable popped");

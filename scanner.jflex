@@ -121,6 +121,7 @@ import java.io.IOException;
 		else if (endOfCode) {
 			while (!indentStack.empty()) {
 				indentColumn = indentStack.pop();
+				if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
 				tokenQueue.add(createSymbol(sym.dedent));
 			}
 		}
@@ -212,7 +213,8 @@ not				{return manageToken(sym.not);}
 "++"			{return manageToken(sym.conc);}
 ";"				{return manageToken(sym.sep);}
 in				{dedentEnable = false;
-				 indentStack.pop();
+				 Integer indentColumn = indentStack.pop();
+				 if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
 				 return manageToken(sym.dedent, sym.in);}
 main			{mainDetected = true;
 				 return manageToken(sym.main);}
