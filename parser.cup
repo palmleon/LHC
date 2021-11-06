@@ -41,7 +41,7 @@ action code {:
 		TypeTree tree;
 		// flag for the Assignment Uniqueness Check
 		boolean alreadyAssigned = false;
-		/*
+		/* TODO uncomment when generating intermediate representation
 		// corresponding name in the intermediate representation
 		String llvm;
 		*/
@@ -56,9 +56,9 @@ action code {:
 	private class PatternTree {
 		
 	}
-
-	// Symbol Table
-	private HashMap<String, SymTableEntry> currentSymTable;
+	
+	private HashMap<String, SymTableEntry> patternSymTable;
+	//private ArrayList<PatternTree> patternArray;
 
 	// Symbol Table Stack
 	private Stack<HashMap<String, SymTableEntry>> symTableStack = new Stack<>();
@@ -145,7 +145,7 @@ PROGRAM ::= /* empty program */
 				}
 			:}
 		  | {:	// push the top-level symtable
-				currentSymTable = new HashMap<String, SymTableEntry>();
+				HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
 				symTableStack.push(currentSymTable);
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable pushed");
 			:}
@@ -170,13 +170,13 @@ IMPER_PART ::= main eq indent IO_ACTION dedent
 IO_ACTION ::= PRINT
             | do_begin indent IO_ACTIONS dedent
 			| let {:
-					currentSymTable = new HashMap<String, SymTableEntry>();
+					HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
 					symTableStack.push(currentSymTable);
-					if (debug_mode) System.out.println("DEBUG: Sequential Part - Symtable pushed");
+					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
 				:}
 			  indent LET_STMTS dedent IO_ACTION {:
 					symTableStack.pop();
-					if (debug_mode) System.out.println("DEBUG: Sequential Part - Symtable popped");
+					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 				:}
 			| if_begin COND then IO_ACTION else_begin IO_ACTION
 ;
@@ -222,21 +222,36 @@ DECL_VALUE ::= PATTERN eq EXPR
 ;
 
 /* no nullary functions */
-DECL_FUNCT ::= id LFORMARG eq EXPR //WHERE
+DECL_FUNCT ::= id {:
+					// create symTable 
+					patternSymTable = new HashMap<>();
+					if (debug_mode) System.out.println("DEBUG: Function Declaration - Pattern Symtable created");
+				:}
+			   LFORMARG eq {: 
+					HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
+					// TODO popolate the symTable with elemets from patternSymTable
+					symTableStack.push(currentSymTable);
+					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable pushed");
+			   :}
+			   EXPR {:
+					symTableStack.pop();
+					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable popped");
+			   :}  
+			    //WHERE
 ;
 
 /* GUARDS ::= GUARDS sep GUARD
          | GUARD
 ;
 
-GUARD ::= pipe COND eq EXPR
+   GUARD ::= pipe COND eq EXPR
 ; */
 
 /* WHERE ::= // no where section 
         | where indent WHERE_STMTS dedent
-; */
-		
-/* WHERE_STMTS ::= WHERE_STMTS sep DECL 
+; 
+
+   WHERE_STMTS ::= WHERE_STMTS sep DECL 
 			  | DECL
 ;*/
 
@@ -290,7 +305,15 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | ro EXPR rc
 	   | not EXPR   
 	   | minus EXPR 		%prec uminus 
-	   | let indent LET_STMTS dedent in EXPR
+	   | let	{:
+			HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
+			symTableStack.push(currentSymTable);
+			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
+		 :} 
+		 indent LET_STMTS dedent in EXPR {:
+			symTableStack.pop();
+			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
+		 :}
 	   | if_begin COND then EXPR else_begin EXPR
 	   | id LACTARG 
 	   | VALUE
@@ -313,7 +336,15 @@ EXPR_NOTUNARYOP ::=
 	   | EXPR_NOTUNARYOP cons EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
 	   | ro EXPR rc
-	   | let indent LET_STMTS dedent in EXPR
+	   | let {:
+			HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
+			symTableStack.push(currentSymTable);
+			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
+		 :} 
+		 indent LET_STMTS dedent in EXPR {:
+			symTableStack.pop();
+			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
+		 :}
 	   | if_begin COND then EXPR else_begin EXPR
 	   | id LACTARG 
 	   | VALUE

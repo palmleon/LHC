@@ -79,7 +79,7 @@ import java.io.IOException;
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
 				indentStack.push(indentColumn);
-				if (debugMode) System.out.println("SCANNER DEBUG: indent pushed at " + indentColumn);
+				if (debugMode) System.out.println("SCANNER DEBUG: indent at " + indentColumn);
 				tokenQueue.add(createSymbol(sym.indent));
 				//System.out.println("Indent added (column " + indentColumn + ")");
 			}
@@ -109,7 +109,7 @@ import java.io.IOException;
 					/*System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
 					System.out.println("DEDENT FOUND");*/
 					indentColumn = indentStack.pop();
-					if (debugMode) System.out.println("SCANNER DEBUG: indent popped at " + indentColumn);
+					if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
 					tokenQueue.add(createSymbol(sym.dedent));
 					if (!indentStack.empty())
 						indentColumn = indentStack.peek();
