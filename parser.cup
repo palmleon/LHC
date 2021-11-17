@@ -35,36 +35,59 @@ parser code {:
 action code {:
 
 	boolean debug_mode = true; // only to print debug information
-
-	private class SymTableEntry {
-		// type of the value/function
-		TypeTree tree;
-		// flag for the Assignment Uniqueness Check
-		boolean alreadyAssigned = false;
-		/* TODO uncomment when generating intermediate representation
-		// corresponding name in the intermediate representation
-		String llvm;
-		*/
-		// for functions only: list of all the patterns defined 
-		LinkedList<ArrayList<PatternTree>> patternList; 
-	}
 	
 	private class TypeTree {
 		
 	}
 	
-	private class PatternTree {
+	//private ArrayList<PatternTree> patternArray;
+	
+	private static class SymTableStack {
+		
+		// Class for Symbol Table Entry
+		private static class SymTableEntry {
+			// type of the value/function
+			TypeTree tree;
+			// flag for the Assignment Uniqueness Check
+			boolean isAssigned = false;
+			/* TODO UNCOMMENT WHEN GENERATING IR
+			// corresponding name in the intermediate representation
+			String llvm;
+			*/
+			SymTableEntry(TypeTree tree) {
+				this.tree = tree;
+				this.isAssigned = false;
+			}
+		}
+		
+		// Symbol Table Stack
+		private static LinkedList<HashMap<String, SymTableEntry>> symTableStack = new LinkedList<>();
+		
+		public static void pushSymTable() {
+			symTableStack.push(new HashMap<String, SymTableEntry>());
+		}
+		
+		public static void popSymTable() {
+			symTableStack.pop();
+		}
+		
+		public static void peekSymTable() {
+			symTableStack.peek();
+		}
+		
+		public static void putEntry(String id, TypeTree tree) {
+			symTableStack.peek().put(id, new SymTableEntry(tree));
+		}
+		
+		/*public static searchEntry() {
+			// TODO to be written
+		} */
 		
 	}
-	
-	//private ArrayList<PatternTree> patternArray;
 
-	// Symbol Table Stack
-	private Stack<HashMap<String, SymTableEntry>> symTableStack = new Stack<>();
-	
 :};
 
-/* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token, as expected.
+/* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
  * Instead, the user code is just inserted before the aforementioned call, preventing the user from customizing 
  * the scanning method (an "Unreachable statement" compiler error arises). 
  * For this reason, it is necessary to manually force the user code execution
@@ -82,7 +105,7 @@ scan with {:   if (true) {
 /// ///////////////////////// ///
 
 terminal main;
-terminal eq, clns, cm, ro, rc, bo, bc, us, arrow, sep;
+terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep/*, us */;
 terminal plus, minus, times, div, mod, exp, uminus, and, or, not;
 terminal releq, relge, relgt, relle, rellt;
 terminal conc, cons;
@@ -113,8 +136,8 @@ non terminal TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
 non terminal VALUE;
 non terminal VALUE_LIST, VALUE_TUPLE, VALUE_BASIC;
 non terminal TTYPE_VALUE;
-non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
-non terminal PATTERN_LIST, PATTERN_TUPLE;
+//non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
+//non terminal PATTERN_LIST, PATTERN_TUPLE;
 non terminal LFORMARG;
 
 /// ///////////////////////// ///
@@ -144,12 +167,11 @@ PROGRAM ::= /* empty program */
 				}
 			:}
 		  | {:	// push the top-level symtable
-				HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
-				symTableStack.push(currentSymTable);
+				SymTableStack.pushSymTable();
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable pushed");
 			:}
 			indent FUNCT_PART IMPER_PART {:
-					symTableStack.pop();
+					SymTableStack.popSymTable();
 					if (debug_mode) System.out.println("DEBUG: Top-level Symtable popped");
 				:}
 			dedent {:  // pop the top-level symtable
@@ -169,12 +191,11 @@ IMPER_PART ::= main eq indent IO_ACTION dedent
 IO_ACTION ::= PRINT
             | do_begin indent IO_ACTIONS dedent
 			| let {:
-					HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
-					symTableStack.push(currentSymTable);
+					SymTableStack.pushSymTable();
 					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
 				:}
 			  indent LET_STMTS dedent IO_ACTION {:
-					symTableStack.pop();
+					SymTableStack.popSymTable();
 					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 				:}
 			| if_begin COND then IO_ACTION else_begin IO_ACTION
@@ -217,18 +238,18 @@ DECL_TYPE ::= id cm DECL_TYPE
 ; 
 
 /* pattern and expr should be of the same type */
-DECL_VALUE ::= PATTERN eq EXPR
+//DECL_VALUE ::= PATTERN eq EXPR
+DECL_VALUE ::= id eq EXPR
 ;
 
 /* no nullary functions */
 DECL_FUNCT ::= id {: 
-					HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
-					symTableStack.push(currentSymTable);
+					SymTableStack.pushSymTable();
 					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable pushed");
 			   :}
 			   LFORMARG eq 
 			   EXPR {:
-					symTableStack.pop();
+					SymTableStack.popSymTable();
 					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable popped");
 			   :}  
 			    //WHERE
@@ -251,7 +272,7 @@ DECL_FUNCT ::= id {:
 
 ///  PATTERN MATCHING   ///
 
-LFORMARG ::= LFORMARG PATTERN
+/*LFORMARG ::= LFORMARG PATTERN
 		   | PATTERN
 ;
 
@@ -262,8 +283,8 @@ PATTERN ::= PATTERN_LIST
 		  | id
 ;
 
-PATTERN_LIST ::= ro PATTERN cons LPATTERN_CONS rc
-			   | bo LPATTERN_CM bc
+PATTERN_LIST ::= ro PATTERN cons LPATTERN_CONS rc // value constructor pattern
+			   | bo LPATTERN_CM bc	// value pattern
 			   | bo bc
 ;
 
@@ -277,6 +298,10 @@ PATTERN_TUPLE ::= ro PATTERN cm LPATTERN_CM rc
 
 LPATTERN_CM ::= PATTERN
 			  | PATTERN cm LPATTERN_CM
+; */
+
+LFORMARG ::= LFORMARG id
+		   | id
 ;
 
 ///   EXPRESSIONS   ///
@@ -300,12 +325,11 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | not EXPR   
 	   | minus EXPR 		%prec uminus 
 	   | let	{:
-			HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
-			symTableStack.push(currentSymTable);
+			SymTableStack.pushSymTable();
 			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
 		 :} 
 		 indent LET_STMTS dedent in EXPR {:
-			symTableStack.pop();
+			SymTableStack.popSymTable();
 			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 		 :}
 	   | if_begin COND then EXPR else_begin EXPR
@@ -331,12 +355,11 @@ EXPR_NOTUNARYOP ::=
 	   | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
 	   | ro EXPR rc
 	   | let {:
-			HashMap<String, SymTableEntry> currentSymTable = new HashMap<>();
-			symTableStack.push(currentSymTable);
+			SymTableStack.pushSymTable();
 			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
 		 :} 
 		 indent LET_STMTS dedent in EXPR {:
-			symTableStack.pop();
+			SymTableStack.popSymTable();
 			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 		 :}
 	   | if_begin COND then EXPR else_begin EXPR

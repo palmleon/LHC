@@ -176,7 +176,7 @@ double = {rational}|{expform}
 bool = True|False
 char = '[a-zA-Z0-9]'
 string = \"~\"
-id = [a-z_][a-zA-Z0-9_']*
+id = [a-z][a-zA-Z0-9_']*
 nl = \r|\n|\r\n
 ws = [ \t]
 
@@ -194,7 +194,7 @@ ws = [ \t]
 ")"				{return manageToken(sym.rc);}
 "["				{return manageToken(sym.bo);}
 "]"				{return manageToken(sym.bc);}
-"_"				{return manageToken(sym.us);}
+//"_"			{return manageToken(sym.us);}
 "->"			{return manageToken(sym.arrow);}
 "+"				{return manageToken(sym.plus);}
 "-"				{return manageToken(sym.minus);}
