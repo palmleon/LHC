@@ -3,6 +3,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.ArrayList;
 import java.util.Stack;
+import java.util.Iterator;
 
 parser code {:
 
@@ -34,7 +35,7 @@ parser code {:
 
 action code {:
 
-	boolean debug_mode = true; // only to print debug information
+	static boolean debug_mode = true; // only to print debug information
 	
 	private class TypeTree {
 		
@@ -47,9 +48,9 @@ action code {:
 		// Class for Symbol Table Entry
 		private static class SymTableEntry {
 			// type of the value/function
-			TypeTree tree;
+			private TypeTree tree;
 			// flag for the Assignment Uniqueness Check
-			boolean isAssigned = false;
+			private boolean isAssigned = false;
 			/* TODO UNCOMMENT WHEN GENERATING IR
 			// corresponding name in the intermediate representation
 			String llvm;
@@ -57,6 +58,22 @@ action code {:
 			SymTableEntry(TypeTree tree) {
 				this.tree = tree;
 				this.isAssigned = false;
+			}
+			
+			public TypeTree getTypeTree() {
+				return this.tree;
+			}
+			
+			public boolean getIsAssigned() {
+				return this.isAssigned;
+			}
+			
+			public void setTypeTree(TypeTree tree) {
+				this.tree = tree;
+			}
+			
+			public void setIsAssigned(boolean isAssigned) {
+				this.isAssigned = isAssigned;
 			}
 		}
 		
@@ -79,10 +96,36 @@ action code {:
 			symTableStack.peek().put(id, new SymTableEntry(tree));
 		}
 		
-		/*public static searchEntry() {
-			// TODO to be written
-		} */
+		public static boolean containsEntry(String id) {
+			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
+			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
+			while (entryFound || iterator.hasNext()) {
+				if (iterator.next().containsKey(id)) entryFound = true;
+			}
+			return entryFound;
+		}
 		
+		public static SymTableEntry getEntry(String id) {
+			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
+			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
+			while (iterator.hasNext()) {
+				HashMap<String, SymTableEntry> currentSymTable = iterator.next();
+				if (currentSymTable.containsKey(id)) return currentSymTable.get(id);
+			}
+			return null;
+		}
+		
+		public static TypeTree getEntryTypeTree(String id) {
+			SymTableEntry entry = SymTableStack.getEntry(id);
+			if (debug_mode) System.err.println("ERROR: Inside getEntryTypeTree - no Entry found for " + id);
+			return entry == null? null : entry.getTypeTree();
+		}
+		
+		public static boolean getEntryAssignFlag(String id) {
+			SymTableEntry entry = SymTableStack.getEntry(id);
+			if (debug_mode) System.err.println("ERROR: Inside getEntryAssignFlag - no Entry found for " + id);
+			return entry == null? null : entry.getIsAssigned();
+		}
 	}
 
 :};
