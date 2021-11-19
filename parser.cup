@@ -54,7 +54,7 @@ action code {:
 	/*
 	 * Boolean flag that provides additional information for debugging purposes, when raised
 	 */
-	static boolean debug_mode = true; 
+	public static boolean debug_mode = true; 
 	
 	/* 
 	 * Class for the Type Tree
@@ -62,10 +62,44 @@ action code {:
 	 * Fields: String typeName - unique name for the Type
 	 * 		   ArrayList<TypeTree> - list containing all the subtrees for an instance of a compound type 
 	 *				(useful for functions, lists, tuples and any additional compound type) 
+	 *		   Hashmap<String, TypeTree> typeMap - a map containg, for any typeName, the corresponding standard TypeTree
+	 *				(initialized at Parser initialization time)
 	 */
-	private class TypeTree {
-		String typeName;
-		ArrayList<TypeTree> childs;
+	public static class TypeTree {
+		
+		private String typeName;
+		private ArrayList<TypeTree> childs;
+		
+		TypeTree(String typeName, TypeTree... trees) {
+			this.typeName = typeName;
+			this.childs = new ArrayList<>(2);
+			for (TypeTree tree: trees)
+				this.childs.add(tree);
+		}
+		
+		private static HashMap<String, TypeTree> typeMap = new HashMap<>();
+		
+		/* Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
+		 * Params: String typeName - the name of the new Type
+		 * 		   TypeTree tree - the corresponding type 
+		 * Return: boolean - true if no error occured, false otherwise
+		 */
+		public static boolean addType(String typeName, TypeTree tree) {
+			if (typeMap.containsKey(typeName)) return false;
+			typeMap.put(typeName, tree);
+			return true;
+		}
+		
+		/* 
+		 * Retrieve the TypeTree of a specific type from the typeMap, if present
+		 * Params: String typeName - the name of the Type
+		 * Return: the corresponding typeTree if the Type exists, null otherwise
+		 */
+		public static TypeTree getTypeTree(String typeName) {
+			if (typeMap.containsKey(typeName))
+				return typeMap.get(typeName);
+			else return null;
+		}
 	}
 	
 	//private ArrayList<PatternTree> patternArray;
@@ -76,7 +110,7 @@ action code {:
 	 * Fields: symTableStack - the Static instance of the SymTable Stack
 	 */
 	
-	private static class SymTableStack {
+	public static class SymTableStack {
 		
 		/* Class for Symbol Table Entry
 		 * All Entries inside any SymTable are instances of this Class
@@ -210,18 +244,45 @@ action code {:
 
 :};
 
+/*  In the Initialization Section, the typeMap (i.e. the list containing all declared types) is filled 
+ *  with all the main Basic and Compound Types. 
+ *  The only exception are Tuples, whose Type corresponds to the combination of the types of its elements;
+ *  since such a Type would need too much space inside the typeMap, it is the ONLY Type that is not saved in the typeMap;
+ *  so, it must be handled with specific procedures
+ *  The "Any" Type acts as a wildcard and represents any possible Type (it represents Type Parameters)
+ */
+init with {:
+		
+		// childTypeTree is used only for making the code slightly more readable
+		CUP$Parser$actions.TypeTree childTypeTree1, childTypeTree2;
+		CUP$Parser$actions.TypeTree.addType("Int", new CUP$Parser$actions.TypeTree("Int"));
+		CUP$Parser$actions.TypeTree.addType("Double", new CUP$Parser$actions.TypeTree("Double"));
+		CUP$Parser$actions.TypeTree.addType("Char", new CUP$Parser$actions.TypeTree("Char"));
+		CUP$Parser$actions.TypeTree.addType("Bool", new CUP$Parser$actions.TypeTree("Bool"));
+		childTypeTree1 = new CUP$Parser$actions.TypeTree("Any"); 
+		CUP$Parser$actions.TypeTree.addType("List", new CUP$Parser$actions.TypeTree("List", childTypeTree1));
+		childTypeTree1 = new CUP$Parser$actions.TypeTree("Char");
+		CUP$Parser$actions.TypeTree.addType("String", new CUP$Parser$actions.TypeTree("List", childTypeTree1));
+		childTypeTree1 = new CUP$Parser$actions.TypeTree("Any"); 
+		childTypeTree2 = new CUP$Parser$actions.TypeTree("Any"); 
+		CUP$Parser$actions.TypeTree.addType("Function", new CUP$Parser$actions.TypeTree("Function", childTypeTree1, childTypeTree2));
+		
+:}
+
 /* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
  * Instead, the user code is just inserted before the aforementioned call, preventing the user from customizing 
  * the scanning method (an "Unreachable statement" compiler error arises). 
  * For this reason, it is necessary to manually force the user code execution
  * This is the reason behind the fake conditional statement below
  */
-scan with {:   if (true) {
-					Scanner scanner = (Scanner) this.getScanner();
-					Symbol s = scanner.next_token_custom(); 
-					Tree.push(s.toString(), 0); // necessary to build the graphical Parsing Tree
-					return s;
-				}	:}
+scan with {:   
+		if (true) {
+			Scanner scanner = (Scanner) this.getScanner();
+			Symbol s = scanner.next_token_custom(); 
+			Tree.push(s.toString(), 0); // necessary to build the graphical Parsing Tree
+			return s;
+		}	
+:}
 
 /// ///////////////////////// ///
 ///	  TERMINALS (lowercase)   ///
