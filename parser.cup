@@ -11,14 +11,30 @@ parser code {:
 
 	public boolean noCompileErrors = true;
 	
+	/*
+		Define the name of the output file, containing the final Intermediate Representation in LLVM
+		Params: String outputFileName - name of the output file
+		Return: nothing
+	*/
 	public void setOutputFileName(String outputFileName) {
 		this.outputFileName = outputFileName;
 	}
 	
+	/* 
+	 * 	Default Cup Function for reporting Syntax Errors
+	 *  Params: java_cup.runtime.Symbol current - The last parsed symbol before raising the last Syntax Error 
+	 *  Return: nothing
+	 */
 	public void syntax_error(java_cup.runtime.Symbol current) {
 		report_error(current);
 	}
 	
+	/* 
+	 *  Inform the user that a Syntax Error has been raised, and inform them about the nature of the Syntax Error
+	 *	Params: Object info - The last parsed symbol before raising the last Syntax Error
+	 *  		String msg - The additional message describing the kind of Syntax Error
+	 *	Return: nothing
+	 */
     public void report_error(Object info) {
         System.err.print("ERROR: Syntax error");
 		noCompileErrors = false;
@@ -35,26 +51,48 @@ parser code {:
 
 action code {:
 
-	static boolean debug_mode = true; // only to print debug information
+	/*
+	 * Boolean flag that provides additional information for debugging purposes, when raised
+	 */
+	static boolean debug_mode = true; 
 	
+	/* 
+	 * Class for the Type Tree
+	 * The following Class defines the TypeTree structure
+	 * Fields: String typeName - unique name for the Type
+	 * 		   ArrayList<TypeTree> - list containing all the subtrees for an instance of a compound type 
+	 *				(useful for functions, lists, tuples and any additional compound type) 
+	 */
 	private class TypeTree {
-		
+		String typeName;
+		ArrayList<TypeTree> childs;
 	}
 	
 	//private ArrayList<PatternTree> patternArray;
 	
+	/* Class for the Symbol Table Stack
+	 * The following Class contains a Static instance of the SymTable Stack, together with methods
+	 * that allow to push/pop SymTables and to extract an Entry from them
+	 * Fields: symTableStack - the Static instance of the SymTable Stack
+	 */
+	
 	private static class SymTableStack {
 		
-		// Class for Symbol Table Entry
+		/* Class for Symbol Table Entry
+		 * All Entries inside any SymTable are instances of this Class
+		 * Fields: TypeTree tree - type of the value/function
+		 *		   boolean isAssigned - flag that checks whether the value/function has been assigned or not
+		 */
 		private static class SymTableEntry {
-			// type of the value/function
+			
 			private TypeTree tree;
-			// flag for the Assignment Uniqueness Check
 			private boolean isAssigned = false;
+			
 			/* TODO UNCOMMENT WHEN GENERATING IR
 			// corresponding name in the intermediate representation
 			String llvm;
 			*/
+			
 			SymTableEntry(TypeTree tree) {
 				this.tree = tree;
 				this.isAssigned = false;
@@ -77,25 +115,46 @@ action code {:
 			}
 		}
 		
-		// Symbol Table Stack
+		// Symbol Table Stack (there is only one global instance whose lifetime corresponds to the lifetime of the parser itself)
 		private static LinkedList<HashMap<String, SymTableEntry>> symTableStack = new LinkedList<>();
 		
+		/* 
+		 * Method that pushes a new SymTable to the Stack
+		 * Params: nothing
+		 * Return: nothing
+		 */
 		public static void pushSymTable() {
 			symTableStack.push(new HashMap<String, SymTableEntry>());
 		}
 		
+		/* 
+		 * Method that pops the SymTable on top of the Stack
+		 * Params: nothing
+		 * Return: nothing
+		 */
 		public static void popSymTable() {
 			symTableStack.pop();
 		}
 		
-		public static void peekSymTable() {
-			symTableStack.peek();
-		}
-		
+		/*
+		 * Insert a new Entry in the SymTable on top of the Stack
+		 * This method is sensitive to the context (it depends on the current position in the Parser Tree)
+		 * The Parser must guarantee the correct SymTable for a given Entry
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * 		   TypeTree tree - the TypeTree of the Entry (built during reduction of Type Declarations)
+		 * Return: nothing
+		 */
 		public static void putEntry(String id, TypeTree tree) {
 			symTableStack.peek().put(id, new SymTableEntry(tree));
 		}
 		
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: the flag that indicates whether the Entry is present or not
+		 */
 		public static boolean containsEntry(String id) {
 			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
@@ -105,6 +164,13 @@ action code {:
 			return entryFound;
 		}
 		
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack and return it
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: the Entry itself, if found (null otherwise)
+		 */
 		public static SymTableEntry getEntry(String id) {
 			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
@@ -115,15 +181,29 @@ action code {:
 			return null;
 		}
 		
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack and return its TypeTree
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: the TypeTree of the Entry itself, if found (null otherwise)
+		 */
 		public static TypeTree getEntryTypeTree(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
-			if (debug_mode) System.err.println("ERROR: Inside getEntryTypeTree - no Entry found for " + id);
+			if (debug_mode) System.err.println("WARNING: Inside getEntryTypeTree - no Entry found for " + id);
 			return entry == null? null : entry.getTypeTree();
 		}
 		
-		public static boolean getEntryAssignFlag(String id) {
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack and check if it has been already assigned
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: a Boolean flag indicating whether the variable has been assigned, null if the Entry has not been found
+		 */
+		public static Boolean getEntryAssignFlag(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
-			if (debug_mode) System.err.println("ERROR: Inside getEntryAssignFlag - no Entry found for " + id);
+			if (debug_mode) System.err.println("WARNING: Inside getEntryAssignFlag - no Entry found for " + id);
 			return entry == null? null : entry.getIsAssigned();
 		}
 	}
