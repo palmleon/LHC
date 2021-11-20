@@ -103,7 +103,7 @@ action code {:
 		/* Getter method for typeName */
 		public String getTypeName(){
 			return this.typeName;
-		}gi
+		}
 		
 		/* Getter method for childs */
 		public TypeTree[] getChilds(){
@@ -111,7 +111,7 @@ action code {:
 		}
 		
 		/* Getter method for the single child */
-		public void getChild(int pos) {
+		public TypeTree getChild(int pos) {
 			return this.childs[pos];
 		}
 		
