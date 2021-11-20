@@ -95,14 +95,40 @@ action code {:
 			this.childs = childs;
 		}
 		
+		/* Setter method for the single child */
+		public void setChild(int pos, TypeTree child) {
+			this.childs[pos] = child;
+		}
+		
 		/* Getter method for typeName */
 		public String getTypeName(){
 			return this.typeName;
-		}
+		}gi
 		
 		/* Getter method for childs */
 		public TypeTree[] getChilds(){
 			return this.childs;
+		}
+		
+		/* Getter method for the single child */
+		public void getChild(int pos) {
+			return this.childs[pos];
+		}
+		
+		/* 
+		 * Method for Type Equivalence Checking, which is implemented as a recursive node-to-node equivalence check
+		 * because the Type Representation is standardized (any Type has one and only one possible representation)
+		 * Params: TypeTree other - the Tree to compare with the calling one
+		 * Returns: Boolean - true if the Trees are equivalent, false otherwise
+		 */
+		public boolean isEquivalent(TypeTree other) {	
+			boolean isEquivalent = true;
+			if (!this.getTypeName().equals(other.getTypeName())) return false;
+			if (this.getChilds().length != other.getChilds().length) return false;
+			for (int i = 0; i < this.getChilds().length; i++) {
+				isEquivalent = isEquivalent && this.getChild(i).isEquivalent(other.getChild(i));
+			}
+			return isEquivalent;
 		}
 		
 		/*
