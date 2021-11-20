@@ -1,7 +1,6 @@
 import java_cup.runtime.*;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.ArrayList;
 import java.util.Stack;
 import java.util.Iterator;
 
@@ -11,14 +10,30 @@ parser code {:
 
 	public boolean noCompileErrors = true;
 	
+	/*
+	 *  Define the name of the output file, containing the final Intermediate Representation in LLVM
+	 *	Params: String outputFileName - name of the output file
+	 *	Return: nothing
+	 */
 	public void setOutputFileName(String outputFileName) {
 		this.outputFileName = outputFileName;
 	}
 	
+	/* 
+	 * 	Default Cup Function for reporting Syntax Errors
+	 *  Params: java_cup.runtime.Symbol current - The last parsed symbol before raising the last Syntax Error 
+	 *  Return: nothing
+	 */
 	public void syntax_error(java_cup.runtime.Symbol current) {
 		report_error(current);
 	}
 	
+	/* 
+	 *  Inform the user that a Syntax Error has been raised, and inform them about the nature of the Syntax Error
+	 *	Params: Object info - The last parsed symbol before raising the last Syntax Error
+	 *  		String msg - The additional message describing the kind of Syntax Error
+	 *	Return: nothing
+	 */
     public void report_error(Object info) {
         System.err.print("ERROR: Syntax error");
 		noCompileErrors = false;
@@ -35,26 +50,113 @@ parser code {:
 
 action code {:
 
-	static boolean debug_mode = true; // only to print debug information
+	/*
+	 * Boolean flag that provides additional information for debugging purposes, when raised
+	 */
+	public static boolean debug_mode = true; 
 	
-	private class TypeTree {
+	/* 
+	 * Class for the Type Tree
+	 * The following Class defines the TypeTree structure
+	 * Fields: String typeName - unique name for the Type
+	 * 		   TypeTree[] - list containing all the subtrees for an instance of a compound type 
+	 *				(useful for functions, lists, tuples and any additional compound type) 
+	 *		   Hashmap<String, TypeTree> typeMap - a map containg, for any typeName, the corresponding standard TypeTree
+	 *				(initialized at Parser initialization time)
+	 */
+	public static class TypeTree {
+		
+		private String typeName;
+		private TypeTree[] childs; //better than an ArrayList because its size it's fixed
+		
+		/* Basic Copy Constructor */
+		TypeTree(String typeName, TypeTree[] childs) {
+			this.typeName = typeName;
+			this.childs = childs; // most types should have up to 2 type params
+		}
+		
+		/* (Recursive) Copy Constructor */
+		TypeTree(TypeTree tree) {			
+			int length = tree.getChilds().length;
+			this.typeName = tree.getTypeName();
+			this.childs = new TypeTree[length];
+			for (int i = 0; i < length; i++) {
+				this.childs[i] = new TypeTree(tree.getChilds()[i]);
+			}
+		}
+		
+		/* Setter method for typeName */
+		public void setTypeName(String typeName) {
+			this.typeName = typeName;
+		}
+		
+		/* Setter method for childs */
+		public void setChilds(TypeTree[] childs){
+			this.childs = childs;
+		}
+		
+		/* Getter method for typeName */
+		public String getTypeName(){
+			return this.typeName;
+		}
+		
+		/* Getter method for childs */
+		public TypeTree[] getChilds(){
+			return this.childs;
+		}
+		
+		/*
+		 * Static TypeMap that contains all the declared Types (allows to define custom Data Types), which is initialized during Parser initialization
+		 */
+		private static HashMap<String, TypeTree> typeMap = new HashMap<>();
+		
+		/* Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
+		 * Params: String typeName - the name of the new Type
+		 * 		   TypeTree tree - the corresponding type 
+		 * Return: boolean - true if no error occured, false otherwise
+		 */
+		public static boolean addType(String typeName, TypeTree tree) {
+			if (typeMap.containsKey(typeName)) return false;
+			typeMap.put(typeName, tree);
+			return true;
+		}
+		
+		/* 
+		 * Retrieve the TypeTree of a specific type from the typeMap, if present
+		 * Params: String typeName - the name of the Type
+		 * Return: the corresponding typeTree if the Type exists, null otherwise
+		 */
+		public static TypeTree getTypeTree(String typeName) {
+			if (typeMap.containsKey(typeName))
+				return typeMap.get(typeName);
+			else return null;
+		}
 		
 	}
 	
-	//private ArrayList<PatternTree> patternArray;
+	/* Class for the Symbol Table Stack
+	 * The following Class contains a Static instance of the SymTable Stack, together with methods
+	 * that allow to push/pop SymTables and to extract an Entry from them
+	 * Fields: symTableStack - the Static instance of the SymTable Stack
+	 */
 	
-	private static class SymTableStack {
+	public static class SymTableStack {
 		
-		// Class for Symbol Table Entry
+		/* Class for Symbol Table Entry
+		 * All Entries inside any SymTable are instances of this Class
+		 * Fields: TypeTree tree - type of the value/function
+		 *		   boolean isAssigned - flag that checks whether the value/function has been assigned or not
+		 */
 		private static class SymTableEntry {
-			// type of the value/function
+			
 			private TypeTree tree;
-			// flag for the Assignment Uniqueness Check
 			private boolean isAssigned = false;
+			
 			/* TODO UNCOMMENT WHEN GENERATING IR
 			// corresponding name in the intermediate representation
 			String llvm;
 			*/
+			
 			SymTableEntry(TypeTree tree) {
 				this.tree = tree;
 				this.isAssigned = false;
@@ -77,25 +179,46 @@ action code {:
 			}
 		}
 		
-		// Symbol Table Stack
+		// Symbol Table Stack (there is only one global instance whose lifetime corresponds to the lifetime of the parser itself)
 		private static LinkedList<HashMap<String, SymTableEntry>> symTableStack = new LinkedList<>();
 		
+		/* 
+		 * Method that pushes a new SymTable to the Stack
+		 * Params: nothing
+		 * Return: nothing
+		 */
 		public static void pushSymTable() {
 			symTableStack.push(new HashMap<String, SymTableEntry>());
 		}
 		
+		/* 
+		 * Method that pops the SymTable on top of the Stack
+		 * Params: nothing
+		 * Return: nothing
+		 */
 		public static void popSymTable() {
 			symTableStack.pop();
 		}
 		
-		public static void peekSymTable() {
-			symTableStack.peek();
-		}
-		
+		/*
+		 * Insert a new Entry in the SymTable on top of the Stack
+		 * This method is sensitive to the context (it depends on the current position in the Parser Tree)
+		 * The Parser must guarantee the correct SymTable for a given Entry
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * 		   TypeTree tree - the TypeTree of the Entry (built during reduction of Type Declarations)
+		 * Return: nothing
+		 */
 		public static void putEntry(String id, TypeTree tree) {
 			symTableStack.peek().put(id, new SymTableEntry(tree));
 		}
 		
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: the flag that indicates whether the Entry is present or not
+		 */
 		public static boolean containsEntry(String id) {
 			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
@@ -105,6 +228,13 @@ action code {:
 			return entryFound;
 		}
 		
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack and return it
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: the Entry itself, if found (null otherwise)
+		 */
 		public static SymTableEntry getEntry(String id) {
 			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
@@ -115,20 +245,73 @@ action code {:
 			return null;
 		}
 		
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack and return its TypeTree
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: the TypeTree of the Entry itself, if found (null otherwise)
+		 */
 		public static TypeTree getEntryTypeTree(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
-			if (debug_mode) System.err.println("ERROR: Inside getEntryTypeTree - no Entry found for " + id);
+			if (debug_mode) System.err.println("WARNING: Inside getEntryTypeTree - no Entry found for " + id);
 			return entry == null? null : entry.getTypeTree();
 		}
 		
-		public static boolean getEntryAssignFlag(String id) {
+		/*
+		 * Check whether a certain Entry is present in the whole SymTable Stack and check if it has been already assigned
+		 * Search is applied from the top of the Stack to the bottom;
+		 * the first match is considered
+		 * Params: String id - the name of the Entry (the corresponding token)
+		 * Return: a Boolean flag indicating whether the variable has been assigned, null if the Entry has not been found
+		 */
+		public static Boolean getEntryAssignFlag(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
-			if (debug_mode) System.err.println("ERROR: Inside getEntryAssignFlag - no Entry found for " + id);
+			if (debug_mode) System.err.println("WARNING: Inside getEntryAssignFlag - no Entry found for " + id);
 			return entry == null? null : entry.getIsAssigned();
 		}
 	}
 
 :};
+
+/*  In the Initialization Section, the typeMap (i.e. the list containing all declared types) is filled 
+ *  with all the main Basic and Compound Types. 
+ *  The only exception are Tuples, whose Type corresponds to the combination of the types of its elements;
+ *  since such a Type would need too much space inside the typeMap, it is the ONLY Type that is not saved in the typeMap;
+ *  so, it must be handled with specific procedures
+ *  The "Any" Type acts as a wildcard and represents any possible Type (it represents Type Parameters)
+ */
+init with {:
+		
+		// childTypeTree is used only for making the code slightly more readable
+		CUP$Parser$actions.TypeTree tree = new CUP$Parser$actions.TypeTree("Int", new CUP$Parser$actions.TypeTree[0]);
+		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		tree = new CUP$Parser$actions.TypeTree("Double", new CUP$Parser$actions.TypeTree[0]);
+		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		tree = new CUP$Parser$actions.TypeTree("Bool", new CUP$Parser$actions.TypeTree[0]);
+		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		tree = new CUP$Parser$actions.TypeTree("Char", new CUP$Parser$actions.TypeTree[0]);
+		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		CUP$Parser$actions.TypeTree[] treeArray = { new CUP$Parser$actions.TypeTree(tree) };
+		tree = new CUP$Parser$actions.TypeTree("String", treeArray);
+		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		CUP$Parser$actions.TypeTree anyTypeTree = new CUP$Parser$actions.TypeTree("Any", new CUP$Parser$actions.TypeTree[0]); 
+		treeArray = new CUP$Parser$actions.TypeTree[]{ new CUP$Parser$actions.TypeTree(anyTypeTree) };
+		tree = new CUP$Parser$actions.TypeTree("List", treeArray);
+		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		treeArray = new CUP$Parser$actions.TypeTree[]{ new CUP$Parser$actions.TypeTree(anyTypeTree), new CUP$Parser$actions.TypeTree(anyTypeTree) };
+		tree = new CUP$Parser$actions.TypeTree("Function", treeArray);
+		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		// Min Arity for Tuples = 2, Max Arity for Tuples = 16
+		for (int i = 2; i <= 16; i++) {
+			 treeArray = new CUP$Parser$actions.TypeTree[i];
+			 for (int j = 0; j < i; j++) {
+				treeArray[j] = new CUP$Parser$actions.TypeTree(anyTypeTree);
+			 }
+			 tree = new CUP$Parser$actions.TypeTree("Tuple" + i, treeArray); 
+			 CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		}
+:}
 
 /* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
  * Instead, the user code is just inserted before the aforementioned call, preventing the user from customizing 
@@ -136,12 +319,14 @@ action code {:
  * For this reason, it is necessary to manually force the user code execution
  * This is the reason behind the fake conditional statement below
  */
-scan with {:   if (true) {
-					Scanner scanner = (Scanner) this.getScanner();
-					Symbol s = scanner.next_token_custom(); 
-					Tree.push(s.toString(), 0); // necessary to build the graphical Parsing Tree
-					return s;
-				}	:}
+scan with {:   
+		if (true) {
+			Scanner scanner = (Scanner) this.getScanner();
+			Symbol s = scanner.next_token_custom(); 
+			Tree.push(s.toString(), 0); // necessary to build the graphical Parsing Tree
+			return s;
+		}	
+:}
 
 /// ///////////////////////// ///
 ///	  TERMINALS (lowercase)   ///
@@ -482,7 +667,7 @@ TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
 		    | TYPE_VALUE arrow TYPE_VALUE
 ;
 
-TTYPE_VALUE ::= TYPE_VALUE
+TTYPE_VALUE ::= TYPE_VALUE cm TYPE_VALUE
 			  | TTYPE_VALUE cm TYPE_VALUE
 ;
 
