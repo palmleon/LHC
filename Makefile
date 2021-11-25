@@ -4,13 +4,13 @@ all: clean scanner parser
 
 	javac *.java
 
-scanner: scanner.jflex
+scanner: 
 	# jflex scanner.jflex -- to be inserted in the final version
-	exec java -jar $(scanner) scanner.jflex
+	exec java -jar $(scanner) src/scanner.jflex
+	mv src/Scanner.java .
 	
-	
-parser: parser.cup
-	java java_cup.MainDrawTree -parser Parser -expect 1 parser.cup
+parser:
+	java java_cup.MainDrawTree -parser Parser src/parser.cup
 	
 clean:
 	rm -fr parser.java scanner.java sym.java
