@@ -229,6 +229,13 @@ action code {:
 			}
 		}
 		
+		/* 
+		 * Being the project not originally developed using an IDE, using JUnit is not the best option
+		 * It would be ideal to move testing there (TODO)
+		 */
+		//public static testTypeTree() {
+		
+		
 	}
 	
 	/* Class for the Symbol Table Stack
@@ -413,8 +420,8 @@ init with {:
 		tree = new CUP$Parser$actions.TypeTree("Char", new CUP$Parser$actions.TypeTree[0]);
 		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
 		CUP$Parser$actions.TypeTree[] treeArray = { new CUP$Parser$actions.TypeTree(tree) };
-		tree = new CUP$Parser$actions.TypeTree("String", treeArray);
-		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
+		tree = new CUP$Parser$actions.TypeTree("List", treeArray);
+		CUP$Parser$actions.TypeTree.addType("String", tree);
 		CUP$Parser$actions.TypeTree anyTypeTree = new CUP$Parser$actions.TypeTree("Any", new CUP$Parser$actions.TypeTree[0]); 
 		treeArray = new CUP$Parser$actions.TypeTree[]{ new CUP$Parser$actions.TypeTree(anyTypeTree) };
 		tree = new CUP$Parser$actions.TypeTree("List", treeArray);
@@ -431,6 +438,7 @@ init with {:
 			 tree = new CUP$Parser$actions.TypeTree("Tuple" + i, treeArray); 
 			 CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
 		}
+		CUP$Parser$actions.TypeTree.dumpTypeMap();
 :}
 
 /* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
