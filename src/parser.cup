@@ -398,6 +398,8 @@ action code {:
  *  since such a Type would need too much space inside the typeMap, it is the ONLY Type that is not saved in the typeMap;
  *  so, it must be handled with specific procedures
  *  The "Any" Type acts as a wildcard and represents any possible Type (it represents Type Parameters)
+ *  
+ *  TODO Aggiungere metodi head, tail, size (per Liste), extract (per Tuple) nella symTable globale
  */
 init with {:
 		
@@ -531,12 +533,16 @@ PROGRAM ::= /* empty program */
 ///  IMPERATIVE PART   ///
 /// ////////////////// ///
 
-IMPER_PART ::= main eq indent IO_ACTION dedent
+IMPER_PART ::= main eq IO_ACTION
 ;
 
 IO_ACTION ::= PRINT
             | do_begin indent IO_ACTIONS dedent
-			| let {:
+			| if_begin COND then IO_ACTION else_begin IO_ACTION 
+;
+
+IO_ACTIONS ::= IO_ACTION
+			 | let {:
 					SymTableStack.pushSymTable();
 					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
 				:}
@@ -544,10 +550,6 @@ IO_ACTION ::= PRINT
 					SymTableStack.popSymTable();
 					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 				:}
-			| if_begin COND then IO_ACTION else_begin IO_ACTION
-;
-
-IO_ACTIONS ::= IO_ACTION
 			 | IO_ACTIONS sep IO_ACTION
 ;
 

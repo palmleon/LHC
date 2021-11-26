@@ -25,15 +25,19 @@ import java.io.IOException;
 	
 	private Stack<Integer> indentStack = new Stack<>();
 	
-	/* Boolean variable that prepares the lexer for scanning an indent
-	 * the next time (i.e. after scanning a do, let, where, ...)
+	/* Flags that prepares the lexer for scanning an Indent or a Dedent:
+	 * scanIndent is raised if an indent must be immediately scanned
+	 * indentEnable is raised if a block based on indentation has been recognized (let, do blocks)
+	 * dedentEnable is raised if a block based on indentation has been recognized (let, do blocks);
+	 *   if a newline is scanned, the dedentEnable will enable Indentation check
+	 * foundNewline is raised if a newline is found; it is coupled with dedentEnable for Indentation check
 	 */
-	private boolean indentEnableNextToken = true;
+	private boolean scanIndent = true;
 	private boolean indentEnable = true;
-	private boolean dedentEnable = false;
-	private boolean mainDetected = false;
+	private boolean foundNewline = false;
 	private boolean endOfCode = false;
 	
+	/* Flag for printing debug info */
 	private boolean debugMode = true;
 	
 	public void report_error(String errorType) {
@@ -56,12 +60,10 @@ import java.io.IOException;
 		if (this.tokenQueue.size() > 0) {
 			return this.tokenQueue.remove();
 		}
-		/* if we need to scan either a dedent or a separator,
-		 * the scanner is prepared by entering the DEDENT state
-		 */
-		if (indentEnableNextToken) 
-			indentEnable = true;
-			indentEnableNextToken = false;
+		if (indentEnable) {
+			indentEnable = false;
+			scanIndent = true;
+		}
 		return this.next_token();
 	}
 	
@@ -75,7 +77,7 @@ import java.io.IOException;
 		//System.out.println ("Matched text: " + yytext());
 		//System.out.println("Current value of indentEnable: " + indentEnable);
 		//System.out.println("Current value of dedentEnable: " + dedentEnable);
-		if (indentEnable) {
+		if (scanIndent) {
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
 				indentStack.push(indentColumn);
@@ -88,11 +90,10 @@ import java.io.IOException;
 				tokenQueue.add(createSymbol(sym.error));
 			}
 			//System.out.println("INDENT DISABLED");
-			indentEnable = false;
-			dedentEnable = false;
+			scanIndent = false;
 		}
-		// scan either a dedent or a separator
-		else if (dedentEnable && !endOfCode) {
+		// scan either a Dedent or a Separator
+		else if (foundNewline && !endOfCode) {
 			dedentColumn = yycolumn+1;
 			//System.out.println("CURRENT SIZE OF THE INDENT STACK: " + indentStack.size());
 			indentColumn = indentStack.peek();
@@ -103,7 +104,8 @@ import java.io.IOException;
 				//System.out.println("SEPARATOR FOUND");
 				tokenQueue.add(createSymbol(sym.sep));
 			}
-			else {
+			// if the next token is on the left wrt the current Indentation Level, insert Dedents
+			else if (indentColumn > dedentColumn) {
 				// pop the top element of the indent Stack (i.e. exit the block)
 				do {
 					/*System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
@@ -113,9 +115,8 @@ import java.io.IOException;
 					tokenQueue.add(createSymbol(sym.dedent));
 					if (!indentStack.empty())
 						indentColumn = indentStack.peek();
-				} while (indentColumn != dedentColumn && !indentStack.empty());
+				} while (indentColumn > dedentColumn && !indentStack.empty());
 			}	
-			dedentEnable = false;
 		}
 		// special dedent management in case of EOF
 		else if (endOfCode) {
@@ -128,6 +129,8 @@ import java.io.IOException;
 		for (int sym: symbols) {
 			tokenQueue.add(createSymbol(sym));
 		}
+		
+		foundNewline = false;
 		return this.tokenQueue.remove();
 	}
 %}
@@ -139,34 +142,20 @@ import java.io.IOException;
 	return this.manageToken(sym.EOF);
 %eofval}
 
-/* About Indent, Dedent
+/* Indentation-based Parsing
  * Indent: symbol to recognize the starting point of an inner block
  * Dedent: symbol to recognize the end point of an inner block
  * The Grammar must ensure that, for each Indent there is a corresponding Dedent
- * Data structures to deal with indent/dedent:
+ * Data structures to deal with Indent/Dedent:
  * - an Indent Stack, containing all the indents to consider so far;
  *   each entry of the Stack contains the column index related to that
  * 	 indentation level;
  * - a tokenQueue, to allow multiple symbols at a single scan;
- * Concept: when an indent is recognized, it is pushed into the Stack; 
- *          when a dedent is recognized, an indent is popped from the Stack
- * To recognize a Dedent: 
- * - we define a Dedent State, where we compare the column
- *   index of the 1st available token with the index of the top element in
- *   the Stack: if equal, return a separator as we are still in the block; 
- *   if it is not the case, pop and insert a dedent until a matching Indent
- *   is found. If no matching Indent is found: Parsing error
- * - the Dedent State is also used to scan Separators; in particular, the scanner
- *   must decide whether to pass a dedent or a separator, depending on the input pattern
- * To recognize an Indent:
- * - we define an Indent State, where we look for the first available token;
- *   when found, we insert into the Token Queue both an Indent and the token;
- *   the column index of the Indent is the same as for the token
- * The Indent State is accessed if:
- * - some keyword that build an inner block are scanned (let, where, do, main + eq);
- * - it is the beginning of the program,
- * The Dedent State is accessed if:
- * - we have completed a statement and we need to find either a Separator or a Dedent;
+ * Concept: when a block requiring implicit indentation is recognized, i.e. its keyword is scanned
+ *			 (let, do), the next Token will define the indentation column and an Indent 
+ *			 will be scanned and saved into the Stack; 
+ *          if a newline is met and the following line is not aligned with the current indentation level,
+ *			 then a Dedent is scanned and the block is automatically closed
  */
 
 int = 0|[1-9][0-9]* 					//unsigned int
@@ -182,10 +171,7 @@ ws = [ \t]
 
 %%
 
-"="				{if (mainDetected) 
-					{ indentEnableNextToken = true;
-					  mainDetected = false; }
-				 return manageToken(sym.eq);}
+"="				{return manageToken(sym.eq);}
 ":"				{return manageToken(sym.cons);}
 "::"			{return manageToken(sym.clns);}
 ","				{return manageToken(sym.cm);}
@@ -212,20 +198,14 @@ not				{return manageToken(sym.not);}
 "<"				{return manageToken(sym.rellt);}
 "++"			{return manageToken(sym.conc);}
 ";"				{return manageToken(sym.sep);}
-in				{dedentEnable = false;
-				 Integer indentColumn = indentStack.pop();
-				 if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
-				 return manageToken(sym.dedent, sym.in);}
-main			{mainDetected = true;
-				 return manageToken(sym.main);}
-do				{indentEnableNextToken = true;
+in				{return manageToken(sym.in);}
+main			{return manageToken(sym.main);}
+do				{indentEnable = true;
 				 return manageToken(sym.do_begin);}
 if				{return manageToken(sym.if_begin);}
-then			{dedentEnable = false;
-				 return manageToken(sym.then);}
-else			{dedentEnable = false;
-				 return manageToken(sym.else_begin);}
-let				{indentEnableNextToken = true;
+then			{return manageToken(sym.then);}
+else			{return manageToken(sym.else_begin);}
+let				{indentEnable = true;
 				 return manageToken(sym.let);}
 /*where			{dedentEnable = false;
 				 indentEnableNextToken = true;
@@ -243,10 +223,10 @@ String			{return manageToken(sym.type_string);}
 {string}		{return manageToken(sym.val_string);}
 {id}			{return manageToken(sym.id);}
 {ws}			{;}
-{nl}			{dedentEnable = true;}
+{nl}			{foundNewline = true;}
 
 /* Single-line Comment */
-"--"~{nl}		{dedentEnable = true;}
+"--"~{nl}		{foundNewline = true;}
 
 /* Lexical error */
 .				{report_error("Not recognized token");
