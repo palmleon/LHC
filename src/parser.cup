@@ -454,7 +454,7 @@ scan with {:
 
 terminal main;
 terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep/*, us */;
-terminal plus, minus, times, div, mod, exp, uminus, and, or, not;
+terminal plus, minus, times, div, intdiv, mod, exp, uminus, and, or, not;
 terminal releq, relge, relgt, relle, rellt;
 terminal conc, cons;
 terminal indent, dedent;
@@ -498,7 +498,7 @@ precedence left or;
 precedence left and;
 precedence nonassoc releq, relgt, relge, rellt, relle;
 precedence left plus, minus;
-precedence left times, div;
+precedence left times, div, intdiv;
 precedence right exp;
 precedence nonassoc not, uminus;
 
@@ -658,6 +658,7 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | EXPR minus EXPR_NOTUNARYOP
 	   | EXPR times EXPR_NOTUNARYOP
 	   | EXPR div EXPR_NOTUNARYOP
+	   | EXPR intdiv EXPR_NOTUNARYOP
 	   | mod ACTARG ACTARG 
 	   | EXPR exp EXPR_NOTUNARYOP
 	   | EXPR and EXPR_NOTUNARYOP
@@ -690,6 +691,7 @@ EXPR_NOTUNARYOP ::=
 	   | EXPR_NOTUNARYOP minus EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP times EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP div EXPR_NOTUNARYOP
+	   | EXPR_NOTUNARYOP intdiv EXPR_NOTUNARYOP
 	   | mod ACTARG ACTARG 
 	   | EXPR_NOTUNARYOP exp EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP and EXPR_NOTUNARYOP
