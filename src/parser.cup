@@ -194,15 +194,15 @@ action code {:
 			treeArray = new TypeTree[]{ new TypeTree(anyTypeTree), new TypeTree(anyTypeTree) };
 			tree = new TypeTree("Function", treeArray);
 			TypeTree.addType(tree.getTypeName(), tree);
-			// Min Arity for Tuples = 2, Max Arity for Tuples = 16
-			for (int i = 2; i <= 16; i++) {
+			// Min Arity for Tuples = 2, Max Arity for Tuples = 10
+			for (int i = 2; i <= 10; i++) {
 				treeArray = new TypeTree[i];
 				for (int j = 0; j < i; j++) {
 					treeArray[j] = new TypeTree(anyTypeTree);
 				}	
 				tree = new TypeTree("Tuple" + i, treeArray); 
 				TypeTree.addType(tree.getTypeName(), tree);
-		}
+			}
 		}
 		
 		/* Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
@@ -467,14 +467,81 @@ action code {:
 				System.out.println ("TEST SYMTABLE STACK 4: PASSED");
 			else
 				System.out.println ("TEST SYMTABLE STACK 4: FAILED");
-			boolean entry = SymTableStack.getEntry("x").getIsAssigned();
-			if (!entry)
+			boolean isPresent = SymTableStack.getEntry("x").getIsAssigned();
+			if (!isPresent)
 				System.out.println ("TEST SYMTABLE STACK 5: PASSED");
 			else
 				System.out.println ("TEST SYMTABLE STACK 5: FAILED");
+			SymTableStack.pushSymTable();
+			TypeTree xTree = TypeTree.getTypeTree("Double");
+			SymTableStack.putEntry("x", new SymTableEntry(xTree));
+			SymTableEntry entry = SymTableStack.getEntry("x");
+			if (entry != null && entry.getTypeTree().isEquivalent(TypeTree.getTypeTree("Double")))
+				System.out.println ("TEST SYMTABLE STACK 6: PASSED");
+			else
+				System.out.println ("TEST SYMTABLE STACK 6: FAILED");
  			SymTableStack.popSymTable();
 		}
 		
+	}
+	
+	/*
+	 * ALL THE FOLLOWING CLASSES ARE USED FOR SEMANTIC ANALYSIS (info for the AST) and IR CODEGEN
+	 */
+	
+	public static class ConstantAST<V> {
+		public V value;
+		
+		ConstantAST(V value) {
+			this.value = value;
+		}
+	}
+	
+	public static class ExprAST {
+		public TypeTree tree;
+		
+		ExprAST (TypeTree tree) {
+			this.tree = tree;
+		}
+	}
+	
+	public static class SeqExprAST {
+		// Type is inferred by the ExprAST
+		public ExprAST[] exprArray;
+		
+		SeqExprAST (ExprAST[] exprArray) {
+			this.exprArray = exprArray;
+		}
+	}
+	
+	public static class LetBlockAST {
+		public TypeTree tree;
+		
+		LetBlockAST (TypeTree tree) {
+			
+		}
+	}
+	
+	public static class IfBlockAST {
+		public TypeTree tree;
+		
+		IfBlockAST (TypeTree tree) {
+			
+		}
+	}
+	
+	/* Value is:
+	 * 		- LinkedList for lists
+	 *		- Tuple for tuples
+	 *		- Basic type for basic types (Int, Double, Char, String, Bool)
+	 */
+	public static class ValueAST {
+		public TypeTree tree;
+		public Object value;
+		
+		ValueAST (TypeTree tree, Object value) {
+			
+		}
 	}
 :};
 
@@ -491,9 +558,10 @@ init with {:
 		
 		// Create the Table containing all Types and their TypeTrees
 		CUP$Parser$actions.TypeTree.createTypeMap();
+		
 		//CUP$Parser$actions.TypeTree.dumpTypeMap();
 		//CUP$Parser$actions.TypeTree.testTypeTree();
-		CUP$Parser$actions.SymTableStack.testSymTableStack();
+		//CUP$Parser$actions.SymTableStack.testSymTableStack();
 :}
 
 /* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
@@ -523,9 +591,13 @@ terminal conc, cons;
 terminal indent, dedent;
 //terminal where, pipe;
 terminal do_begin, if_begin, then, else_begin, let, in, print;
-terminal val_int, val_double, val_bool, val_char, val_string;
-terminal type_int, type_double, type_bool, type_char, type_string;
-terminal id;
+terminal ConstantAST<Integer> val_int;
+terminal ConstantAST<Double> val_double;
+terminal ConstantAST<Boolean> val_bool;
+terminal ConstantAST<Char> val_char;
+terminal ConstantAST<String> val_string;
+terminal TypeTree type_int, type_double, type_bool, type_char, type_string;
+terminal String id;
 
 /// ///////////////////////// ///
 ///	NON TERMINALS (uppercase) ///
@@ -535,21 +607,21 @@ non terminal PROGRAM;
 non terminal FUNCT_PART, IMPER_PART;
 non terminal IO_ACTIONS, IO_ACTION;
 non terminal PRINT;
-non terminal COND, EXPR, EXPR_NOTUNARYOP;
-non terminal LEXPR, TEXPR;
-non terminal ACTARG, LACTARG;
+non terminal ExprAST COND, EXPR, EXPR_NOTUNARYOP, ACTARG;
+non terminal SeqExprAST LEXPR, TEXPR, LACTARG, LFORMARG;
 //non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
 non terminal LET_STMTS;
+non terminal DO_BLOCK;
+non terminal LetBlockAST LET_BLOCK_FUNC;
+non terminal LET_BLOCK_IMPER;
+non terminal IfBlockAST IF_BLOCK_FUNC;
+non terminal IF_BLOCK_IMPER;
 non terminal DECL, DECL_TYPE, DECL_VALUE, DECL_FUNCT;
-non terminal TYPE;
-non terminal TYPE_VALUE, TYPE_FUNC;
-non terminal TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
-non terminal VALUE;
-non terminal VALUE_LIST, VALUE_TUPLE, VALUE_BASIC;
-non terminal TTYPE_VALUE;
+non terminal TypeTree TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
+non terminal LinkedList<TypeTree> TTYPE_VALUE;
+non terminal ValueAST VALUE, VALUE_LIST, VALUE_TUPLE, VALUE_BASIC;
 //non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
 //non terminal PATTERN_LIST, PATTERN_TUPLE;
-non terminal LFORMARG;
 
 /// ///////////////////////// ///
 ///    PRECEDENCE RULES		  ///
@@ -600,25 +672,32 @@ IMPER_PART ::= main eq IO_ACTION
 ;
 
 IO_ACTION ::= PRINT
-            | do_begin indent IO_ACTIONS dedent
-			| if_begin COND then IO_ACTION else_begin IO_ACTION 
+            | DO_BLOCK
+			| IF_BLOCK_IMPER
 ;
 
 IO_ACTIONS ::= IO_ACTION
-			 | let {:
-					SymTableStack.pushSymTable();
-					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
-				:}
-			  indent LET_STMTS dedent IO_ACTION {:
-					SymTableStack.popSymTable();
-					if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
-				:}
+			 | LET_BLOCK_IMPER
 			 | IO_ACTIONS sep IO_ACTION
 ;
 
 PRINT ::= print ACTARG
 ;
 
+DO_BLOCK ::= do_begin indent IO_ACTIONS dedent
+;
+
+IF_BLOCK_IMPER ::= if_begin COND then IO_ACTION else_begin IO_ACTION 
+;
+LET_BLOCK_IMPER ::= let {:
+						SymTableStack.pushSymTable();
+						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
+					:}
+					indent LET_STMTS dedent IO_ACTION {:
+						SymTableStack.popSymTable();
+						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
+					:}
+;
 // DECL_FUNCT not supported (for now)
 LET_STMTS ::= LET_STMTS sep DECL_TYPE
 			| LET_STMTS sep DECL_VALUE
@@ -736,15 +815,8 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | ro EXPR rc
 	   | not EXPR   
 	   | minus EXPR 		%prec uminus 
-	   | let	{:
-			SymTableStack.pushSymTable();
-			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
-		 :} 
-		 indent LET_STMTS dedent in EXPR {:
-			SymTableStack.popSymTable();
-			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
-		 :}
-	   | if_begin COND then EXPR else_begin EXPR
+	   | LET_BLOCK_FUNC
+	   | IF_BLOCK_FUNC
 	   | id LACTARG 
 	   | VALUE
 ;
@@ -767,17 +839,23 @@ EXPR_NOTUNARYOP ::=
 	   | EXPR_NOTUNARYOP cons EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
 	   | ro EXPR rc
-	   | let {:
-			SymTableStack.pushSymTable();
-			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
-		 :} 
-		 indent LET_STMTS dedent in EXPR {:
-			SymTableStack.popSymTable();
-			if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
-		 :}
-	   | if_begin COND then EXPR else_begin EXPR
+	   | LET_BLOCK_FUNC
+	   | IF_BLOCK_FUNC
 	   | id LACTARG 
 	   | VALUE
+;
+
+IF_BLOCK_FUNC ::= if_begin COND then EXPR else_begin EXPR
+;
+
+LET_BLOCK_FUNC ::= 	let {:
+						SymTableStack.pushSymTable();
+						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
+					:} 
+					indent LET_STMTS dedent in EXPR {:
+						SymTableStack.popSymTable();
+						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
+					:}
 ;
 
 ///    args for function call   ///
