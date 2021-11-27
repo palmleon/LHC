@@ -68,7 +68,6 @@ action code {:
 		
 		private String typeName;
 		private TypeTree[] childs; //better than an ArrayList because its size it's fixed
-		private int nextChild = 0; // defines the next free slot where to allocate a child
 		
 		/* Basic Copy Constructor */
 		TypeTree(String typeName, TypeTree[] childs) {
@@ -100,15 +99,6 @@ action code {:
 		/* Setter method for the single child */
 		public void setChild(int pos, TypeTree child) {
 			this.childs[pos] = child;
-		}
-		
-		/* Method that adds a child at the next free slot (no position required)
-		 * Params: TypeTree tree - the tree to be added
-		 * Returns: nothing
-		 */
-		public void addChild(TypeTree tree) {
-			this.setChild(nextChild, tree);
-			nextChild++;
 		}
 		
 		/* Getter method for typeName */
@@ -179,6 +169,42 @@ action code {:
 		 */
 		private static HashMap<String, TypeTree> typeMap = new HashMap<>();
 		
+		/*
+		 * Create TypeMap with the predefined available Types
+		 * Params: nothing
+		 * Return: nothing
+		 */
+		private static void createTypeMap() {
+			// childTypeTree is used only for making the code slightly more readable
+			TypeTree tree = new TypeTree("Int", new TypeTree[0]);
+			TypeTree.addType(tree.getTypeName(), tree);
+			tree = new TypeTree("Double", new TypeTree[0]);
+			TypeTree.addType(tree.getTypeName(), tree);
+			tree = new TypeTree("Bool", new TypeTree[0]);
+			TypeTree.addType(tree.getTypeName(), tree);
+			tree = new TypeTree("Char", new TypeTree[0]);
+			TypeTree.addType(tree.getTypeName(), tree);
+			TypeTree[] treeArray = { new TypeTree(tree) };
+			tree = new TypeTree("List", treeArray);
+			TypeTree.addType("String", tree);
+			TypeTree anyTypeTree = new TypeTree("Any", new TypeTree[0]); 
+			treeArray = new TypeTree[]{ new TypeTree(anyTypeTree) };
+			tree = new TypeTree("List", treeArray);
+			TypeTree.addType(tree.getTypeName(), tree);
+			treeArray = new TypeTree[]{ new TypeTree(anyTypeTree), new TypeTree(anyTypeTree) };
+			tree = new TypeTree("Function", treeArray);
+			TypeTree.addType(tree.getTypeName(), tree);
+			// Min Arity for Tuples = 2, Max Arity for Tuples = 16
+			for (int i = 2; i <= 16; i++) {
+				treeArray = new TypeTree[i];
+				for (int j = 0; j < i; j++) {
+					treeArray[j] = new TypeTree(anyTypeTree);
+				}	
+				tree = new TypeTree("Tuple" + i, treeArray); 
+				TypeTree.addType(tree.getTypeName(), tree);
+		}
+		}
+		
 		/* Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
 		 * Params: String typeName - the name of the new Type
 		 * 		   TypeTree tree - the corresponding type 
@@ -191,13 +217,13 @@ action code {:
 		}
 		
 		/* 
-		 * Retrieve the TypeTree of a specific type from the typeMap, if present
+		 * Retrieve a clone of the TypeTree of a specific type from the typeMap, if present
 		 * Params: String typeName - the name of the Type
 		 * Return: the corresponding typeTree if the Type exists, null otherwise
 		 */
 		public static TypeTree getTypeTree(String typeName) {
 			if (typeMap.containsKey(typeName))
-				return typeMap.get(typeName);
+				return new TypeTree(typeMap.get(typeName));
 			else return null;
 		}
 		
@@ -233,9 +259,29 @@ action code {:
 		 * Being the project not originally developed using an IDE, using JUnit is not the best option
 		 * It would be ideal to move testing there (TODO)
 		 */
-		//public static testTypeTree() {
-		
-		
+		public static void testTypeTree() {
+			// Check TypeTree(TypeTree tree)
+			// 		 isEquivalent, isSubtype
+			TypeTree tree1 = TypeTree.getTypeTree("List");
+			TypeTree tree2 = new TypeTree(tree1);
+			if (tree1.isEquivalent(tree2))
+				System.out.println("TEST TYPE TREE 1: PASSED");
+			else
+				System.out.println("TEST TYPE TREE 1: FAILED");
+			// Check isSubtype, setChild, getTypeTree
+			TypeTree tree3 = TypeTree.getTypeTree("List");
+			tree3.setChild(0, TypeTree.getTypeTree("Int"));
+			if (tree3.isSubtype(tree1))
+				System.out.println("TEST TYPE TREE 2: PASSED");
+			else
+				System.out.println("TEST TYPE TREE 2: FAILED");
+			TypeTree tree4 = TypeTree.getTypeTree("Int");
+			TypeTree tree5 = TypeTree.getTypeTree("Double");
+			if (tree4.isSubtype(tree5) && !tree5.isSubtype(tree4))
+				System.out.println("TEST TYPE TREE 3: PASSED");
+			else
+				System.out.println("TEST TYPE TREE 3: FAILED");
+		}
 	}
 	
 	/* Class for the Symbol Table Stack
@@ -309,11 +355,11 @@ action code {:
 		 * This method is sensitive to the context (it depends on the current position in the Parser Tree)
 		 * The Parser must guarantee the correct SymTable for a given Entry
 		 * Params: String id - the name of the Entry (the corresponding token)
-		 * 		   TypeTree tree - the TypeTree of the Entry (built during reduction of Type Declarations)
+		 * 		   SymTableEntry entry - the Entry
 		 * Return: nothing
 		 */
-		public static void putEntry(String id, TypeTree tree) {
-			symTableStack.peek().put(id, new SymTableEntry(tree));
+		public static void putEntry(String id, SymTableEntry entry) {
+			symTableStack.peek().put(id, entry);
 		}
 		
 		/*
@@ -326,7 +372,7 @@ action code {:
 		public static boolean containsEntry(String id) {
 			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
-			while (entryFound || iterator.hasNext()) {
+			while (!entryFound && iterator.hasNext()) {
 				if (iterator.next().containsKey(id)) entryFound = true;
 			}
 			return entryFound;
@@ -340,7 +386,6 @@ action code {:
 		 * Return: the Entry itself, if found (null otherwise)
 		 */
 		public static SymTableEntry getEntry(String id) {
-			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
 			while (iterator.hasNext()) {
 				HashMap<String, SymTableEntry> currentSymTable = iterator.next();
@@ -356,11 +401,11 @@ action code {:
 		 * Params: String id - the name of the Entry (the corresponding token)
 		 * Return: the TypeTree of the Entry itself, if found (null otherwise)
 		 */
-		public static TypeTree getEntryTypeTree(String id) {
+		/*public static TypeTree getEntryTypeTree(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
 			if (debug_mode) System.err.println("WARNING: Inside getEntryTypeTree - no Entry found for " + id);
 			return entry == null? null : entry.getTypeTree();
-		}
+		}*/
 		
 		/*
 		 * Check whether a certain Entry is present in the whole SymTable Stack and check if it has been already assigned
@@ -369,18 +414,18 @@ action code {:
 		 * Params: String id - the name of the Entry (the corresponding token)
 		 * Return: a Boolean flag indicating whether the variable has been assigned, null if the Entry has not been found
 		 */
-		public static Boolean getEntryAssignFlag(String id) {
+		/*public static Boolean getEntryAssignFlag(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
 			if (debug_mode) System.err.println("WARNING: Inside getEntryAssignFlag - no Entry found for " + id);
 			return entry == null? null : entry.getIsAssigned();
-		}
+		} */
 		
 		/*
 		 * Debugging method that prints out the content of the whole symTableStack 
 		 * Params: nothing
 		 * Returns: nothing
 		 */
-		public void dumpSymTableStack(){
+		public static void dumpSymTableStack(){
 			int level = 0;
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
 			System.out.println("DEBUG: PRINTING SYMTABLESTACK!");
@@ -396,6 +441,40 @@ action code {:
 				level++;
 			}
 		}
+		
+		/* 
+		 * Being the project not originally developed using an IDE, using JUnit is not the best option
+		 * It would be ideal to move testing there (TODO)
+		 */
+		public static void testSymTableStack() {
+			SymTableStack.pushSymTable();
+			TypeTree tree = TypeTree.getTypeTree("Int");
+			SymTableStack.putEntry("x", new SymTableEntry(tree));
+			SymTableStack.putEntry("y", new SymTableEntry(tree));
+			if (SymTableStack.containsEntry("x")) 
+				System.out.println ("TEST SYMTABLE STACK 1: PASSED");
+			else
+				System.out.println ("TEST SYMTABLE STACK 1: FAILED");
+			if (!SymTableStack.containsEntry("xx")) 
+				System.out.println ("TEST SYMTABLE STACK 2: PASSED");
+			else
+				System.out.println ("TEST SYMTABLE STACK 2: FAILED");
+			if (SymTableStack.getEntry("x") != null)
+				System.out.println ("TEST SYMTABLE STACK 3: PASSED");
+			else
+				System.out.println ("TEST SYMTABLE STACK 3: FAILED");
+			if (SymTableStack.getEntry("xx") == null) 
+				System.out.println ("TEST SYMTABLE STACK 4: PASSED");
+			else
+				System.out.println ("TEST SYMTABLE STACK 4: FAILED");
+			boolean entry = SymTableStack.getEntry("x").getIsAssigned();
+			if (!entry)
+				System.out.println ("TEST SYMTABLE STACK 5: PASSED");
+			else
+				System.out.println ("TEST SYMTABLE STACK 5: FAILED");
+ 			SymTableStack.popSymTable();
+		}
+		
 	}
 :};
 
@@ -410,35 +489,11 @@ action code {:
  */
 init with {:
 		
-		// childTypeTree is used only for making the code slightly more readable
-		CUP$Parser$actions.TypeTree tree = new CUP$Parser$actions.TypeTree("Int", new CUP$Parser$actions.TypeTree[0]);
-		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
-		tree = new CUP$Parser$actions.TypeTree("Double", new CUP$Parser$actions.TypeTree[0]);
-		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
-		tree = new CUP$Parser$actions.TypeTree("Bool", new CUP$Parser$actions.TypeTree[0]);
-		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
-		tree = new CUP$Parser$actions.TypeTree("Char", new CUP$Parser$actions.TypeTree[0]);
-		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
-		CUP$Parser$actions.TypeTree[] treeArray = { new CUP$Parser$actions.TypeTree(tree) };
-		tree = new CUP$Parser$actions.TypeTree("List", treeArray);
-		CUP$Parser$actions.TypeTree.addType("String", tree);
-		CUP$Parser$actions.TypeTree anyTypeTree = new CUP$Parser$actions.TypeTree("Any", new CUP$Parser$actions.TypeTree[0]); 
-		treeArray = new CUP$Parser$actions.TypeTree[]{ new CUP$Parser$actions.TypeTree(anyTypeTree) };
-		tree = new CUP$Parser$actions.TypeTree("List", treeArray);
-		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
-		treeArray = new CUP$Parser$actions.TypeTree[]{ new CUP$Parser$actions.TypeTree(anyTypeTree), new CUP$Parser$actions.TypeTree(anyTypeTree) };
-		tree = new CUP$Parser$actions.TypeTree("Function", treeArray);
-		CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
-		// Min Arity for Tuples = 2, Max Arity for Tuples = 16
-		for (int i = 2; i <= 16; i++) {
-			 treeArray = new CUP$Parser$actions.TypeTree[i];
-			 for (int j = 0; j < i; j++) {
-				treeArray[j] = new CUP$Parser$actions.TypeTree(anyTypeTree);
-			 }
-			 tree = new CUP$Parser$actions.TypeTree("Tuple" + i, treeArray); 
-			 CUP$Parser$actions.TypeTree.addType(tree.getTypeName(), tree);
-		}
-		CUP$Parser$actions.TypeTree.dumpTypeMap();
+		// Create the Table containing all Types and their TypeTrees
+		CUP$Parser$actions.TypeTree.createTypeMap();
+		//CUP$Parser$actions.TypeTree.dumpTypeMap();
+		//CUP$Parser$actions.TypeTree.testTypeTree();
+		CUP$Parser$actions.SymTableStack.testSymTableStack();
 :}
 
 /* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
