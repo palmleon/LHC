@@ -28,6 +28,15 @@ parser code {:
 		report_error(current);
 	}
 	
+	/*
+	 * Function to retrieve values directly from the Stack
+	 * Params: int position - position wrt the top of the Stack
+	 * Return: Object - the corresponding element of the Stack 
+	 */
+    public Object stack(int position) {
+        return (((Symbol)stack.elementAt(tos+position)).value);
+    }
+	
 	/* 
 	 *  Inform the user that a Syntax Error has been raised, and inform them about the nature of the Syntax Error
 	 *	Params: Object info - The last parsed symbol before raising the last Syntax Error
@@ -514,11 +523,44 @@ action code {:
 		}
 	}
 	
+	public static class LExprAST extends SeqExprAST {
+		public TypeTree tree;
+		
+		LExprAST (ExprAST[] exprArray, TypeTree tree) {
+			super(exprArray);
+			this.tree = tree;
+		}
+	}
+	
+	public static class LFormArgAST {
+		public LinkedList<String> argList;
+		
+		LFormArgAST (LinkedList<String> argList) {
+			this.argList = argList;
+		}
+	}
+	
+	public static class LActArgAST {
+		public LinkedList<ActArgAST> actArgList;
+		
+		LActArgAST (LinkedList<ActArgAST> actArgList) {
+			this.actArgList = actArgList;
+		}
+	}
+	
+	public static class ActArgAST {
+		public TypeTree tree;
+
+		ActArgAST (TypeTree tree) {
+			this.tree = tree;
+		}
+	}
+	
 	public static class LetBlockAST {
 		public TypeTree tree;
 		
 		LetBlockAST (TypeTree tree) {
-			
+			this.tree = tree;
 		}
 	}
 	
@@ -526,7 +568,15 @@ action code {:
 		public TypeTree tree;
 		
 		IfBlockAST (TypeTree tree) {
-			
+			this.tree = tree;
+		}
+	}
+	
+	public static class DeclTypeAST {
+		public TypeTree tree;
+		
+		DeclTypeAST (TypeTree tree) {
+			this.tree = tree;
 		}
 	}
 	
@@ -540,7 +590,8 @@ action code {:
 		public Object value;
 		
 		ValueAST (TypeTree tree, Object value) {
-			
+			this.tree = tree;
+			this.value = value;
 		}
 	}
 :};
@@ -585,7 +636,7 @@ scan with {:
 
 terminal main;
 terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep/*, us */;
-terminal plus, minus, times, div, intdiv, mod, exp, uminus, and, or, not;
+terminal plus, minus, times, div, intdiv, mod, uminus, and, or, not;
 terminal releq, relge, relgt, relle, rellt;
 terminal conc, cons;
 terminal indent, dedent;
@@ -596,7 +647,7 @@ terminal ConstantAST<Double> val_double;
 terminal ConstantAST<Boolean> val_bool;
 terminal ConstantAST<Char> val_char;
 terminal ConstantAST<String> val_string;
-terminal TypeTree type_int, type_double, type_bool, type_char, type_string;
+terminal type_int, type_double, type_bool, type_char, type_string;
 terminal String id;
 
 /// ///////////////////////// ///
@@ -607,8 +658,12 @@ non terminal PROGRAM;
 non terminal FUNCT_PART, IMPER_PART;
 non terminal IO_ACTIONS, IO_ACTION;
 non terminal PRINT;
-non terminal ExprAST COND, EXPR, EXPR_NOTUNARYOP, ACTARG;
-non terminal SeqExprAST LEXPR, TEXPR, LACTARG, LFORMARG;
+non terminal ExprAST COND, EXPR, EXPR_NOTUNARYOP;
+non terminal LExprAST LEXPR;
+non terminal SeqExprAST TEXPR;
+non terminal ActArgAST ACTARG;
+non terminal LActArgAST LACTARG;
+non terminal LFormArgAST LFORMARG;
 //non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
 non terminal LET_STMTS;
 non terminal DO_BLOCK;
@@ -616,7 +671,8 @@ non terminal LetBlockAST LET_BLOCK_FUNC;
 non terminal LET_BLOCK_IMPER;
 non terminal IfBlockAST IF_BLOCK_FUNC;
 non terminal IF_BLOCK_IMPER;
-non terminal DECL, DECL_TYPE, DECL_VALUE, DECL_FUNCT;
+non terminal DECL, DECL_VALUE, DECL_FUNCT;
+non terminal DeclTypeAST DECL_TYPE;
 non terminal TypeTree TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
 non terminal LinkedList<TypeTree> TTYPE_VALUE;
 non terminal ValueAST VALUE, VALUE_LIST, VALUE_TUPLE, VALUE_BASIC;
@@ -634,7 +690,6 @@ precedence left and;
 precedence nonassoc releq, relgt, relge, rellt, relle;
 precedence left plus, minus;
 precedence left times, div, intdiv;
-precedence right exp;
 precedence nonassoc not, uminus;
 
 start with PROGRAM;
@@ -677,8 +732,8 @@ IO_ACTION ::= PRINT
 ;
 
 IO_ACTIONS ::= IO_ACTION
-			 | LET_BLOCK_IMPER
 			 | IO_ACTIONS sep IO_ACTION
+			 | LET_BLOCK_IMPER
 ;
 
 PRINT ::= print ACTARG
@@ -689,6 +744,7 @@ DO_BLOCK ::= do_begin indent IO_ACTIONS dedent
 
 IF_BLOCK_IMPER ::= if_begin COND then IO_ACTION else_begin IO_ACTION 
 ;
+
 LET_BLOCK_IMPER ::= let {:
 						SymTableStack.pushSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
@@ -730,6 +786,8 @@ DECL_TYPE ::= id cm DECL_TYPE
 /* pattern and expr should be of the same type */
 //DECL_VALUE ::= PATTERN eq EXPR
 DECL_VALUE ::= id eq EXPR
+			// The Empty List can be used only here
+			|  id eq bo bc 
 ;
 
 /* no nullary functions */
@@ -802,7 +860,6 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | EXPR div EXPR_NOTUNARYOP
 	   | EXPR intdiv EXPR_NOTUNARYOP
 	   | mod ACTARG ACTARG 
-	   | EXPR exp EXPR_NOTUNARYOP
 	   | EXPR and EXPR_NOTUNARYOP
 	   | EXPR or EXPR_NOTUNARYOP
 	   | EXPR releq EXPR_NOTUNARYOP
@@ -828,7 +885,6 @@ EXPR_NOTUNARYOP ::=
 	   | EXPR_NOTUNARYOP div EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP intdiv EXPR_NOTUNARYOP
 	   | mod ACTARG ACTARG 
-	   | EXPR_NOTUNARYOP exp EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP and EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP or EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP releq EXPR_NOTUNARYOP
@@ -845,9 +901,6 @@ EXPR_NOTUNARYOP ::=
 	   | VALUE
 ;
 
-IF_BLOCK_FUNC ::= if_begin COND then EXPR else_begin EXPR
-;
-
 LET_BLOCK_FUNC ::= 	let {:
 						SymTableStack.pushSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
@@ -857,6 +910,11 @@ LET_BLOCK_FUNC ::= 	let {:
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 					:}
 ;
+
+
+IF_BLOCK_FUNC ::= if_begin COND then EXPR else_begin EXPR
+;
+
 
 ///    args for function call   ///
 
@@ -884,12 +942,11 @@ VALUE_BASIC ::= val_int
 			  | val_string
 ;
 
+// Empty List can only be directly used in declaration, to avoid Type Variables propagation
 VALUE_LIST ::= bo LEXPR bc
-			 | bo bc
 ;
 
-VALUE_TUPLE ::= ro TEXPR rc 
-			  | ro rc
+VALUE_TUPLE ::= ro TEXPR rc
 ;
 
 LEXPR ::= EXPR
@@ -921,8 +978,7 @@ TYPE_BASIC ::= type_int
 TYPE_LIST ::= bo TYPE_VALUE bc
 ;
 
-TYPE_TUPLE ::= ro rc 
-			 | ro TTYPE_VALUE rc
+TYPE_TUPLE ::= ro TTYPE_VALUE rc
 ;
 
 // no higher order functions
@@ -930,6 +986,7 @@ TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
 		    | TYPE_VALUE arrow TYPE_VALUE
 ;
 
+// 0-Tuple are not allowed
 TTYPE_VALUE ::= TYPE_VALUE cm TYPE_VALUE
 			  | TTYPE_VALUE cm TYPE_VALUE
 ;

@@ -1,0 +1,15 @@
+Features da implementare:
+- Tipi accettati:
+  Int, Double, Char, Bool, Tuples, Lists, Strings, Functions
+- Let bindings
+- Static scoping
+- (Permettere di definire Funzioni nei Let Bindings)
+- (Guards)
+- (Where bindings)
+- (Type inference)
+- (Case expressions)
+- (Pattern matching)
+- (Infix/Prefix binary functions)
+- (Type variables)
+- (Custom Types/Typeclasses, Kind System) VERY HARD
+

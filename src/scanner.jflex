@@ -188,7 +188,6 @@ ws = [ \t]
 "/"				{return manageToken(sym.div);}
 div				{return manageToken(sym.intdiv);}
 mod				{return manageToken(sym.mod);}
-"**"			{return manageToken(sym.exp);}
 "&&"			{return manageToken(sym.and);}
 "||"			{return manageToken(sym.or);}
 not				{return manageToken(sym.not);}
