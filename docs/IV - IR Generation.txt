@@ -4,6 +4,18 @@
 
 PRINCIPI:
 - Il codice viene generato solo se non ci sono Compile Errors
+- Ogni nodo dell'AST avrà il suo metodo codegen() e chiamerà il metodo codegen() dei blocchi sottostanti per generare il loro codice;
+	il metodo ritorna l'ultimo valore ritornato dal blocco, in modo da tenere traccia dell'indice incrementale delle variabili senza nome
+	il metodo richiede come argomento un blocco di stringhe su cui scrivere il codice
+
+WORKFLOW:
+Per ogni insieme di istruzioni LLVM che vogliamo tradurre:
+- Testare che l'istruzione sia compatibile con LLVM
+- Implementare la costruzione dell'istruzione nel compilatore
+- Usare del (semplice) codice di prova per verificare che la compilazione sia corretta
+
+PROBLEMI:
+- Come implementare le liste e le loro funzioni in LLVM?
 
 TODO:
 - Implementare funzioni head, tail, size (per Liste), extract (per Tuple) nella symTable

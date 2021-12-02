@@ -75,7 +75,7 @@ Controlli:
 ----------------------------------------------------------------------------------------------------------------------
 Tutti i check sulle symTable implementano lo Static Scoping
 
-// TODO Rimuovere Pattern Matching
+// TODO Implementare IOAction
 
 PROGRAM: push nel symTableStack (all'inizio) e pop dal symTableStack (alla fine)
 IMPER_PART: 
@@ -129,10 +129,15 @@ DECL_TYPE (i):  tipo di "DECL_TYPE", stringa di "id";
 	        Uniqueness Check su "id"
 	  (ii): tipo di "TYPE", stringa di "id"; 
 		aggiungere "id" alla symTable attuale, con tipo corrispondente a quello di "TYPE",
-		tipo di "DECL_TYPE" corrispondente a quello di "DECL_TYPE";
+		tipo di "DECL_TYPE" corrispondente a quello di "TYPE";
 		Uniqueness Check su "id"
 DECL_VALUE (i): tipo di "id", stringa di "id",
 		tipo di "EXPR"; 
+		aggiornare isAssigned relativo alla variabile assegnata, nella symTable; 
+		Declaration check su "id", 
+		Assignment Uniqueness check su "id", 
+		Type Checking su "EXPR" (deve corrispondere a quello di id)
+	   (ii):tipo di "id", stringa di "id";
 		aggiornare isAssigned relativo alla variabile assegnata, nella symTable; 
 		Declaration check su "id", 
 		Assignment Uniqueness check su "id", 
@@ -209,6 +214,19 @@ EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR" (parent) corrispondente a Bool;
 		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double o di Char e devono essere l'uno subtype dell'altro);
 		(IR generation) se "EXPR".type =/= "EXPR_NOTUNARYOP".type, effettuare il casting dell'expr di tipo più specifico
+	(xiv):	tipo di "ACTARG";
+		tipo di "EXPR" corrispondente a "ACTARG";
+		Type Checking su "ACTARG" (deve essere subtype di List);
+	(xv):	tipo di "ACTARG";
+		tipo di "EXPR" corrispondente a "ACTARG.child0";
+		Type Checking su "ACTARG" (deve essere subtype di List);
+	(xvi):	tipo di "EXPR_1", "EXPR_2";
+		tipo di "EXPR" corrispondente a "EXPR_1.child0";
+		Type Checking su "EXPR_1" (deve essere subtype di List),
+		Type Checking su "EXPR_2" (deve essere equivalente a Int);
+	(xvii):	tipo di "ACTARG";
+		tipo di "EXPR" corrispondente a "ACTARG.child0";
+		Type Checking su "ACTARG" (deve essere subtype di List);
 	(xiv):	tipo di "EXPR",
 		tipo di "EXPR_NOTUNARYOP";
 		tipo di "EXPR" corrispondente a List["EXPR".type];
@@ -308,7 +326,7 @@ VALUE_LIST	(i):	tipo di "LEXPR";
 		(ii):	;
 			tipo di "VALUE_LIST" corrispondente a List[Any];
 			;
-VALUE_TUPLE	(i):	tipo di TEXPR (con lista dei tipi in TEXPR);
+//VALUE_TUPLE	(i):	tipo di TEXPR (con lista dei tipi in TEXPR);
 			tipo di "VALUE_TUPLE" corrispondente a 
 				Tuple("TEXPR"[0].Type, "TEXPR"[1].Type, ... "TEXPR"[n]. Type);
 			;
@@ -319,7 +337,7 @@ LEXPR	(i):	;
 		tipo di "LEXPR" corrispondente a quello di "LEXPR",
 		aggiungi "EXPR" a "LEXPR";
 		Type Checking su "EXPR" e "LEXPR" (dovrebbero essere equivalenti)
-TEXPR	(i):	;
+//TEXPR	(i):	;
 		crea lista di espressioni per "TEXPR", appendici "EXPR_1" e "EXPR_2";
 		;
 	(ii):	;
@@ -358,7 +376,7 @@ TYPE_BASIC	(i):	;
 TYPE_LIST	(i):	tipo di "TYPE_VALUE";
 			tipo di "TYPE_LIST" corrispondente a List["TYPE_VALUE"];
 			;
-TYPE_TUPLE	(i):	;
+//TYPE_TUPLE	(i):	;
 			tipo di "TYPE_TUPLE" corrispondente a Tuple();
 			;
 		(ii):	tipo di "TTYPE_VALUE";
@@ -377,7 +395,7 @@ TYPE_FUNC	(i):	tipo di "TYPE_VALUE",
 				(crea nuovo root di tipo Func con ramo sx corrispondente a "TYPE_VALUE_1" e
 				 ramo dx corrispondente a "TYPE_VALUE_2");
 			;
-TTYPE_VALUE	(i):	tipo di "TYPE_VALUE_1",
+//TTYPE_VALUE	(i):	tipo di "TYPE_VALUE_1",
 			tipo di "TYPE_VALUE_2";
 			crea lista di tipi per "TTYPE_VALUE", appendici "TYPE_VALUE_1" e "TYPE_VALUE_2";
 			;
@@ -394,6 +412,7 @@ TTYPE_VALUE	(i):	tipo di "TYPE_VALUE_1",
  Missing Value Declaration: Declaration check failed
  Multiple Value Assignment: Assignment Uniqueness check failed
  Mismatching Arity: Arity check failed
+ Nested Lists not supported: after Type check that a variable contains a list of list
  Wrong Type in List Expression: expression type is not compatible with other expressions in the same list
 
  Ogni volta che un errore viene rilevato, settare noCompileErrors = false e stampare msg di errore

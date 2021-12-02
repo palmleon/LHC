@@ -1,0 +1,5 @@
+Inserire Regole Semantiche
+Testare Semantic Analyzer:
+	Definire Programmi di Test (10 Good/10 Faulty)
+	Lanciare Test	
+	

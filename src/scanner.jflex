@@ -202,6 +202,10 @@ in				{return manageToken(sym.in);}
 main			{return manageToken(sym.main);}
 do				{indentEnable = true;
 				 return manageToken(sym.do_begin);}
+head			{return manageToken(sym.head);}
+tail			{return manageToken(sym.tail);}
+elem			{return manageToken(sym.elem);}
+"!!"			{return manageToken(sym.index);}
 if				{return manageToken(sym.if_begin);}
 then			{return manageToken(sym.then);}
 else			{return manageToken(sym.else_begin);}

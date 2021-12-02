@@ -1,0 +1,5 @@
+Definire Gestione Liste	- 5h
+Definire Mappatura istruzione -> costrutto LLVM	-10h
+Definire Gestione Variabili (locali/globali)	- 8h
+Implementare IR Generation - 20h
+Test&Debug (stessi file utilizzati dal Sem.Analyzer) - 15h

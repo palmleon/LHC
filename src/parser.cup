@@ -25,13 +25,13 @@ parser code {:
 	 *  Return: nothing
 	 */
 	public void syntax_error(java_cup.runtime.Symbol current) {
-		report_error(current);
+		report_error("", current);
 	}
 	
 	/*
 	 * Function to retrieve values directly from the Stack
-	 * Params: int position - position wrt the top of the Stack
-	 * Return: Object - the corresponding element of the Stack 
+	 * @param: int position - position wrt the top of the Stack
+	 * @return: Object - the corresponding element of the Stack 
 	 */
     public Object stack(int position) {
         return (((Symbol)stack.elementAt(tos+position)).value);
@@ -43,17 +43,30 @@ parser code {:
 	 *  		String msg - The additional message describing the kind of Syntax Error
 	 *	Return: nothing
 	 */
-    public void report_error(Object info) {
-        System.err.print("ERROR: Syntax error");
+    public void report_error(String msg, Object info) {
 		noCompileErrors = false;
+        System.err.print("ERROR: Syntax error");
         if (info instanceof Symbol)
             if (((Symbol)info).left != -1){
                 int line = (((Symbol)info).left);
                 int column = (((Symbol)info).right);
-                System.err.print(" (line "+line+", column "+column+"): ");
-            } else System.err.print(": ");
-        else System.err.print(": ");
+                System.err.print(" (line "+line+", column "+column+"): " + msg);
+            } else System.err.print(": " + msg);
+        else System.err.print(": " + msg);
     }
+	
+	public void report_semantic_error(String msg) {
+		noCompileErrors = false;
+		System.err.print("ERROR: Semantic error");
+        //if (info instanceof Symbol)
+        //    if (((Symbol)info).left != -1){
+        //        int line = (((Symbol)info).left);
+        //        int column = (((Symbol)info).right);
+        //System.err.println(" (line "+line+", column "+column+"): " + msg);
+        //    } else System.err.println(": " + msg);
+        //else System.err.println(": " + msg);
+		System.err.println(": " + msg);
+	}
 	
 :};
 
@@ -151,6 +164,7 @@ action code {:
 		 */
 		public boolean isSubtype(TypeTree other) {
 			boolean isSubtype = true;
+			if (other.getTypeName().equals("error")) return false;
 			if (other.getTypeName().equals("Any")) return true;
 			if (TypeTree.widen(this.getTypeName(), other.getTypeName()) == null) return false;
 			if (this.getChilds().length != other.getChilds().length) return false;
@@ -203,18 +217,22 @@ action code {:
 			treeArray = new TypeTree[]{ new TypeTree(anyTypeTree), new TypeTree(anyTypeTree) };
 			tree = new TypeTree("Function", treeArray);
 			TypeTree.addType(tree.getTypeName(), tree);
+			// special error type for propagating type checking errors
+			tree = new TypeTree("error", new TypeTree[0]);
+			TypeTree.addType(tree.getTypeName(), tree);
 			// Min Arity for Tuples = 2, Max Arity for Tuples = 10
-			for (int i = 2; i <= 10; i++) {
+			/*for (int i = 2; i <= 10; i++) {
 				treeArray = new TypeTree[i];
 				for (int j = 0; j < i; j++) {
 					treeArray[j] = new TypeTree(anyTypeTree);
 				}	
 				tree = new TypeTree("Tuple" + i, treeArray); 
 				TypeTree.addType(tree.getTypeName(), tree);
-			}
+			}*/
 		}
 		
-		/* Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
+		/* 
+		 * Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
 		 * Params: String typeName - the name of the new Type
 		 * 		   TypeTree tree - the corresponding type 
 		 * Return: boolean - true if no error occured, false otherwise
@@ -223,6 +241,15 @@ action code {:
 			if (typeMap.containsKey(typeName)) return false;
 			typeMap.put(typeName, tree);
 			return true;
+		}
+		
+		/* 
+		 * Check whether a certain type has been defined or not
+		 * @param: String typeName - the type to look for
+		 * @return: boolean - true if the type exists, false otherwise
+		 */
+		public static boolean typeExists(String typeName) {
+			return typeMap.containsKey(typeName);
 		}
 		
 		/* 
@@ -338,6 +365,7 @@ action code {:
 			}
 		}
 		
+		
 		// Symbol Table Stack (there is only one global instance whose lifetime corresponds to the lifetime of the parser itself)
 		private static LinkedList<HashMap<String, SymTableEntry>> symTableStack = new LinkedList<>();
 		
@@ -357,6 +385,13 @@ action code {:
 		 */
 		public static void popSymTable() {
 			symTableStack.pop();
+		}
+		
+		/*
+		 * 
+		 */
+		public static HashMap<String, SymTableEntry> peekSymTable() {
+			return symTableStack.peek();
 		}
 		
 		/*
@@ -494,6 +529,52 @@ action code {:
 		
 	}
 	
+	
+	/*
+	 * Method that implements Uniqueness check, i.e. verifies whether a variable has already been declared in
+	 * currentSymTable or not
+	 * @param: String entryName - the name of the value whose uniqueness needs to be checked
+	 * @return: boolean - true if the value is unique, false otherwise
+	 */
+	public boolean isUnique(String entryName) {
+		return !SymTableStack.peekSymTable().containsKey(entryName);
+	}
+	
+	/*
+	 * Method that implements Assignment Uniqueness check, i.e. verifies whether a variable has already been assigned
+	 * @param: String entryName - the name of the value whose assignment uniqueness needs to be checked
+	 * @return: boolean - true if the value has not been assigned yet, false otherwise
+	 */
+	public boolean isNotAssigned(String entryName) {
+		return !SymTableStack.getEntry(entryName).getIsAssigned();
+	}
+	
+	/*
+	 * Method that implements Arity check, i.e. verifies whether the function has the same arity of its actual arguments
+	 * @param:  String funcName - the name of the function whose arity needs to be checked
+	 * 			int arity - the expected arity of the function
+	 * @return: boolean - true if the function has the same Arity, false otherwise
+	 */
+	public boolean hasArity(String funcName, int arity) {
+		int count = 0;
+		TypeTree funcTypeTree = SymTableStack.getEntry(funcName).getTypeTree();
+		TypeTree rightChildTypeTree = funcTypeTree.getChild(1);
+		while(rightChildTypeTree.getTypeName().equals("Function")) {
+			rightChildTypeTree = funcTypeTree.getChild(1);
+		}
+		return count == arity;
+	}
+	
+	/* 
+	 * Method that implements Declaration check, i.e. verifies whether a variable has been declared in the whole program,
+	 * since LHC supports Static Lexical Scoping
+	 * @param: String entryName - the name of the value whose declaration needs to be checked
+	 * @return: boolean - true if the value has been already declared, false otherwise
+	 */
+	public boolean isDeclared(String entryName) {
+		return SymTableStack.containsEntry(entryName);
+	}
+	
 	/*
 	 * ALL THE FOLLOWING CLASSES ARE USED FOR SEMANTIC ANALYSIS (info for the AST) and IR CODEGEN
 	 */
@@ -594,6 +675,7 @@ action code {:
 			this.value = value;
 		}
 	}
+	
 :};
 
 /*  In the Initialization Section, the typeMap (i.e. the list containing all declared types) is filled 
@@ -637,6 +719,7 @@ scan with {:
 terminal main;
 terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep/*, us */;
 terminal plus, minus, times, div, intdiv, mod, uminus, and, or, not;
+terminal head, tail, elem, index;
 terminal releq, relge, relgt, relle, rellt;
 terminal conc, cons;
 terminal indent, dedent;
@@ -660,7 +743,6 @@ non terminal IO_ACTIONS, IO_ACTION;
 non terminal PRINT;
 non terminal ExprAST COND, EXPR, EXPR_NOTUNARYOP;
 non terminal LExprAST LEXPR;
-non terminal SeqExprAST TEXPR;
 non terminal ActArgAST ACTARG;
 non terminal LActArgAST LACTARG;
 non terminal LFormArgAST LFORMARG;
@@ -673,9 +755,9 @@ non terminal IfBlockAST IF_BLOCK_FUNC;
 non terminal IF_BLOCK_IMPER;
 non terminal DECL, DECL_VALUE, DECL_FUNCT;
 non terminal DeclTypeAST DECL_TYPE;
-non terminal TypeTree TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_TUPLE, TYPE_LIST, TYPE_BASIC;
-non terminal LinkedList<TypeTree> TTYPE_VALUE;
-non terminal ValueAST VALUE, VALUE_LIST, VALUE_TUPLE, VALUE_BASIC;
+non terminal TypeTree TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_LIST, TYPE_BASIC;
+//non terminal LinkedList<TypeTree> TTYPE_VALUE;
+non terminal ValueAST VALUE, VALUE_LIST, VALUE_BASIC;
 //non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
 //non terminal PATTERN_LIST, PATTERN_TUPLE;
 
@@ -690,6 +772,7 @@ precedence left and;
 precedence nonassoc releq, relgt, relge, rellt, relle;
 precedence left plus, minus;
 precedence left times, div, intdiv;
+precedence right index;
 precedence nonassoc not, uminus;
 
 start with PROGRAM;
@@ -704,11 +787,12 @@ PROGRAM ::= /* empty program */
 				System.out.println("CODE COMPILED SUCCESSFULLY");
 				}
 			:}
-		  | {:	// push the top-level symtable
+		  | indent
+			{:	// push the top-level symtable
 				SymTableStack.pushSymTable();
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable pushed");
 			:}
-			indent FUNCT_PART IMPER_PART {:
+			FUNCT_PART IMPER_PART {:
 					SymTableStack.popSymTable();
 					if (debug_mode) System.out.println("DEBUG: Top-level Symtable popped");
 				:}
@@ -742,7 +826,12 @@ PRINT ::= print ACTARG
 DO_BLOCK ::= do_begin indent IO_ACTIONS dedent
 ;
 
-IF_BLOCK_IMPER ::= if_begin COND then IO_ACTION else_begin IO_ACTION 
+IF_BLOCK_IMPER ::= if_begin COND:cond then IO_ACTION else_begin IO_ACTION
+				{:
+					if (!cond.tree.isEquivalent(TypeTree.getTypeTree("Bool"))) {
+						report_semantic_error("Wrong Type (Expected Type: Bool)");
+					}
+				:}
 ;
 
 LET_BLOCK_IMPER ::= let {:
@@ -770,7 +859,15 @@ FUNCT_PART ::= /* empty Functional section */
 ;
 
 /* special expression management for boolean conditions */
-COND ::= EXPR 
+COND ::= EXPR:expr {:
+					if (!expr.tree.isEquivalent(TypeTree.getTypeTree("Bool"))) {
+						report_semantic_error("Wrong Type (Expected Type: Bool)");
+						RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+					}
+					else {
+						RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+					}
+			   :}
 ;
 
 ///  DECLARATIONS  ///
@@ -779,15 +876,68 @@ DECL ::= DECL_TYPE
 	   | DECL_VALUE
 	   | DECL_FUNCT;
 
-DECL_TYPE ::= id cm DECL_TYPE
-			| id clns TYPE
+DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
+			{:
+				TypeTree tree = new TypeTree(decl_type.tree);
+				if (isUnique(id)) {
+					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(tree));
+				}
+				else {
+					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
+				}
+				RESULT = new DeclTypeAST(new TypeTree(tree));
+			:}
+			| id:id clns TYPE:type
+			{:
+				TypeTree tree = new TypeTree(type);
+				if (isUnique(id)) {
+					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(tree));
+				}
+				else {
+					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
+				}
+				RESULT = new DeclTypeAST(new TypeTree(tree));
+			:}
 ; 
 
 /* pattern and expr should be of the same type */
 //DECL_VALUE ::= PATTERN eq EXPR
-DECL_VALUE ::= id eq EXPR
+DECL_VALUE ::= id:id eq EXPR:expr
+			{:
+				if (isDeclared(id) && (isNotAssigned(id)) && (expr.tree.isEquivalent(SymTableStack.getEntry(id).getTypeTree()))) {
+					SymTableStack.getEntry(id).setIsAssigned(true);
+				}
+				else {
+					if (!isDeclared(id)) {
+						report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+					}
+					else if (!isNotAssigned(id)) {
+						report_semantic_error("Multiple Value Assignment (Symbol " + id + ")");
+					}
+					else {
+						report_semantic_error("Mismatching Type on Assignment (involving Symbol " + id + ")"); 
+					}
+				}
+			:}
 			// The Empty List can be used only here
-			|  id eq bo bc 
+			|  id:id eq bo bc 
+			{:
+				if (isDeclared(id) && (isNotAssigned(id)) && 
+						(SymTableStack.getEntry(id).getTypeTree().isSubtype(TypeTree.getTypeTree("List")))) {
+					SymTableStack.getEntry(id).setIsAssigned(true);
+				}
+				else {
+					if (!isDeclared(id)) {
+						report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+					}
+					else if (!isNotAssigned(id)) {
+						report_semantic_error("Multiple Value Assignment (Symbol " + id + ")");
+					}
+					else {
+						report_semantic_error("Mismatching Type on Assignment (involving Symbol " + id + ")"); 
+					}
+				}
+			:}
 ;
 
 /* no nullary functions */
@@ -867,6 +1017,10 @@ EXPR ::= EXPR plus EXPR_NOTUNARYOP
 	   | EXPR relge EXPR_NOTUNARYOP
 	   | EXPR rellt EXPR_NOTUNARYOP
 	   | EXPR relle EXPR_NOTUNARYOP
+	   | head ACTARG
+	   | tail ACTARG
+	   | elem ACTARG
+	   | EXPR index EXPR
 	   | EXPR cons EXPR_NOTUNARYOP
 	   | EXPR conc EXPR_NOTUNARYOP
 	   | ro EXPR rc
@@ -892,6 +1046,10 @@ EXPR_NOTUNARYOP ::=
 	   | EXPR_NOTUNARYOP relge EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP rellt EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP relle EXPR_NOTUNARYOP
+	   | head ACTARG
+	   | tail ACTARG
+	   | elem ACTARG
+	   | EXPR_NOTUNARYOP index EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP cons EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
 	   | ro EXPR rc
@@ -932,7 +1090,7 @@ LACTARG ::= /* empty list of args: we call a variable */
 
 VALUE ::= VALUE_BASIC
 		| VALUE_LIST
-		| VALUE_TUPLE
+//		| VALUE_TUPLE
 ;
 
 VALUE_BASIC ::= val_int
@@ -946,16 +1104,17 @@ VALUE_BASIC ::= val_int
 VALUE_LIST ::= bo LEXPR bc
 ;
 
-VALUE_TUPLE ::= ro TEXPR rc
-;
+//VALUE_TUPLE ::= ro TEXPR rc
+//;
 
 LEXPR ::= EXPR
 		| LEXPR cm EXPR
 ;
 
-TEXPR ::= EXPR cm EXPR
-		| TEXPR cm EXPR
-;
+//TEXPR ::= EXPR cm EXPR
+//		| TEXPR cm EXPR
+//;
+
 ///   TYPES   ///
 
 TYPE ::= TYPE_VALUE
@@ -963,9 +1122,9 @@ TYPE ::= TYPE_VALUE
 ;
 
 // both basic types and compound
-TYPE_VALUE ::= TYPE_TUPLE
-			 | TYPE_LIST
+TYPE_VALUE ::= TYPE_LIST
 			 | TYPE_BASIC
+//			 | TYPE_TUPLE
 ;
 
 TYPE_BASIC ::= type_int
@@ -975,11 +1134,11 @@ TYPE_BASIC ::= type_int
 			 | type_string
 ;
 
-TYPE_LIST ::= bo TYPE_VALUE bc
+TYPE_LIST ::= bo TYPE_BASIC bc
 ;
 
-TYPE_TUPLE ::= ro TTYPE_VALUE rc
-;
+//TYPE_TUPLE ::= ro TTYPE_VALUE rc
+//;
 
 // no higher order functions
 TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
@@ -987,9 +1146,9 @@ TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
 ;
 
 // 0-Tuple are not allowed
-TTYPE_VALUE ::= TYPE_VALUE cm TYPE_VALUE
-			  | TTYPE_VALUE cm TYPE_VALUE
-;
+//TTYPE_VALUE ::= TYPE_VALUE cm TYPE_VALUE
+//			  | TTYPE_VALUE cm TYPE_VALUE
+//;
 
 
 

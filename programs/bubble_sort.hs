@@ -1,7 +1,7 @@
 bubble_sort :: [Int] -> [Int]
 bubble_sort xs = bubble_sort_rec xs
 bubble_sort_rec :: [Int] -> [Int]
-bubble_sort_rec s = if (length s) >= 2 
+bubble_sort_rec s = if elem s >= 2 
                      then let x1, x2 :: Int; xs :: [Int]
                               x1 = head s; xs = tail s; x2 = head xs
                           in if x1 > x2 
