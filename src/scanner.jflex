@@ -172,7 +172,7 @@ ws = [ \t]
 %%
 
 "="				{return manageToken(sym.eq);}
-":"				{return manageToken(sym.cons);}
+//":"				{return manageToken(sym.cons);}
 "::"			{return manageToken(sym.clns);}
 ","				{return manageToken(sym.cm);}
 //"|"			{return manageToken(sym.pipe);}
@@ -196,14 +196,14 @@ not				{return manageToken(sym.not);}
 ">"				{return manageToken(sym.relgt);}
 "<="			{return manageToken(sym.relle);}
 "<"				{return manageToken(sym.rellt);}
-"++"			{return manageToken(sym.conc);}
+//"++"			{return manageToken(sym.conc);}
 ";"				{return manageToken(sym.sep);}
 in				{return manageToken(sym.in);}
 main			{return manageToken(sym.main);}
 do				{indentEnable = true;
 				 return manageToken(sym.do_begin);}
-head			{return manageToken(sym.head);}
-tail			{return manageToken(sym.tail);}
+//head			{return manageToken(sym.head);}
+//tail			{return manageToken(sym.tail);}
 elem			{return manageToken(sym.elem);}
 "!!"			{return manageToken(sym.index);}
 if				{return manageToken(sym.if_begin);}
@@ -218,12 +218,12 @@ print			{return manageToken(sym.print);}
 Int				{return manageToken(sym.type_int);}
 Double			{return manageToken(sym.type_double);}
 Bool			{return manageToken(sym.type_bool);}
-Char			{return manageToken(sym.type_char);}
+//Char			{return manageToken(sym.type_char);}
 String			{return manageToken(sym.type_string);}
 {int}			{return manageToken(sym.val_int);}
 {double}		{return manageToken(sym.val_double);}
 {bool}			{return manageToken(sym.val_bool);}
-{char}			{return manageToken(sym.val_char);}
+//{char}		{return manageToken(sym.val_char);}
 {string}		{return manageToken(sym.val_string);}
 {id}			{return manageToken(sym.id);}
 {ws}			{;}

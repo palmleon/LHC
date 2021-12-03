@@ -153,7 +153,7 @@ DECL_FUNCT (i): tipo di "id", stringa di "id";
 		Type Checking su "EXPR" (deve corrispondere al tipo di ritorno di "id"),
 		Assignment Uniqueness check su "id",
 LFORMARG (i): 	stringa di "id",
-		tipo di "id" (catturato da Stack[-1]),
+		tipo di "id" (ereditato da LFORMARG),
 		lista di id di "LFORMARG";
 		aggiungere "id" alla symTable attuale, con tipo corrispondente al ramo sx del tipo di id
 			e isAssigned = true, 
@@ -192,9 +192,8 @@ LFORMARG (i): 	stringa di "id",
 EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR",
 		tipo di "EXPR_NOTUNARYOP";
-		tipo di "EXPR" (parent) corrispondente a widen("EXPR".type, "EXPR_NOTUNARYOP".type);
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double),
-		(IR generation) se "EXPR".type =/= "EXPR_NOTUNARYOP".type, effettuare il casting dell'expr di tipo più specifico
+		tipo di "EXPR" (parent) corrispondente a "EXPR".type;
+		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double ed equivalenti),
 	(v):	tipo di "EXPR",
 		tipo di "EXPR_NOTUNARYOP";
 		tipo di "EXPR" (parent) corrispondente a Int;
@@ -214,7 +213,7 @@ EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR" (parent) corrispondente a Bool;
 		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double o di Char e devono essere l'uno subtype dell'altro);
 		(IR generation) se "EXPR".type =/= "EXPR_NOTUNARYOP".type, effettuare il casting dell'expr di tipo più specifico
-	(xiv):	tipo di "ACTARG";
+//	(xiv):  tipo di "ACTARG";
 		tipo di "EXPR" corrispondente a "ACTARG";
 		Type Checking su "ACTARG" (deve essere subtype di List);
 	(xv):	tipo di "ACTARG";
@@ -224,16 +223,16 @@ EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR" corrispondente a "EXPR_1.child0";
 		Type Checking su "EXPR_1" (deve essere subtype di List),
 		Type Checking su "EXPR_2" (deve essere equivalente a Int);
-	(xvii):	tipo di "ACTARG";
+//	(xvii):	tipo di "ACTARG";
 		tipo di "EXPR" corrispondente a "ACTARG.child0";
 		Type Checking su "ACTARG" (deve essere subtype di List);
-	(xiv):	tipo di "EXPR",
+//	(xiv):	tipo di "EXPR",
 		tipo di "EXPR_NOTUNARYOP";
 		tipo di "EXPR" corrispondente a List["EXPR".type];
 		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" 
 			("EXPR_NOTUNARYOP" deve essere subtype di List[Any];
 			 se "EXPR_NOTUNARYOP" = List[k] =/= List[Any], allora "EXPR.Type" deve essere uguale a k);
-	(xv):	tipo di "EXPR",
+//	(xv):	tipo di "EXPR",
 		tipo di "EXPR_NOTUNARYOP";
 		tipo di "EXPR" corrispondente a quella della lista non vuota, o a List[Any] se entrambe lo sono;
 		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" 
@@ -411,8 +410,9 @@ TYPE_FUNC	(i):	tipo di "TYPE_VALUE",
  Multiple Value Declaration: Uniqueness checking failed 
  Missing Value Declaration: Declaration check failed
  Multiple Value Assignment: Assignment Uniqueness check failed
+ Mismatching Operand Type: operands have valid types, but they are not compatible with each other for a certain expression
  Mismatching Arity: Arity check failed
  Nested Lists not supported: after Type check that a variable contains a list of list
  Wrong Type in List Expression: expression type is not compatible with other expressions in the same list
-
+ Not a Function: on Function Declaration
  Ogni volta che un errore viene rilevato, settare noCompileErrors = false e stampare msg di errore
