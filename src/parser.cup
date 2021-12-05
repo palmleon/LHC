@@ -1,5 +1,6 @@
 import java_cup.runtime.*;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Stack;
 import java.util.Iterator;
@@ -82,7 +83,7 @@ action code {:
 	 * Class for the Type Tree
 	 * The following Class defines the TypeTree structure
 	 * Fields: String typeName - unique name for the Type
-	 * 		   TypeTree[] - list containing all the subtrees for an instance of a compound type 
+	 * 		   TypeTree[] - list containing all the subtypes for an instance of a compound type 
 	 *				(useful for functions, lists, tuples and any additional compound type) 
 	 *		   Hashmap<String, TypeTree> typeMap - a map containg, for any typeName, the corresponding standard TypeTree
 	 *				(initialized at Parser initialization time)
@@ -99,12 +100,12 @@ action code {:
 		}
 		
 		/* (Recursive) Copy Constructor */
-		TypeTree(TypeTree tree) {			
-			int length = tree.getChilds().length;
-			this.typeName = tree.getTypeName();
+		TypeTree(TypeTree type) {			
+			int length = type.getChilds().length;
+			this.typeName = type.getTypeName();
 			this.childs = new TypeTree[length];
 			for (int i = 0; i < length; i++) {
-				this.childs[i] = new TypeTree(tree.getChilds()[i]);
+				this.childs[i] = new TypeTree(type.getChilds()[i]);
 			}
 		}
 		
@@ -164,15 +165,15 @@ action code {:
 		 * Returns: Boolean - true if other is Parent of this, false otherwise
 		 */
 		public boolean isSubtype(String other) {
-			TypeTree tree = TypeTree.getTypeTree(other);
+			TypeTree type = TypeTree.getTypeTree(other);
 			boolean isSubtype = true;
-			if (tree == null) return false;
+			if (type == null) return false;
 			if (other.equals("error")) return false;
 			if (other.equals("Any")) return true;
-			if (TypeTree.widen(this.getTypeName(), tree.getTypeName()) == null) return false;
-			if (this.getChilds().length != tree.getChilds().length) return false;
+			if (TypeTree.widen(this.getTypeName(), type.getTypeName()) == null) return false;
+			if (this.getChilds().length != type.getChilds().length) return false;
 			for (int i = 0; i < this.getChilds().length; i++) {
-				isSubtype = isSubtype && this.getChild(i).isSubtype(tree.getChild(i).getTypeName());
+				isSubtype = isSubtype && this.getChild(i).isSubtype(type.getChild(i).getTypeName());
 			}
 			return isSubtype;
 		}
@@ -192,6 +193,15 @@ action code {:
 			return this.isSubtype(other) && otherTree.isSubtype(this.getTypeName());
 		}
 		
+		/* 
+		 * Additional Method for Type Equivalence Checking
+		 * Params: TypeTree other - the tree of the type to compare with the calling one
+		 * Returns: Boolean - true if the Trees are equivalent, false otherwise
+		 */
+		public boolean isEquivalent(TypeTree other) {
+			return this.isEquivalent(other.getTypeName());
+		}
+		
 		/*
 		 * Static TypeMap that contains all the declared Types (allows to define custom Data Types), which is initialized during Parser initialization
 		 */
@@ -204,47 +214,47 @@ action code {:
 		 */
 		private static void createTypeMap() {
 			// childTypeTree is used only for making the code slightly more readable
-			TypeTree tree = new TypeTree("Int", new TypeTree[0]);
-			TypeTree.addType(tree.getTypeName(), tree);
-			tree = new TypeTree("Double", new TypeTree[0]);
-			TypeTree.addType(tree.getTypeName(), tree);
-			tree = new TypeTree("Bool", new TypeTree[0]);
-			TypeTree.addType(tree.getTypeName(), tree);
-			tree = new TypeTree("Char", new TypeTree[0]);
-			TypeTree.addType(tree.getTypeName(), tree);
-			TypeTree[] treeArray = { new TypeTree(tree) };
-			tree = new TypeTree("List", treeArray);
-			TypeTree.addType("String", tree);
+			TypeTree type = new TypeTree("Int", new TypeTree[0]);
+			TypeTree.addType(type.getTypeName(), type);
+			type = new TypeTree("Double", new TypeTree[0]);
+			TypeTree.addType(type.getTypeName(), type);
+			type = new TypeTree("Bool", new TypeTree[0]);
+			TypeTree.addType(type.getTypeName(), type);
+			type = new TypeTree("Char", new TypeTree[0]);
+			TypeTree.addType(type.getTypeName(), type);
+			TypeTree[] typeArray = { new TypeTree(type) };
+			type = new TypeTree("List", typeArray);
+			TypeTree.addType("String", type);
 			TypeTree anyTypeTree = new TypeTree("Any", new TypeTree[0]); 
-			treeArray = new TypeTree[]{ new TypeTree(anyTypeTree) };
-			tree = new TypeTree("List", treeArray);
-			TypeTree.addType(tree.getTypeName(), tree);
-			treeArray = new TypeTree[]{ new TypeTree(anyTypeTree), new TypeTree(anyTypeTree) };
-			tree = new TypeTree("Function", treeArray);
-			TypeTree.addType(tree.getTypeName(), tree);
+			typeArray = new TypeTree[]{ new TypeTree(anyTypeTree) };
+			type = new TypeTree("List", typeArray);
+			TypeTree.addType(type.getTypeName(), type);
+			typeArray = new TypeTree[]{ new TypeTree(anyTypeTree), new TypeTree(anyTypeTree) };
+			type = new TypeTree("Function", typeArray);
+			TypeTree.addType(type.getTypeName(), type);
 			// special error type for propagating type checking errors
-			tree = new TypeTree("error", new TypeTree[0]);
-			TypeTree.addType(tree.getTypeName(), tree);
+			type = new TypeTree("error", new TypeTree[0]);
+			TypeTree.addType(type.getTypeName(), type);
 			// Min Arity for Tuples = 2, Max Arity for Tuples = 10
 			/*for (int i = 2; i <= 10; i++) {
-				treeArray = new TypeTree[i];
+				typeArray = new TypeTree[i];
 				for (int j = 0; j < i; j++) {
-					treeArray[j] = new TypeTree(anyTypeTree);
+					typeArray[j] = new TypeTree(anyTypeTree);
 				}	
-				tree = new TypeTree("Tuple" + i, treeArray); 
-				TypeTree.addType(tree.getTypeName(), tree);
+				type = new TypeTree("Tuple" + i, typeArray); 
+				TypeTree.addType(type.getTypeName(), type);
 			}*/
 		}
 		
 		/* 
 		 * Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
 		 * Params: String typeName - the name of the new Type
-		 * 		   TypeTree tree - the corresponding type 
+		 * 		   TypeTree type - the corresponding type 
 		 * Return: boolean - true if no error occured, false otherwise
 		 */
-		public static boolean addType(String typeName, TypeTree tree) {
+		public static boolean addType(String typeName, TypeTree type) {
 			if (typeMap.containsKey(typeName)) return false;
-			typeMap.put(typeName, tree);
+			typeMap.put(typeName, type);
 			return true;
 		}
 		
@@ -301,24 +311,24 @@ action code {:
 		 * It would be ideal to move testing there (TODO)
 		 */
 		public static void testTypeTree() {
-			// Check TypeTree(TypeTree tree)
+			// Check TypeTree(TypeTree type)
 			// 		 isEquivalent, isSubtype
-			TypeTree tree1 = TypeTree.getTypeTree("List");
-			TypeTree tree2 = new TypeTree(tree1);
-			if (tree1.isEquivalent(tree2.getTypeName()))
+			TypeTree type1 = TypeTree.getTypeTree("List");
+			TypeTree type2 = new TypeTree(type1);
+			if (type1.isEquivalent(type2.getTypeName()))
 				System.out.println("TEST TYPE TREE 1: PASSED");
 			else
 				System.out.println("TEST TYPE TREE 1: FAILED");
 			// Check isSubtype, setChild, getTypeTree
-			TypeTree tree3 = TypeTree.getTypeTree("List");
-			tree3.setChild(0, TypeTree.getTypeTree("Int"));
-			if (tree3.isSubtype("List"))
+			TypeTree type3 = TypeTree.getTypeTree("List");
+			type3.setChild(0, TypeTree.getTypeTree("Int"));
+			if (type3.isSubtype("List"))
 				System.out.println("TEST TYPE TREE 2: PASSED");
 			else
 				System.out.println("TEST TYPE TREE 2: FAILED");
-			TypeTree tree4 = TypeTree.getTypeTree("Int");
-			TypeTree tree5 = TypeTree.getTypeTree("Double");
-			if (tree4.isSubtype(tree5.getTypeName()) && !tree5.isSubtype(tree4.getTypeName()))
+			TypeTree type4 = TypeTree.getTypeTree("Int");
+			TypeTree type5 = TypeTree.getTypeTree("Double");
+			if (type4.isSubtype(type5.getTypeName()) && !type5.isSubtype(type4.getTypeName()))
 				System.out.println("TEST TYPE TREE 3: PASSED");
 			else
 				System.out.println("TEST TYPE TREE 3: FAILED");
@@ -335,12 +345,12 @@ action code {:
 		
 		/* Class for Symbol Table Entry
 		 * All Entries inside any SymTable are instances of this Class
-		 * Fields: TypeTree tree - type of the value/function
+		 * Fields: TypeTree type - type of the value/function
 		 *		   boolean isAssigned - flag that checks whether the value/function has been assigned or not
 		 */
 		private static class SymTableEntry {
 			
-			private TypeTree tree;
+			private TypeTree type;
 			private boolean isAssigned = false;
 			
 			/* TODO UNCOMMENT WHEN GENERATING IR
@@ -348,26 +358,26 @@ action code {:
 			String llvm;
 			*/
 			
-			SymTableEntry(TypeTree tree) {
-				this.tree = tree;
+			SymTableEntry(TypeTree type) {
+				this.type = type;
 				this.isAssigned = false;
 			}
 			
-			SymTableEntry(TypeTree tree, boolean isAssigned) {
-				this.tree = tree;
+			SymTableEntry(TypeTree type, boolean isAssigned) {
+				this.type = type;
 				this.isAssigned = isAssigned;
 			}
 			
 			public TypeTree getTypeTree() {
-				return this.tree;
+				return this.type;
 			}
 			
 			public boolean getIsAssigned() {
 				return this.isAssigned;
 			}
 			
-			public void setTypeTree(TypeTree tree) {
-				this.tree = tree;
+			public void setTypeTree(TypeTree type) {
+				this.type = type;
 			}
 			
 			public void setIsAssigned(boolean isAssigned) {
@@ -502,9 +512,9 @@ action code {:
 		 */
 		public static void testSymTableStack() {
 			SymTableStack.pushSymTable();
-			TypeTree tree = TypeTree.getTypeTree("Int");
-			SymTableStack.putEntry("x", new SymTableEntry(tree));
-			SymTableStack.putEntry("y", new SymTableEntry(tree));
+			TypeTree type = TypeTree.getTypeTree("Int");
+			SymTableStack.putEntry("x", new SymTableEntry(type));
+			SymTableStack.putEntry("y", new SymTableEntry(type));
 			if (SymTableStack.containsEntry("x")) 
 				System.out.println ("TEST SYMTABLE STACK 1: PASSED");
 			else
@@ -613,38 +623,38 @@ action code {:
 	}
 	
 	public static class ExprAST {
-		public TypeTree tree;
+		public TypeTree type;
 		
-		ExprAST (TypeTree tree) {
-			this.tree = tree;
+		ExprAST (TypeTree type) {
+			this.type = type;
 		}
 	}
 	
 	public static class SeqExprAST {
 		// Type is inferred by the ExprAST
-		public ExprAST[] exprArray;
+		public ArrayList<ExprAST> exprArray;
 		
-		SeqExprAST (ExprAST[] exprArray) {
+		SeqExprAST (ArrayList<ExprAST> exprArray) {
 			this.exprArray = exprArray;
 		}
 	}
 	
 	public static class LExprAST extends SeqExprAST {
-		public TypeTree tree;
+		public TypeTree type;
 		
-		LExprAST (ExprAST[] exprArray, TypeTree tree) {
+		LExprAST (ArrayList<ExprAST> exprArray, TypeTree type) {
 			super(exprArray);
-			this.tree = tree;
+			this.type = type;
 		}
 	}
 	
 	public static class LFormArgAST {
-		TypeTree tree; // used for propagating type over the arguments
+		TypeTree type; // used for propagating type over the arguments
 		public LinkedList<String> argList;
 		
-		LFormArgAST (LinkedList<String> argList, TypeTree tree) {
+		LFormArgAST (LinkedList<String> argList, TypeTree type) {
 			this.argList = argList;
-			this.tree = tree;
+			this.type = type;
 		}
 	}
 	
@@ -657,34 +667,34 @@ action code {:
 	}
 	
 	public static class ActArgAST {
-		public TypeTree tree;
+		public TypeTree type;
 
-		ActArgAST (TypeTree tree) {
-			this.tree = tree;
+		ActArgAST (TypeTree type) {
+			this.type = type;
 		}
 	}
 	
 	public static class LetBlockAST {
-		public TypeTree tree;
+		public TypeTree type;
 		
-		LetBlockAST (TypeTree tree) {
-			this.tree = tree;
+		LetBlockAST (TypeTree type) {
+			this.type = type;
 		}
 	}
 	
 	public static class IfBlockAST {
-		public TypeTree tree;
+		public TypeTree type;
 		
-		IfBlockAST (TypeTree tree) {
-			this.tree = tree;
+		IfBlockAST (TypeTree type) {
+			this.type = type;
 		}
 	}
 	
 	public static class DeclTypeAST {
-		public TypeTree tree;
+		public TypeTree type;
 		
-		DeclTypeAST (TypeTree tree) {
-			this.tree = tree;
+		DeclTypeAST (TypeTree type) {
+			this.type = type;
 		}
 	}
 	
@@ -694,11 +704,11 @@ action code {:
 	 *		- Basic type for basic types (Int, Double, Char, String, Bool)
 	 */
 	public static class ValueAST {
-		public TypeTree tree;
+		public TypeTree type;
 		public Object value;
 		
-		ValueAST (TypeTree tree, Object value) {
-			this.tree = tree;
+		ValueAST (TypeTree type, Object value) {
+			this.type = type;
 			this.value = value;
 		}
 	}
@@ -769,7 +779,7 @@ non terminal PROGRAM;
 non terminal FUNCT_PART, IMPER_PART;
 non terminal IO_ACTIONS, IO_ACTION;
 non terminal PRINT;
-non terminal ExprAST COND, EXPR, EXPR_NOTUNARYOP;
+non terminal ExprAST COND, EXPR, EXPR_NOTUNARYOP, VALUE_LIST;
 non terminal LExprAST LEXPR;
 non terminal ActArgAST ACTARG;
 non terminal LActArgAST LACTARG;
@@ -785,7 +795,7 @@ non terminal DECL, DECL_VALUE, DECL_FUNCT;
 non terminal DeclTypeAST DECL_TYPE;
 non terminal TypeTree TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_LIST, TYPE_BASIC;
 //non terminal LinkedList<TypeTree> TTYPE_VALUE;
-non terminal ValueAST VALUE, VALUE_LIST, VALUE_BASIC;
+non terminal ValueAST VALUE, VALUE_BASIC;
 //non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
 //non terminal PATTERN_LIST, PATTERN_TUPLE;
 
@@ -800,7 +810,7 @@ precedence left and;
 precedence nonassoc releq, relgt, relge, rellt, relle;
 precedence left plus, minus;
 precedence left times, div, intdiv;
-precedence right index;
+precedence nonassoc index;
 precedence nonassoc not, uminus;
 
 start with PROGRAM;
@@ -820,15 +830,17 @@ PROGRAM ::= /* empty program */
 				SymTableStack.pushSymTable();
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable pushed");
 			:}
-			FUNCT_PART IMPER_PART {:
-					SymTableStack.popSymTable();
-					if (debug_mode) System.out.println("DEBUG: Top-level Symtable popped");
-				:}
-			dedent {:  // pop the top-level symtable
-					if (noCompileErrors) {
-						System.out.println("CODE COMPILED SUCCESSFULLY");
-					}	
-				:}
+			FUNCT_PART IMPER_PART 
+			{:
+				SymTableStack.popSymTable();
+				if (debug_mode) System.out.println("DEBUG: Top-level Symtable popped");
+			:}
+			dedent 
+			{:  // pop the top-level symtable
+				if (noCompileErrors) {
+					System.out.println("CODE COMPILED SUCCESSFULLY");
+				}	
+			:}
 ;
 
 /// ////////////////// ///
@@ -856,7 +868,7 @@ DO_BLOCK ::= do_begin indent IO_ACTIONS dedent
 
 IF_BLOCK_IMPER ::= if_begin COND:cond then IO_ACTION else_begin IO_ACTION
 				{:
-					if (!cond.tree.isEquivalent("Bool")) {
+					if (!cond.type.isEquivalent("Bool")) {
 						report_semantic_error("Wrong Type (Expected Type: Bool)");
 					}
 				:}
@@ -888,7 +900,7 @@ FUNCT_PART ::= /* empty Functional section */
 
 /* special expression management for boolean conditions */
 COND ::= EXPR:expr {:
-					if (!expr.tree.isEquivalent("Bool")) {
+					if (!expr.type.isEquivalent("Bool")) {
 						report_semantic_error("Wrong Type (Expected Type: Bool)");
 						RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 					}
@@ -906,25 +918,24 @@ DECL ::= DECL_TYPE
 
 DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			{:
-				TypeTree tree = new TypeTree(decl_type.tree);
+				TypeTree type = decl_type.type;
 				if (isUnique(id)) {
-					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(tree));
+					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
 				else {
 					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
 				}
-				RESULT = new DeclTypeAST(new TypeTree(tree));
+				RESULT = new DeclTypeAST(new TypeTree(type));
 			:}
 			| id:id clns TYPE:type
 			{:
-				TypeTree tree = new TypeTree(type);
 				if (isUnique(id)) {
-					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(tree));
+					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
 				else {
 					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
 				}
-				RESULT = new DeclTypeAST(new TypeTree(tree));
+				RESULT = new DeclTypeAST(type);
 			:}
 ; 
 
@@ -932,7 +943,7 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 //DECL_VALUE ::= PATTERN eq EXPR
 DECL_VALUE ::= id:id eq EXPR:expr
 			{:
-				if (isDeclared(id) && (isNotAssigned(id)) && (expr.tree.isEquivalent(SymTableStack.getEntry(id).getTypeTree().getTypeName()))) {
+				if (isDeclared(id) && (isNotAssigned(id)) && (expr.type.isEquivalent(SymTableStack.getEntry(id).getTypeTree().getTypeName()))) {
 					SymTableStack.getEntry(id).setIsAssigned(true);
 				}
 				else {
@@ -962,7 +973,7 @@ DECL_FUNCT ::= id:id {:
 					if (isDeclared(id)){
 						idTree = SymTableStack.getEntry(id).getTypeTree();
 						if (idTree.isSubtype("Function") &&
-							hasArity(id, lformarg.argList.size()) && expr.tree.isEquivalent(returnType(id).getTypeName()) &&
+							hasArity(id, lformarg.argList.size()) && expr.type.isEquivalent(returnType(id).getTypeName()) &&
 							isNotAssigned(id)) {
 							SymTableStack.getEntry(id).setIsAssigned(true);	
 						}
@@ -976,7 +987,7 @@ DECL_FUNCT ::= id:id {:
 					else if (!hasArity(id, lformarg.argList.size())) {
 						report_semantic_error("Mismatching Arity (Symbol " + id + ")");
 					}
-					else if (!expr.tree.isEquivalent(returnType(id).getTypeName())) {
+					else if (!expr.type.isEquivalent(returnType(id).getTypeName())) {
 						report_semantic_error("Mismatching Type on Function Declaration (Symbol " + id + ")");
 					}
 					else if (!isNotAssigned(id)) {
@@ -1033,7 +1044,7 @@ LPATTERN_CM ::= PATTERN
 
 LFORMARG ::= LFORMARG:lformarg id:id 
 			{:
-				TypeTree propTree = lformarg.tree;
+				TypeTree propTree = lformarg.type;
 				if (isUnique(id) && propTree != null && propTree.isSubtype("Function")) {
 					TypeTree argTree = new TypeTree(propTree.getChild(0));
 					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
@@ -1059,16 +1070,17 @@ LFORMARG ::= LFORMARG:lformarg id:id
 ///   EXPRESSIONS   ///
 
 EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
+		//EXPR:expr1 plus EXPR:expr2
 		{:
 			String opType = "+";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
-				RESULT = new ExprAST(new TypeTree(expr1.tree));
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1078,16 +1090,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 minus EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 minus EXPR:expr2
 	   {:
 			String opType = "-";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
-				RESULT = new ExprAST(new TypeTree(expr1.tree));
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1097,16 +1110,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 times EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 times EXPR:expr2
 	   {:
 			String opType = "*";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
-				RESULT = new ExprAST(new TypeTree(expr1.tree));
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1116,16 +1130,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 div EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 div EXPR:expr2
 	   {:
 			String opType = "/";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
-				RESULT = new ExprAST(new TypeTree(expr1.tree));
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1135,16 +1150,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 intdiv EXPR_NOTUNARYOP:expr2 
+	   //| EXPR:expr1 intdiv EXPR:expr2 
 	   {:
 			String opType = "div";
-			if (expr1.tree.isSubtype("Int") && expr2.tree.isSubtype("Int") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Int") && expr2.type.isSubtype("Int") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Int"));
 			}
-			else if (!expr1.tree.isSubtype("Int")) {
+			else if (!expr1.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Int")) {
+			else if (!expr2.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1156,14 +1172,14 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 	   | mod ACTARG:actarg1 ACTARG:actarg2 
 	   {:
 			String opType = "mod";
-			if (actarg1.tree.isSubtype("Int") && actarg2.tree.isSubtype("Int") && actarg1.tree.isEquivalent(actarg2.tree.getTypeName())) {
+			if (actarg1.type.isSubtype("Int") && actarg2.type.isSubtype("Int") && actarg1.type.isEquivalent(actarg2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Int"));
 			}
-			else if (!actarg1.tree.isSubtype("Int")) {
+			else if (!actarg1.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!actarg2.tree.isSubtype("Int")) {
+			else if (!actarg2.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1173,16 +1189,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 and EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 and EXPR:expr2
 	   {:
 			String opType = "and";
-			if (expr1.tree.isSubtype("Bool") && expr2.tree.isSubtype("Bool") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
-			else if (!expr1.tree.isSubtype("Bool")) {
+			else if (!expr1.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Bool")) {
+			else if (!expr2.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1192,16 +1209,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 	   :}
 	   | EXPR:expr1 or EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 or EXPR:expr2
 	    {:
 			String opType = "or";
-			if (expr1.tree.isSubtype("Bool") && expr2.tree.isSubtype("Bool") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
-			else if (!expr1.tree.isSubtype("Bool")) {
+			else if (!expr1.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Bool")) {
+			else if (!expr2.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1211,16 +1229,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 	   :}
 	   | EXPR:expr1 releq EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 releq EXPR:expr2
 	    {:
 			String opType = "==";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1230,16 +1249,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 relgt EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 relgt EXPR:expr2
 	   {:
 			String opType = ">";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1249,16 +1269,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 relge EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 relge EXPR:expr2
 	   {:
 			String opType = ">=";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1268,16 +1289,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 rellt EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 rellt EXPR:expr2
 	   {:
 			String opType = "<";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1287,16 +1309,17 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			}
 		:}
 	   | EXPR:expr1 relle EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 relle EXPR:expr2
 	   {:
 			String opType = "<=";
-			if (expr1.tree.isSubtype("Double") && expr2.tree.isSubtype("Double") && expr1.tree.isEquivalent(expr2.tree.getTypeName())) {
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
-			else if (!expr1.tree.isSubtype("Double")) {
+			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
-			else if (!expr2.tree.isSubtype("Double")) {
+			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
@@ -1310,21 +1333,22 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 	   | elem ACTARG:actarg
 	   {:
 		 	String opType = "elem";
-			if (actarg.tree.isSubtype("List")) {
-				RESULT = new ExprAST(new TypeTree(actarg.tree.getChild(0)));
+			if (actarg.type.isSubtype("List")) {
+				RESULT = new ExprAST(new TypeTree(actarg.type.getChild(0)));
 			}
 			else {
 				report_semantic_error("Wrong Type on Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
 			}
 	   :}
-	   | EXPR:expr1 index EXPR:expr2
+	   | EXPR:expr1 index EXPR_NOTUNARYOP:expr2
+	   //| EXPR:expr1 index EXPR:expr2
 	   {:
 			String opType = "!!";
-			if (expr1.tree.isSubtype("List") && expr2.tree.isSubtype("Int")) {
-				RESULT = new ExprAST(new TypeTree(expr1.tree.getChild(0)));
+			if (expr1.type.isSubtype("List") && expr2.type.isSubtype("Int")) {
+				RESULT = new ExprAST(new TypeTree(expr1.type.getChild(0)));
 			}
-			else if (!expr1.tree.isSubtype("List")){
+			else if (!expr1.type.isSubtype("List")){
 				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
@@ -1337,12 +1361,13 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 	   //| EXPR conc EXPR_NOTUNARYOP
 	   | ro EXPR:expr rc
 	   {:
-			RESULT = new ExprAST(new TypeTree(expr.tree));
+			RESULT = new ExprAST(new TypeTree(expr.type));
 	   :}
-	   | not EXPR:expr 
+	   //| ro not EXPR:expr rc
+	   | not EXPR:expr  
 	   {:
 			String opType = "not";
-			if(expr.tree.isSubtype("Bool")) {
+			if(expr.type.isSubtype("Bool")) {
 				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
 			}
 			else {
@@ -1350,11 +1375,12 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
 			}
 	   :}
-	   | minus EXPR:expr 		
+	   | minus EXPR:expr
+		//| ro minus EXPR:expr rc 
 	   {:
 			String opType = "Unary \"-\"";
-			if(expr.tree.isSubtype("Double")){
-				RESULT = new ExprAST(new TypeTree(expr.tree));
+			if(expr.type.isSubtype("Double")){
+				RESULT = new ExprAST(new TypeTree(expr.type));
 			}
 			else {
 				report_semantic_error("Wrong Type on Expression of Type " + opType);
@@ -1363,11 +1389,11 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 	   :} %prec uminus 
 	   | LET_BLOCK_FUNC:let_block_func 
 	   {:
-			RESULT = new ExprAST(new TypeTree(let_block_func.tree));
+			RESULT = new ExprAST(new TypeTree(let_block_func.type));
 	   :}
 	   | IF_BLOCK_FUNC:if_block_func 
 	   {:
-			RESULT = new ExprAST(new TypeTree(if_block_func.tree));
+			RESULT = new ExprAST(new TypeTree(if_block_func.type));
 	   :}
 	   | id:id LACTARG:lactarg 
 	   {:
@@ -1376,7 +1402,7 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 			boolean failedArgsTypeChecking = false;
 			if(isDeclared(id) && funcTree.isSubtype("Function") && hasArity(id, nArgs)) {
 				for (ActArgAST actarg : lactarg.actArgList) {
-					if (!actarg.tree.isEquivalent(funcTree.getChild(0).getTypeName()))
+					if (!actarg.type.isEquivalent(funcTree.getChild(0).getTypeName()))
 						failedArgsTypeChecking = true;
 					funcTree = funcTree.getChild(1); //extract the right child of the funcTree
 				}
@@ -1403,11 +1429,15 @@ EXPR ::= EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 	   :}
 	   | VALUE:value
 	   {:
-			RESULT = new ExprAST(new TypeTree(value.tree));
+			RESULT = new ExprAST(new TypeTree(value.type));
+	   :}
+	   | VALUE_LIST:value_list
+	   {:
+			RESULT = new ExprAST(new TypeTree(value_list.type));
 	   :}
 ;
 
-EXPR_NOTUNARYOP ::= 
+/*EXPR_NOTUNARYOP ::= 
 		 EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP minus EXPR_NOTUNARYOP
 	   | EXPR_NOTUNARYOP times EXPR_NOTUNARYOP
@@ -1433,57 +1463,459 @@ EXPR_NOTUNARYOP ::=
 	   | id LACTARG 
 	   | VALUE
 ;
+*/
+
+EXPR_NOTUNARYOP ::= EXPR_NOTUNARYOP:expr1 plus EXPR_NOTUNARYOP:expr2
+		{:
+			String opType = "+";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 minus EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = "-";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 times EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = "*";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 div EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = "/";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(new TypeTree(expr1.type));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 intdiv EXPR_NOTUNARYOP:expr2 
+	   {:
+			String opType = "div";
+			if (expr1.type.isSubtype("Int") && expr2.type.isSubtype("Int") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Int"));
+			}
+			else if (!expr1.type.isSubtype("Int")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Int")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | mod ACTARG:actarg1 ACTARG:actarg2 
+	   {:
+			String opType = "mod";
+			if (actarg1.type.isSubtype("Int") && actarg2.type.isSubtype("Int") && actarg1.type.isEquivalent(actarg2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Int"));
+			}
+			else if (!actarg1.type.isSubtype("Int")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!actarg2.type.isSubtype("Int")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 and EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = "and";
+			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+			}
+			else if (!expr1.type.isSubtype("Bool")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Bool")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+	   :}
+	   | EXPR_NOTUNARYOP:expr1 or EXPR_NOTUNARYOP:expr2
+	    {:
+			String opType = "or";
+			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+			}
+			else if (!expr1.type.isSubtype("Bool")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Bool")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+	   :}
+	   | EXPR_NOTUNARYOP:expr1 releq EXPR_NOTUNARYOP:expr2
+	    {:
+			String opType = "==";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 relgt EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = ">";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 relge EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = ">=";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 rellt EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = "<";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   | EXPR_NOTUNARYOP:expr1 relle EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = "<=";
+			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
+				RESULT = new ExprAST(TypeTree.getTypeTree("Bool"));
+			}
+			else if (!expr1.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!expr2.type.isSubtype("Double")) {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);	
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+			else {
+				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+		:}
+	   //| head ACTARG
+	   //| tail ACTARG
+	   | elem ACTARG:actarg
+	   {:
+		 	String opType = "elem";
+			if (actarg.type.isSubtype("List")) {
+				RESULT = new ExprAST(new TypeTree(actarg.type.getChild(0)));
+			}
+			else {
+				report_semantic_error("Wrong Type on Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error"));
+			}
+	   :}
+	   | EXPR_NOTUNARYOP:expr1 index EXPR_NOTUNARYOP:expr2
+	   {:
+			String opType = "!!";
+			if (expr1.type.isSubtype("List") && expr2.type.isSubtype("Int")) {
+				RESULT = new ExprAST(new TypeTree(expr1.type.getChild(0)));
+			}
+			else if (!expr1.type.isSubtype("List")){
+				report_semantic_error("Wrong Type on LHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else {
+				report_semantic_error("Wrong Type on RHS of Expression of Type " + opType);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+	   :}
+	   //| EXPR cons EXPR_NOTUNARYOP
+	   //| EXPR conc EXPR_NOTUNARYOP
+	   | ro EXPR:expr rc
+	   {:
+			RESULT = new ExprAST(new TypeTree(expr.type));
+	   :}
+	   | LET_BLOCK_FUNC:let_block_func 
+	   {:
+			RESULT = new ExprAST(new TypeTree(let_block_func.type));
+	   :}
+	   | IF_BLOCK_FUNC:if_block_func 
+	   {:
+			RESULT = new ExprAST(new TypeTree(if_block_func.type));
+	   :}
+	   | id:id LACTARG:lactarg 
+	   {:
+			int nArgs = lactarg.actArgList.size();
+			TypeTree funcTree = SymTableStack.getEntry(id).getTypeTree();
+			boolean failedArgsTypeChecking = false;
+			if(isDeclared(id) && funcTree.isSubtype("Function") && hasArity(id, nArgs)) {
+				for (ActArgAST actarg : lactarg.actArgList) {
+					if (!actarg.type.isEquivalent(funcTree.getChild(0).getTypeName()))
+						failedArgsTypeChecking = true;
+					funcTree = funcTree.getChild(1); //extract the right child of the funcTree
+				}
+				if (!failedArgsTypeChecking) {
+					RESULT = new ExprAST(new TypeTree(funcTree));
+				}
+			}
+			else if (!isDeclared(id)){
+				report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!funcTree.isSubtype("Function")) {
+				report_semantic_error("Not a Function (Symbol " + id + ")");
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (!hasArity(id, nArgs)) {
+				report_semantic_error("Mismatching Arity (Symbol " + id + ")");
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+			else if (failedArgsTypeChecking) {
+				report_semantic_error("Wrong Type on Arguments applied to Function " + id);
+				RESULT = new ExprAST(TypeTree.getTypeTree("error")); 
+			}
+	   :}
+	   | VALUE:value
+	   {:
+			RESULT = new ExprAST(new TypeTree(value.type));
+	   :}
+	   | VALUE_LIST:value_list
+	   {:
+			RESULT = new ExprAST(new TypeTree(value_list.type));
+	   :}
+;
 
 LET_BLOCK_FUNC ::= 	let {:
 						SymTableStack.pushSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
 					:} 
-					indent LET_STMTS dedent in EXPR {:
+					indent LET_STMTS dedent in EXPR:expr {:
 						SymTableStack.popSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
+						RESULT = new LetBlockAST(expr.type);
 					:}
 ;
 
 
-IF_BLOCK_FUNC ::= if_begin COND then EXPR else_begin EXPR
+IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:expr1 else_begin EXPR:expr2 
+				{:
+					if(expr1.type.isEquivalent(expr2.type)) {
+						RESULT = new IfBlockAST(expr1.type);
+					}
+					else {
+						report_semantic_error("Multiple Return Types for If Statement");
+						RESULT = new IfBlockAST(TypeTree.getTypeTree("error")); 
+					}
+				:}
 ;
 
 
 ///    args for function call   ///
 
-ACTARG ::= id 
-         | VALUE
-		 | ro EXPR rc
+ACTARG ::= id:id 
+		{:
+			if (isDeclared(id)) {
+				RESULT = new ActArgAST(SymTableStack.getEntry(id).getTypeTree());
+			}
+			else {
+				report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+				RESULT = new ActArgAST(TypeTree.getTypeTree("error")); 
+			}
+		:}
+         | VALUE:value
+		{:
+			RESULT = new ActArgAST(value.type);			
+		:}
+		 | ro EXPR:expr rc
+		{:
+			RESULT = new ActArgAST(expr.type);			
+		:}
 ;
 
 // list of input arguments for function call
 LACTARG ::= /* empty list of args: we call a variable */
-		  | LACTARG ACTARG
+			{:
+				RESULT = new LActArgAST(new LinkedList<ActArgAST>());
+			:}
+		  | LACTARG:lactarg ACTARG:actarg
+			{:
+				lactarg.actArgList.add(actarg);
+				RESULT = new LActArgAST(lactarg.actArgList);
+			:}
 ;
 
 ///   VALUES   ///
 
-VALUE ::= VALUE_BASIC
-		| VALUE_LIST
+VALUE ::= VALUE_BASIC:value_basic
+		{: 
+			RESULT = new ValueAST(value_basic.type, value_basic.value);
+		:}
+		/*| VALUE_LIST:value_list
+		{:
+			RESULT = new ValueAST(value_list.type, value_list.value);
+		:}*/
 //		| VALUE_TUPLE
 ;
 
-VALUE_BASIC ::= val_int
-			  | val_double
-			  | val_bool
+VALUE_BASIC ::= 
+		val_int:val_int
+			{:
+				RESULT = new ValueAST(TypeTree.getTypeTree("Int"), val_int.value);
+			:}
+	  | val_double:val_double
+			{:
+				RESULT = new ValueAST(TypeTree.getTypeTree("Double"), val_double.value);
+			:}	  
+	  | val_bool:val_bool
+			{:
+				RESULT = new ValueAST(TypeTree.getTypeTree("Bool"), val_bool.value);
+			:}
 //			  | val_char
-			  | val_string
+	  | val_string:val_string
+			{:
+				RESULT = new ValueAST(TypeTree.getTypeTree("String"), val_string.value);
+			:}
 ;
 
 // Empty List can only be directly used in declaration, to avoid Type Variables propagation
-VALUE_LIST ::= bo LEXPR bc
+VALUE_LIST ::= bo LEXPR:lexpr bc
+		{:
+			RESULT = new ExprAST(lexpr.type);
+		:}
 ;
 
 //VALUE_TUPLE ::= ro TEXPR rc
 //;
 
-LEXPR ::= EXPR
-		| LEXPR cm EXPR
+LEXPR ::= EXPR:expr
+		{:
+			ArrayList<ExprAST> lexpr = new ArrayList<>();
+			lexpr.add(expr);
+			RESULT = new LExprAST(lexpr, expr.type);
+		:}
+		| LEXPR:lexpr cm EXPR:expr 
+		{:
+			lexpr.exprArray.add(expr);
+			if (lexpr.type.isEquivalent(expr.type)) {
+				RESULT = new LExprAST(lexpr.exprArray, lexpr.type);
+			}
+			else {
+				report_semantic_error("Wrong Type in List Expression");
+				// Error Recovery
+				RESULT = new LExprAST(lexpr.exprArray, lexpr.type);
+			}
+		:}
 ;
 
 //TEXPR ::= EXPR cm EXPR
@@ -1492,32 +1924,49 @@ LEXPR ::= EXPR
 
 ///   TYPES   ///
 
-TYPE ::= TYPE_VALUE
-	   | TYPE_FUNC
+TYPE ::= TYPE_VALUE:type_value {: RESULT = type_value; :}
+	   | TYPE_FUNC:type_func {: RESULT = type_func; :}
 ;
 
 // both basic types and compound
-TYPE_VALUE ::= TYPE_LIST
-			 | TYPE_BASIC
+TYPE_VALUE ::= TYPE_LIST:type_list {: RESULT = type_list; :}
+			 | TYPE_BASIC:type_basic {: RESULT = type_basic; :}
 //			 | TYPE_TUPLE
 ;
 
-TYPE_BASIC ::= type_int
-			 | type_double
-			 | type_bool
+TYPE_BASIC ::= type_int {: RESULT = TypeTree.getTypeTree("Int"); :}
+			 | type_double {: RESULT = TypeTree.getTypeTree("Double"); :}
+			 | type_bool {: RESULT = TypeTree.getTypeTree("Bool"); :}
 //			 | type_char
-			 | type_string
+			 | type_string {: RESULT = TypeTree.getTypeTree("Char"); :}
 ;
 
-TYPE_LIST ::= bo TYPE_BASIC bc
+TYPE_LIST ::= bo TYPE_BASIC:type_basic bc 
+		{: 
+		   TypeTree type = TypeTree.getTypeTree("List");
+		   type.setChild(0, type_basic);
+		   RESULT = type;
+		:}
 ;
 
 //TYPE_TUPLE ::= ro TTYPE_VALUE rc
 //;
 
 // no higher order functions
-TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
-		    | TYPE_VALUE arrow TYPE_VALUE
+TYPE_FUNC ::= TYPE_VALUE:type_value arrow TYPE_FUNC:type_func
+		{:
+			TypeTree type = TypeTree.getTypeTree("Function");
+			type.setChild(0, type_value);
+			type.setChild(1, type_func);
+			RESULT = type;
+		:}
+		    | TYPE_VALUE:type_valueL arrow TYPE_VALUE:type_valueR
+		{:
+			TypeTree type = TypeTree.getTypeTree("Function");
+			type.setChild(0, type_valueL);
+			type.setChild(1, type_valueR);
+			RESULT = type;
+		:}
 ;
 
 // 0-Tuple are not allowed

@@ -1,0 +1,33 @@
+Features da implementare:
+- Tipi accettati:
+  Int
+  Double
+  Char
+  Bool 
+  List (1 livello) 
+  String 
+  Function (1st order)
+- Static scoping
+- Supported operations:
+  sum (+)
+  subtraction (-)
+  multiplication (*)
+  division (/)
+  modulo (mod)
+  integer division (intdiv)
+  logical and (&&)
+  logical or (||)
+  logical not (not)
+  relational operators:
+	gt (>)
+	ge (>=)
+	lt (<)
+	le (<=)
+	eq (==)
+  element extraction (!!)
+Constructs:
+  - if-then-else
+  - let bindings
+  - function calls
+  
+  

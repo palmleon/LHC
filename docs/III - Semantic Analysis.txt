@@ -311,7 +311,7 @@ VALUE_BASIC	(i): 	valore di "val_int";
 			valore di "VALUE_BASIC corrispondente a quello di "val_bool",
 			tipo di "VALUE_BASIC" corrispondente a Bool;
 			;
-		(iv):	valore di "val_char";
+		//(iv):	valore di "val_char";
 			valore di "VALUE_BASIC corrispondente a quello di "val_char",
 			tipo di "VALUE_BASIC" corrispondente a Char;
 			;
@@ -322,7 +322,7 @@ VALUE_BASIC	(i): 	valore di "val_int";
 VALUE_LIST	(i):	tipo di "LEXPR";
 			tipo di "VALUE_LIST" corrispondente a List["LEXPR".Expr_1.Type];
 			;
-		(ii):	;
+		//(ii):	;
 			tipo di "VALUE_LIST" corrispondente a List[Any];
 			;
 //VALUE_TUPLE	(i):	tipo di TEXPR (con lista dei tipi in TEXPR);
