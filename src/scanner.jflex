@@ -72,7 +72,7 @@ import java.io.IOException;
 	 * Args: symbols - the symbols to add to the queue
 	 * Returns: the first Token in the Token Queue
 	 */
-	private Symbol manageToken(int... symbols) {
+	private Symbol manageToken(Symbol... symbols) {
 		Integer indentColumn, dedentColumn, indentColumnTopLevel;
 		//System.out.println ("Matched text: " + yytext());
 		//System.out.println("Current value of indentEnable: " + indentEnable);
@@ -126,8 +126,8 @@ import java.io.IOException;
 				tokenQueue.add(createSymbol(sym.dedent));
 			}
 		}
-		for (int sym: symbols) {
-			tokenQueue.add(createSymbol(sym));
+		for (Symbol sym: symbols) {
+			tokenQueue.add(sym);
 		}
 		
 		foundNewline = false;
@@ -139,7 +139,7 @@ import java.io.IOException;
 	/*System.out.println("EOFfound");
 	System.out.println("Current value of dedentEnable: " + dedentEnable);*/
 	endOfCode = true;
-	return this.manageToken(sym.EOF);
+	return this.manageToken(createSymbol(sym.EOF));
 %eofval}
 
 /* Indentation-based Parsing
@@ -154,8 +154,12 @@ import java.io.IOException;
  * Concept: when a block requiring implicit indentation is recognized, i.e. its keyword is scanned
  *			 (let, do), the next Token will define the indentation column and an Indent 
  *			 will be scanned and saved into the Stack; 
- *          if a newline is met and the following line is not aligned with the current indentation level,
- *			 then a Dedent is scanned and the block is automatically closed
+ *			If we are inside a special block (let, do):
+ *          if a newline is met and the following line is aligned to the left with respect to 
+ *			the current indentation level, then a Dedent is scanned and the block is automatically closed
+ *			if the next line is aligned as the previous one, then a separator is scanned
+ *			if the next line is aligned to the right with respect to the current indentation level,
+ *			then no dedent nor separator is scanned
  */
 
 int = 0|[1-9][0-9]* 					//unsigned int
@@ -171,61 +175,62 @@ ws = [ \t]
 
 %%
 
-"="				{return manageToken(sym.eq);}
+"="				{return manageToken(createSymbol(sym.eq));}
 //":"				{return manageToken(sym.cons);}
-"::"			{return manageToken(sym.clns);}
-","				{return manageToken(sym.cm);}
+"::"			{return manageToken(createSymbol(sym.clns));}
+","				{return manageToken(createSymbol(sym.cm));}
 //"|"			{return manageToken(sym.pipe);}
-"("				{return manageToken(sym.ro);}
-")"				{return manageToken(sym.rc);}
-"["				{return manageToken(sym.bo);}
-"]"				{return manageToken(sym.bc);}
+"("				{return manageToken(createSymbol(sym.ro));}
+")"				{return manageToken(createSymbol(sym.rc));}
+"["				{return manageToken(createSymbol(sym.bo));}
+"]"				{return manageToken(createSymbol(sym.bc));}
 //"_"			{return manageToken(sym.us);}
-"->"			{return manageToken(sym.arrow);}
-"+"				{return manageToken(sym.plus);}
-"-"				{return manageToken(sym.minus);}
-"*"				{return manageToken(sym.times);}
-"/"				{return manageToken(sym.div);}
-div				{return manageToken(sym.intdiv);}
-mod				{return manageToken(sym.mod);}
-"&&"			{return manageToken(sym.and);}
-"||"			{return manageToken(sym.or);}
-not				{return manageToken(sym.not);}
-"=="			{return manageToken(sym.releq);}
-">="			{return manageToken(sym.relge);}
-">"				{return manageToken(sym.relgt);}
-"<="			{return manageToken(sym.relle);}
-"<"				{return manageToken(sym.rellt);}
+"->"			{return manageToken(createSymbol(sym.arrow));}
+"+"				{return manageToken(createSymbol(sym.plus));}
+"-"				{return manageToken(createSymbol(sym.minus));}
+"*"				{return manageToken(createSymbol(sym.times));}
+"/"				{return manageToken(createSymbol(sym.div));}
+div				{return manageToken(createSymbol(sym.intdiv));}
+mod				{return manageToken(createSymbol(sym.mod));}
+"&&"			{return manageToken(createSymbol(sym.and));}
+"||"			{return manageToken(createSymbol(sym.or));}
+not				{return manageToken(createSymbol(sym.not));}
+"/="			{return manageToken(createSymbol(sym.relnoteq));}
+"=="			{return manageToken(createSymbol(sym.releq));}
+">="			{return manageToken(createSymbol(sym.relge));}
+">"				{return manageToken(createSymbol(sym.relgt));}
+"<="			{return manageToken(createSymbol(sym.relle));}
+"<"				{return manageToken(createSymbol(sym.rellt));}
 //"++"			{return manageToken(sym.conc);}
-";"				{return manageToken(sym.sep);}
-in				{return manageToken(sym.in);}
-main			{return manageToken(sym.main);}
+";"				{return manageToken(createSymbol(sym.sep));}
+in				{return manageToken(createSymbol(sym.in));}
+main			{return manageToken(createSymbol(sym.main));}
 do				{indentEnable = true;
-				 return manageToken(sym.do_begin);}
+				 return manageToken(createSymbol(sym.do_begin));}
 //head			{return manageToken(sym.head);}
 //tail			{return manageToken(sym.tail);}
-elem			{return manageToken(sym.elem);}
-"!!"			{return manageToken(sym.index);}
-if				{return manageToken(sym.if_begin);}
-then			{return manageToken(sym.then);}
-else			{return manageToken(sym.else_begin);}
+elem			{return manageToken(createSymbol(sym.elem));}
+"!!"			{return manageToken(createSymbol(sym.index));}
+if				{return manageToken(createSymbol(sym.if_begin));}
+then			{return manageToken(createSymbol(sym.then));}
+else			{return manageToken(createSymbol(sym.else_begin));}
 let				{indentEnable = true;
-				 return manageToken(sym.let);}
+				 return manageToken(createSymbol(sym.let));}
 /*where			{dedentEnable = false;
 				 indentEnableNextToken = true;
 				 return manageToken(sym.where);}*/
-print			{return manageToken(sym.print);}
-Int				{return manageToken(sym.type_int);}
-Double			{return manageToken(sym.type_double);}
-Bool			{return manageToken(sym.type_bool);}
+print			{return manageToken(createSymbol(sym.print));}
+Int				{return manageToken(createSymbol(sym.type_int));}
+Double			{return manageToken(createSymbol(sym.type_double));}
+Bool			{return manageToken(createSymbol(sym.type_bool));}
 //Char			{return manageToken(sym.type_char);}
-String			{return manageToken(sym.type_string);}
-{int}			{return manageToken(sym.val_int);}
-{double}		{return manageToken(sym.val_double);}
-{bool}			{return manageToken(sym.val_bool);}
+String			{return manageToken(createSymbol(sym.type_string));}
+{int}			{return manageToken(createSymbol(sym.val_int, 	 Integer.valueOf(yytext())));}
+{double}		{return manageToken(createSymbol(sym.val_double, Double.valueOf(yytext())));}
+{bool}			{return manageToken(createSymbol(sym.val_bool, 	 Boolean.valueOf(yytext())));}
 //{char}		{return manageToken(sym.val_char);}
-{string}		{return manageToken(sym.val_string);}
-{id}			{return manageToken(sym.id);}
+{string}		{return manageToken(createSymbol(sym.val_string, yytext()));}
+{id}			{return manageToken(createSymbol(sym.id, 		 yytext().replace('\'', '.')));}
 {ws}			{;}
 {nl}			{foundNewline = true;}
 
@@ -234,4 +239,4 @@ String			{return manageToken(sym.type_string);}
 
 /* Lexical error */
 .				{report_error("Not recognized token");
-				 return this.manageToken(sym.error);}
+				 return this.manageToken(createSymbol(sym.error));}

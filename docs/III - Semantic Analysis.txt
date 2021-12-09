@@ -161,7 +161,7 @@ LFORMARG (i): 	stringa di "id",
 		Uniqueness Check su "id",
 		se l'albero ottenuto da Stack[-1] non è di tipo Funct -> Arity Error
 	 (ii): 	stringa di "id",
-	       	tipo di "id" (catturato da Stack[-1])
+	       	tipo di "id" (catturato da Stack[-1]),
 		aggiungere "id" alla symTable attuale, con tipo corrispondente al ramo sx del tipo di id
 			e isAssigned = true;
 		creare lista di id per "LFORMARG" e aggiungervi "id";
@@ -256,9 +256,11 @@ EXPR 	(i, ii, iii, iv):
 		tipi degli elementi di "LACTARG";
 		tipo di "EXPR" corrispondente al Return Type di "id";
 		Declaration Check su "id",
-		Type Checking su "id" (deve essere una Function),
-		Arity Checking su "id",
-		Type Checking su "LACTARG" (ogni argomento deve avere tipo compatibile col corrispondente arg);
+		Assignment Check su "id",
+		Se LACTARG.size > 0:
+			Type Checking su "id" (deve essere una Function),
+			Arity Checking su "id",
+			Type Checking su "LACTARG" (ogni argomento deve avere tipo compatibile col corrispondente arg);
 	(xxii): tipo di "VALUE";
 		tipo di "EXPR" corrispondente a quello di "VALUE"
 EXPR_NOTUNARYOP: vedi corrispondenti regole in EXPR
@@ -271,7 +273,8 @@ IF_BLOCK_FUNC (i):
 		Type Checking su "EXPR"_1 e "EXPR"_2 (devono essere identici);
 ACTARG	(i): 	nome di "id", tipo di "id";
 		tipo di "ACTARG" corrispondente a quello di "id";
-		Declaration Check su "id"
+		Declaration Check su "id",
+		Assignment Check su "id"
 	(ii): 	tipo di "VALUE";
 		tipo di "ACTARG" corrispondente a quello di "VALUE";
 		;
@@ -409,6 +412,7 @@ TYPE_FUNC	(i):	tipo di "TYPE_VALUE",
  Wrong Type: Type checking failed
  Multiple Value Declaration: Uniqueness checking failed 
  Missing Value Declaration: Declaration check failed
+ Value Declared but not Assigned: Value used but it has not been assigned
  Multiple Value Assignment: Assignment Uniqueness check failed
  Mismatching Operand Type: operands have valid types, but they are not compatible with each other for a certain expression
  Mismatching Arity: Arity check failed

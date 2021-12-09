@@ -2,19 +2,17 @@ Features da implementare:
 - Tipi accettati:
   Int
   Double
-  Char
   Bool 
   List (1 livello) 
   String 
   Function (1st order)
-- Static scoping
 - Supported operations:
   sum (+)
   subtraction (-)
   multiplication (*)
   division (/)
+  integer division (div)
   modulo (mod)
-  integer division (intdiv)
   logical and (&&)
   logical or (||)
   logical not (not)
@@ -29,5 +27,7 @@ Constructs:
   - if-then-else
   - let bindings
   - function calls
+- Static scoping
+- Indentation-based parsing
   
   

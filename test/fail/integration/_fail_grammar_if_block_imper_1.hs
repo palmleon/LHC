@@ -1,0 +1,1 @@
+main = if true then print "hello" else print "hello"
