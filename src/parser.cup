@@ -946,11 +946,14 @@ DECL ::= DECL_TYPE:decl_type
 DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			{:
 				Type type = decl_type.type;
-				if (isUnique(id)) {
+				if (isUnique(id) && !(type.isSubtype("Function") && returnType(type).isSubtype("List"))) {
 					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
-				else {
+				else if (!isUnique(id)) {
 					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
+				}
+				else {
+					report_semantic_error("Lists as a Return Value are not supported");
 				}
 				RESULT = new DeclTypeAST(new Type(type));
 			:}
@@ -973,12 +976,15 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 //DECL_VALUE ::= PATTERN eq EXPR
 DECL_VALUE ::= id:id eq EXPR:expr
 			{:
-				if (isDeclared(id) && (!isAssigned(id)) && (expr.type.isEquivalent(SymTableStack.getEntry(id).getType().getTypeName()))) {
+				if (isDeclared(id) && (!isUnique(id)) && (!isAssigned(id)) && (expr.type.isEquivalent(SymTableStack.getEntry(id).getType().getTypeName()))) {
 					SymTableStack.getEntry(id).setIsAssigned(true);
 				}
 				else {
 					if (!isDeclared(id)) {
 						report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+					}
+					else if (isUnique(id)) {
+						report_semantic_error("Value is not Locally Declared (Symbol " + id + ")");
 					}
 					else if (isAssigned(id)) {
 						report_semantic_error("Multiple Value Assignment (Symbol " + id + ")");

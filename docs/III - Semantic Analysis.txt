@@ -51,6 +51,9 @@ Controlli:
 - Uniqueness Check:
 	Contesto: in una dichiarazione 
 	Controllo: verifica se la variabile dichiarata non è stata già dichiarata nel blocco corrente
+- Local Declaration Check:
+	Contest: in una dichiarazione (di valore o di funzione)
+	Controllo: verifica se la variabile dichiarata è stata già dichiarata nel blocco corrente
 - Type Check:
 	Contesto: in una espressione/ statement imperativo
 	Controllo: verifica se il tipo dell'espressione coincide con quello atteso
@@ -135,11 +138,7 @@ DECL_VALUE (i): tipo di "id", stringa di "id",
 		tipo di "EXPR"; 
 		aggiornare isAssigned relativo alla variabile assegnata, nella symTable; 
 		Declaration check su "id", 
-		Assignment Uniqueness check su "id", 
-		Type Checking su "EXPR" (deve corrispondere a quello di id)
-	   (ii):tipo di "id", stringa di "id";
-		aggiornare isAssigned relativo alla variabile assegnata, nella symTable; 
-		Declaration check su "id", 
+		Local Declaration check su "id",
 		Assignment Uniqueness check su "id", 
 		Type Checking su "EXPR" (deve corrispondere a quello di id)
 DECL_FUNCT (i): tipo di "id", stringa di "id"; 
@@ -148,6 +147,7 @@ DECL_FUNCT (i): tipo di "id", stringa di "id";
   		push symTable (prima del primo argomento), pop symTable (alla fine), 
 		aggiornare isAssigned relativo a "id";
 		Declaration check su "id",
+		Local Declaration check su "id",
 		Type Checking su "id" (deve essere di tipo Function),
 		Arity check su "id" (deve essere pari alla lunghezza di "LFORMARG"),
 		Type Checking su "EXPR" (deve corrispondere al tipo di ritorno di "id"),

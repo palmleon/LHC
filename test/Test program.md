@@ -376,3 +376,175 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 
 #### COND ::= EXPR
 
+| Condition            | Value |
+| -------------------- | ----- |
+| EXPR compiles        | True  |
+|                      | False |
+| EXPR is of type Bool | True  |
+|                      | False |
+
+| EXPR compiles | EXPR is of type Bool | Valid/Invalid | Test case                                                    | Program              |
+| ------------- | -------------------- | ------------- | ------------------------------------------------------------ | -------------------- |
+| F             | *                    | Invalid       | x :: Int<br/>x = if a then 1 else 2<br/>main = print "hello" | _fail_grammar_cond_1 |
+| *             | F                    | Invalid       | x :: Int<br/>x = if 3 then 1 else 2<br/>main = print "hello" | _fail_sem_cond_1     |
+| T             | T                    | Valid         | x :: Int<br/>x = if True then 1 else 2<br/>main = print "hello" | _succ_cond_1         |
+
+#### DECL ::= DECL_TYPE
+
+| Condition                                | Value |
+| ---------------------------------------- | ----- |
+| DECL_TYPE compiles                       | True  |
+|                                          | False |
+| DECL_TYPE does not declare a Global List | True  |
+|                                          | False |
+
+| DECL_TYPE compiles | DECL_TYPE does not declare a Global List | Valid/Invalid | Test case                           | Program              |
+| ------------------ | ---------------------------------------- | ------------- | ----------------------------------- | -------------------- |
+| F                  | *                                        | Invalid       | x :: <br/>main = print "hello"      | _fail_grammar_decl_1 |
+| *                  | F                                        | Invalid       | x :: [Int]<br/>main = print "hello" | _fail_sem_decl_1     |
+| T                  | T                                        | Valid         | x :: Int<br/>main = print "hello"   | _succ_decl_1         |
+
+#### DECL ::= DECL_VALUE
+
+| Condition           | Value |
+| ------------------- | ----- |
+| DECL_VALUE compiles | True  |
+|                     | False |
+
+| DECL_VALUE compiles | Valid/Invalid | Test case                                   | Program              |
+| ------------------- | ------------- | ------------------------------------------- | -------------------- |
+| F                   | Invalid       | x :: Int<br/>x = <br/>main = print "hello"  | _fail_grammar_decl_2 |
+| T                   | Valid         | x :: Int<br/>x = 3<br/>main = print "hello" | _succ_decl_2         |
+
+#### DECL ::= DECL_FUNCT
+
+| Condition           | Value |
+| ------------------- | ----- |
+| DECL_FUNCT compiles | True  |
+|                     | False |
+
+| DECL_FUNCT compiles | Valid/Invalid | Test case                                            | Program              |
+| ------------------- | ------------- | ---------------------------------------------------- | -------------------- |
+| F                   | Invalid       | x :: Int -> Int<br/>x y = print<br/>main = print x   | _fail_grammar_decl_3 |
+| T                   | Valid         | x :: Int -> Int<br/>x y = y<br/>main = print "hello" | _succ_decl_3         |
+
+#### DECL_TYPE ::= id cm DECL_TYPE
+
+| Condition                                                    | Value |
+| ------------------------------------------------------------ | ----- |
+| DECL_TYPE compiles                                           | True  |
+|                                                              | False |
+| id is unique                                                 | True  |
+|                                                              | False |
+| DECL_TYPE is not a Function declaration with List as a Return Type | True  |
+|                                                              | False |
+
+| DECL_TYPE compiles | id is unique | DECL_TYPE is not a Function declaration with List as a Return Type | Valid/Invalid | Test case                                               | Program                   |
+| ------------------ | ------------ | ------------------------------------------------------------ | ------------- | ------------------------------------------------------- | ------------------------- |
+| F                  | *            | *                                                            | Invalid       | x, y ::<br/>main = print "hello"                        | _fail_grammar_decl_type_1 |
+| *                  | F            | *                                                            | Invalid       | x, x :: Int<br/>main = print "hello"                    | _fail_sem_decl_type_1     |
+| *                  | *            | F                                                            | Invalid       | x, y :: Int -> [Int]<br/>main = print "hello"           | _fail_sem_decl_type_2     |
+| T                  | T            | T                                                            | Valid         | x, y :: Int -> Int<br/>x z = z<br/>main = print "hello" | _succ_decl_type_1         |
+
+#### DECL_TYPE ::= id clns TYPE
+
+| Condition                                                    | Value |
+| ------------------------------------------------------------ | ----- |
+| TYPE compiles                                                | True  |
+|                                                              | False |
+| id is unique                                                 | True  |
+|                                                              | False |
+| DECL_TYPE is not a Function declaration with List as a Return Type | True  |
+|                                                              | False |
+
+| DECL_TYPE compiles | id is unique | DECL_TYPE is not a Function declaration with List as a Return Type | Valid/Invalid | Test case                                         | Program                   |
+| ------------------ | ------------ | ------------------------------------------------------------ | ------------- | ------------------------------------------------- | ------------------------- |
+| F                  | *            | *                                                            | Invalid       | x ::<br/>main = print "hello"                     | _fail_grammar_decl_type_2 |
+| *                  | F            | *                                                            | Invalid       | x :: Int<br/>x :: Double<br/>main = print "hello" | _fail_sem_decl_type_3     |
+| *                  | *            | F                                                            | Invalid       | x :: Int -> [Int]<br/>main = print "hello"        | _fail_sem_decl_type_4     |
+| T                  | T            | T                                                            | Valid         | x :: Bool<br/>main = print "hello"                | _succ_decl_type_2         |
+
+#### DECL_VALUE ::= id eq EXPR
+
+| Condition                             | Value |
+| ------------------------------------- | ----- |
+| EXPR compiles                         | True  |
+|                                       | False |
+| id is declared                        | True  |
+|                                       | False |
+| id is locally declared                | True  |
+|                                       | False |
+| id is not assigned                    | True  |
+|                                       | False |
+| EXPR is of the same type as of the id | True  |
+|                                       | False |
+
+| EXPR compiles | id is declared | id is locally declared | id is not assigned | EXPR is of the same type as of the id | Valid/Invalid | Test case                                                    | Program                    |
+| ------------- | -------------- | ---------------------- | ------------------ | ------------------------------------- | ------------- | ------------------------------------------------------------ | -------------------------- |
+| F             | *              | *                      | *                  | *                                     | Invalid       | x :: Int<br/>x = jal<br/>main = print "hello"                | _fail_grammar_decl_value_1 |
+| T             | F              | *                      | *                  | *                                     | Invalid       | x = 3<br/>main = print "hello"                               | _fail_sem_decl_value_1     |
+| T             | T              | F                      | *                  | *                                     | Invalid       | x, y :: Int<br/>y = let x = 3 in 4<br/>main = print "hello"  | _fail_sem_decl_value_2     |
+| T             | T              | T                      | F                  | *                                     | Invalid       | x :: Int<br/>x = 3<br/>x = 4<br/>main = print "hello"        | _fail_sem_decl_value_3     |
+| T             | T              | T                      | T                  | F                                     | Invalid       | x :: Int<br/>x = 4.5<br/>main = print "hello"                | __fail_sem_decl_value_4    |
+| T             | T              | T                      | T                  | T                                     | Valid         | x :: Int<br/>x = let y :: Int; y = 3 in y<br/>main = print x | _succ_decl_value_1         |
+
+#### DECL_FUNCT ::= id LFORMARG eq EXPR
+
+| Condition                                            | Value |
+| ---------------------------------------------------- | ----- |
+| LFORMARG compiles                                    | True  |
+|                                                      | False |
+| EXPR compiles                                        | True  |
+|                                                      | False |
+| id is declared                                       | True  |
+|                                                      | False |
+| id is locally declared                               | True  |
+|                                                      | False |
+| id is a Function                                     | True  |
+|                                                      | False |
+| id has the same arity as the #formal arguments       | True  |
+|                                                      | False |
+| id is not assigned                                   | True  |
+|                                                      | False |
+| EXPR is of the same type as of the Return Type of id | True  |
+|                                                      | False |
+
+| LFORMARG compiles | EXPR compiles | id is declared | id is locally declared | id is a Function | id has the same arity as the #formal arguments | id is not assigned | EXPR is of the same type as of the Return Type of id | Valid/Invalid | Test case                                                    | Program                    |
+| ----------------- | ------------- | -------------- | ---------------------- | ---------------- | ---------------------------------------------- | ------------------ | ---------------------------------------------------- | ------------- | ------------------------------------------------------------ | -------------------------- |
+| F                 | *             | *              | *                      | *                | *                                              | *                  | *                                                    | Invalid       | x :: Int -> Int<br/>x Int = 3<br/>main = print "hello"       | _fail_grammar_decl_funct_1 |
+| T                 | F             | *              | *                      | *                | *                                              | *                  | *                                                    | Invalid       | x :: Int -> Int<br/>x y = print x<br/>main = print "hello"   | _fail_grammar_decl_funct_2 |
+| T                 | T             | F              | *                      | *                | *                                              | *                  | *                                                    | Invalid       | x y = y<br/>main = print "hello"                             | _fail_sem_decl_funct_1     |
+| T                 | T             | T              | F                      | *                | *                                              | *                  | *                                                    | Invalid       | x :: Int -> Int<br/>y :: Int<br/>y = let x r = r in x 3<br/>main = print "hello" | _fail_sem_decl_funct_2     |
+| T                 | T             | T              | T                      | F                | *                                              | *                  | *                                                    | Invalid       | x :: Int<br/>x y = 3<br/>main = print "hello"                | _fail_sem_decl_funct_3     |
+| T                 | T             | T              | T                      | T                | F                                              | *                  | *                                                    | Invalid       | x' :: Int -> Int -> Int<br/>x' y = y<br/>main = print "hello" | _fail_sem_decl_funct_4     |
+| T                 | T             | T              | T                      | T                | T                                              | F                  | *                                                    | Invalid       | x :: String -> Int<br/>x y = 3<br/>x z = 4<br/>main = print "hello" | _fail_sem_decl_funct_5     |
+| T                 | T             | T              | T                      | T                | T                                              | T                  | F                                                    | Invalid       | x :: String -> Int<br/>x y = 'c'<br/>main = print "hello"    | _fail_sem_decl_funct_6     |
+| T                 | T             | T              | T                      | T                | T                                              | T                  | T                                                    | Valid         | x :: Char -> Char -> Char<br/>x y = y<br/>main = print "hello" | _succ_decl_funct_1         |
+
+#### LFORMARG ::= LFORMARG id
+
+| Condition                  | Value |
+| -------------------------- | ----- |
+| LFORMARG compiles          | True  |
+|                            | False |
+| id is not locally declared | True  |
+|                            | False |
+
+| LFORMARG compiles | id is not locally declared | Valid/Invalid | Test case                                                    | Program                  |
+| ----------------- | -------------------------- | ------------- | ------------------------------------------------------------ | ------------------------ |
+| F                 | *                          | Invalid       | x :: Int -> Int<br/>x Int = 3<br/>main = print "hello"       | _fail_grammar_lformarg_1 |
+| T                 | F                          | Invalid       | x :: Bool -> Bool -> Bool<br/>x y y = True<br/>main = print "hello" | _fail_sem_lformarg_1     |
+| T                 | T                          | Valid         | x' :: Char -> Char -> Char -> Char<br/>x' y' z = 'a'<br/>main = print "hello" | _succ_lformarg_1         |
+
+#### LFORMARG ::= id
+
+| Condition                  | Value |
+| -------------------------- | ----- |
+| id is not locally declared | True  |
+
+| LFORMARG compiles | Valid/Invalid | Test case                                                    | Program          |
+| ----------------- | ------------- | ------------------------------------------------------------ | ---------------- |
+| T                 | Valid         | f' :: String -> Char<br/>f' x = 'a'<br/>main = print "hello" | _succ_lformarg_2 |
+
+#### EXPR ::= EXPR plus EXPR
+
