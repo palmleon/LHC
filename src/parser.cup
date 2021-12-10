@@ -601,6 +601,20 @@ action code {:
 		return rightChildType;
 	}
 	
+	/*
+	 * Method that returns the Return Type of a Function
+	 * Checking that the argument actually refers to a Funcion is up to other Semantic Rules
+	 * @param: Type type - the Function whose Return Type is required
+	 * @return: Type - the Type of the Return Type
+	 */
+	public Type returnType(Type type) {
+		Type rightChildType = type.getChild(1);
+		while(rightChildType.isSubtype("Function")) {
+			rightChildType = type.getChild(1);
+		}
+		return rightChildType;
+	}
+	
 	/* 
 	 * Method that implements Declaration check, i.e. verifies whether a variable has been declared in the whole program,
 	 * since LHC supports Static Lexical Scoping
@@ -919,7 +933,17 @@ COND ::= EXPR:expr {:
 
 ///  DECLARATIONS  ///
 
-DECL ::= DECL_TYPE
+DECL ::= DECL_TYPE:decl_type
+			{: // Global Lists and Functions returning Lists are not supported in this version of the compiler 
+				if (decl_type.type.isSubtype("List")) {
+					report_semantic_error("Global Lists not supported");
+				}
+				if (decl_type.type.isSubtype("Function")) {
+					if (returnType(decl_type.type).isSubtype("List")) {
+						report_semantic_error("Lists as a Return Value are not supported");
+					}
+				}
+			:}
 	   | DECL_VALUE
 	   | DECL_FUNCT;
 
@@ -1507,7 +1531,7 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 	   {:
 			Type type = Type.getType("List");
 			type.setChild(0, value_list.type);
-			RESULT = new ExprAST(new Type(type));
+			RESULT = new ExprAST(type);
 	   :}
 ;
 
