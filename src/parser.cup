@@ -577,10 +577,11 @@ action code {:
 	 * @return: boolean - true if the function has the same Arity, false otherwise
 	 */
 	public boolean hasArity(String funcName, int arity) {
-		int count = 0;
+		int count = 1;
 		Type funcType = SymTableStack.getEntry(funcName).getType();
 		Type rightChildType = funcType.getChild(1);
-		while(rightChildType.getTypeName().equals("Function")) {
+		while(rightChildType.isSubtype("Function")) {
+			count++;
 			rightChildType = funcType.getChild(1);
 		}
 		return count == arity;
@@ -938,11 +939,6 @@ DECL ::= DECL_TYPE:decl_type
 				if (decl_type.type.isSubtype("List")) {
 					report_semantic_error("Global Lists not supported");
 				}
-				if (decl_type.type.isSubtype("Function")) {
-					if (returnType(decl_type.type).isSubtype("List")) {
-						report_semantic_error("Lists as a Return Value are not supported");
-					}
-				}
 			:}
 	   | DECL_VALUE
 	   | DECL_FUNCT;
@@ -960,11 +956,14 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			:}
 			| id:id clns TYPE:type
 			{:
-				if (isUnique(id)) {
+				if (isUnique(id) && !(type.isSubtype("Function") && returnType(type).isSubtype("List"))) {
 					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
-				else {
+				else if (!isUnique(id)) {
 					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
+				}
+				else {
+					report_semantic_error("Lists as a Return Value are not supported");
 				}
 				RESULT = new DeclTypeAST(type);
 			:}

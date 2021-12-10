@@ -291,3 +291,88 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | *                  | F                  | *                       | Invalid       | main = do<br/>       let x :: Int<br/>       print jkl       | _fail_grammar_let_block_imper_2 |
 | *                  | *                  | F                       | Invalid       | main = do<br/>       let x :: Int<br/>          x = 1<br/>       print x | _fail_grammar_let_block_imper_2 |
 | T                  | T                  | T                       | Valid         | main = do<br/>       let x :: Int<br/>           x = 1<br/>       print "hello" | _succ_let_block_imper           |
+
+#### LET_STMTS ::= LET_STMTS sep DECL_TYPE
+
+| Condition          | Value |
+| ------------------ | ----- |
+| LET_STMTS compiles | True  |
+|                    | False |
+| DECL_TYPE compiles | True  |
+|                    | False |
+
+| LET_STMTS compiles | DECL_TYPE compiles | Valid/Invalid | Test case                                                    | Program                   |
+| ------------------ | ------------------ | ------------- | ------------------------------------------------------------ | ------------------------- |
+| F                  | *                  | Invalid       | main = do<br/>       let x; y :: Int<br/>       print "hello" | _fail_grammar_let_stmts_1 |
+| *                  | F                  | Invalid       | main = do<br/>       let x :: Int; y :: <br/>       print "hello" | _fail_grammar_let_stmts_2 |
+| T                  | T                  | Valid         | main = do<br/>       let x :: Int; y :: Int<br/>       print "hello" | _succ_let_stmts_1         |
+
+#### LET_STMTS ::= LET_STMTS sep DECL_VALUE
+
+| Condition           | Value |
+| ------------------- | ----- |
+| LET_STMTS compiles  | True  |
+|                     | False |
+| DECL_VALUE compiles | True  |
+|                     | False |
+
+| LET_STMTS compiles | DECL_VALUE compiles | Valid/Invalid | Test case                                                    | Program                   |
+| ------------------ | ------------------- | ------------- | ------------------------------------------------------------ | ------------------------- |
+| F                  | *                   | Invalid       | main = do<br/>       let x; x = 3<br/>       print "hello"   | _fail_grammar_let_stmts_3 |
+| *                  | F                   | Invalid       | main = do<br/>       let x :: Int; x = lkj<br/>       print "hello" | _fail_grammar_let_stmts_4 |
+| T                  | T                   | Valid         | main = do<br/>       let x :: Int; x = 3<br/>       print "hello" | _succ_let_stmts_2         |
+
+#### LET_STMTS ::= DECL_TYPE
+
+| Condition                                                    | Value |
+| ------------------------------------------------------------ | ----- |
+| DECL_TYPE compiles                                           | True  |
+|                                                              | False |
+| DECL_TYPE contains a Function Declaration with List Return Type | True  |
+|                                                              | False |
+
+| DECL_TYPE compiles | DECL_TYPE contains a Function Declaration with List Return Type | Valid/Invalid | Test case                                                    | Program                   |
+| ------------------ | ------------------------------------------------------------ | ------------- | ------------------------------------------------------------ | ------------------------- |
+| F                  | *                                                            | Invalid       | main = do<br/>       let x :: In<br/>       print "hello"    | _fail_grammar_let_stmts_5 |
+| *                  | F                                                            | Invalid       | main = do<br/>       let x :: Int -> [Int]<br/>       print "hello" | _fail_sem_let_stmts_1     |
+| T                  | T                                                            | Valid         | main = do<br/>       let x :: Int<br/>       print "hello"   | _succ_let_stmts_3         |
+
+#### LET_STMTS ::= DECL_VALUE
+
+| Condition           | Value |
+| ------------------- | ----- |
+| DECL_VALUE compiles | True  |
+|                     | False |
+
+| DECL_VALUE compiles | Valid/Invalid | Test case                                                    | Program                   |
+| ------------------- | ------------- | ------------------------------------------------------------ | ------------------------- |
+| F                   | Invalid       | main = do<br/>       let x = <br/>       print "hello"       | _fail_grammar_let_stmts_6 |
+| T                   | Valid         | main = do<br/>       let x :: Int<br/>       x = 3<br/>       print "hello" | _succ_let_stmts_4         |
+
+#### FUNCT_PART ::= /* empty */
+
+| Condition               | Value |
+| ----------------------- | ----- |
+| No statement on the RHS | True  |
+
+| No statement on the RHS | Valid/Invalid | Test case            | Program            |
+| ----------------------- | ------------- | -------------------- | ------------------ |
+| T                       | Valid         | main = print "hello" | _succ_funct_part_1 |
+
+#### FUNCT_PART ::= FUNCT_PART DECL sep
+
+| Condition           | Value |
+| ------------------- | ----- |
+| FUNCT_PART compiles | True  |
+|                     | False |
+| DECL compiles       | True  |
+|                     | False |
+
+| FUNCT_PART compiles | DECL compiles | Valid/Invalid | Test case                                 | Program                    |
+| ------------------- | ------------- | ------------- | ----------------------------------------- | -------------------------- |
+| F                   | *             | Invalid       | x<br/>x :: Int<br/>main = print "hello"   | _fail_grammar_funct_part_1 |
+| *                   | F             | Invalid       | x :: Int<br/>x =<br/>main = print "hello" | _fail_grammar_funct_part_2 |
+| T                   | T             | Valid         | x :: Int<br/>x = 3<br/>main = print x     | _succ_funct_part_2         |
+
+#### COND ::= EXPR
+
