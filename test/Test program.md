@@ -1003,9 +1003,38 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | Actual arguments' Type match Formal arguments' Type | True  |
 |                                                     | False |
 
+| LACTARG compiles | id is declared | id is assigned | LACTARG size > 0 | id is a Function | id arity == LACTARG size | Actual arguments' Type match Formal arguments' Type | Valid/Invalid | Test case                                                    | Program                         |
+| ---------------- | -------------- | -------------- | ---------------- | ---------------- | ------------------------ | --------------------------------------------------- | ------------- | ------------------------------------------------------------ | ------------------------------- |
+| F                | *              | *              | *                | *                | *                        | *                                                   | Invalid       | x :: [Int] -> Int<br/>x y = y !! 0<br/>y :: Int<br/>y = x alj lsk<br/>main = print "hello" | _fail_grammar_expr_funct_call_1 |
+| T                | F              | *              | *                | *                | *                        | *                                                   | Invalid       | y :: Int<br/>y = x [1,2,3]<br/>main = print "hello"          | _fail_sem_expr_funct_call_1     |
+| T                | T              | F              | *                | *                | *                        | *                                                   | Invalid       | x :: [Int] -> Int<br/>y :: Int<br/>y = x [1,2,3]<br/>main = print "hello" | _fail_sem_expr_funct_call_2     |
+| T                | T              | T              | F                | F                | T                        | T                                                   | Valid         | x :: Int<br/>x = 3<br/>y :: Int<br/>y = x<br/>main = print "hello" | _succ_expr_funct_call_1         |
+| T                | T              | T              | F                | T                | *                        | *                                                   | Invalid       | x :: [Int] -> Int<br/>x y = y !! 0<br/>z :: Int<br/>z = x<br/>main = print "hello" | _fail_sem_expr_funct_call_3     |
+| T                | T              | T              | T                | F                | *                        | *                                                   | Invalid       | x :: Int<br/>x = 3<br/>y :: Int<br/>y = x 3<br/>main = print "hello" | _fail_sem_expr_funct_call_4     |
+| T                | T              | T              | T                | T                | F                        | *                                                   | Invalid       | x :: Int -> Int -> Int<br/>x y z = y + z<br/>y :: Int<br/>y = x 3<br/>main = print "hello" | _fail_sem_expr_funct_call_5     |
+| T                | T              | T              | T                | T                | T                        | F                                                   | Invalid       | x :: Int -> Int<br/>x y = y<br/>y :: Int<br/>y = x True<br/>main = print "hello" | _fail_sem_expr_funct_call_6     |
+| T                | T              | T              | T                | T                | T                        | T                                                   | Valid         |                                                              | _succ_expr_funct_call_2         |
+
 #### EXPR ::= VALUE
+
+| Condition      | Value |
+| -------------- | ----- |
+| VALUE compiles | True  |
+|                | False |
+
+| VALUE compiles | Valid/Invalid | Test case                                    | Program               |
+| -------------- | ------------- | -------------------------------------------- | --------------------- |
+| F              | Invalid       | x :: Int<br/>x = jl<br/>main = print "hello" | _fail_grammar_value_1 |
+| T              | Valid         | x :: Int<br/>x = 3<br/>main = print "hello"  | _succ_expr_value_1    |
 
 #### EXPR ::= VALUE_LIST
 
+| Condition           | Value |
+| ------------------- | ----- |
+| VALUE_LIST compiles | True  |
+|                     | False |
 
-
+| VALUE_LIST compiles | Valid/Invalid | Test case                                                    | Program                    |
+| ------------------- | ------------- | ------------------------------------------------------------ | -------------------------- |
+| F                   | Invalid       | main = do<br/>       let x :: [Int]; x = []<br/>       print (x !! 0) | _fail_grammar_value_list_1 |
+| T                   | Valid         | main = do<br/>       let x :: [Int]; x = [1,2,3]<br/>       print (x !! 0) | _succ_expr_value_list_1    |
