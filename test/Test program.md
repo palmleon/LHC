@@ -229,14 +229,14 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | ACTARG is of Type Bool   | True  |
 |                          | False |
 
-| ACTARG compiles | ACTARG is Double | ACTARG is Int | ACTARG is String | ACTARG is Bool | Valid/Invalid | Test case                  | Program                    |
-| --------------- | ---------------- | ------------- | ---------------- | -------------- | ------------- | -------------------------- | -------------------------- |
-| F               | *                | *             | *                | *              | Invalid       | main = print jkl           | _fail_grammar_imper_part_3 |
-| T               | T                | F             | F                | F              | Valid         | main = [...] print 6.0     | _test_imper_part           |
-| /               | F                | T             | F                | F              | Valid         | main = [...] print 4       | _test_imper_part           |
-| /               | F                | F             | T                | F              | Valid         | main = [...] print True    | _test_imper_part           |
-| /               | F                | F             | F                | T              | Valid         | main = [...] print "hello" | _test_imper_part           |
-| /               | F                | F             | F                | F              | Invalid       | main = print 'c'           | _fail_sem_print            |
+| ACTARG compiles | ACTARG is Double | ACTARG is Int | ACTARG is String | ACTARG is Bool | Valid/Invalid | Test case            | Program                    |
+| --------------- | ---------------- | ------------- | ---------------- | -------------- | ------------- | -------------------- | -------------------------- |
+| F               | *                | *             | *                | *              | Invalid       | main = print jkl     | _fail_grammar_imper_part_3 |
+| T               | T                | F             | F                | F              | Valid         | main = print 6.0     | _succ_print_1              |
+| /               | F                | T             | F                | F              | Valid         | main = print 4       | _succ_print_2              |
+| /               | F                | F             | T                | F              | Valid         | main = print True    | _succ_print_3              |
+| /               | F                | F             | F                | T              | Valid         | main = print "hello" | _succ_print_4              |
+| /               | F                | F             | F                | F              | Invalid       | main = print 'c'     | _fail_sem_print            |
 
 #### DO_BLOCK ::= do_begin indent IO_ACTIONS dedent
 
@@ -547,4 +547,465 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T                 | Valid         | f' :: String -> Char<br/>f' x = 'a'<br/>main = print "hello" | _succ_lformarg_2 |
 
 #### EXPR ::= EXPR plus EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_2 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double or Int | EXPR_2 is of Type Double or Int | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                              | Program                   |
+| --------------- | --------------- | ------------------------------- | ------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------ | ------------------------- |
+| F               | *               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = jl + 4<br/>main = print "hello"       | _fail_grammar_expr_plus_1 |
+| T               | F               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = 4 + jl<br/>main = print "hello"       | _fail_grammar_expr_plus_2 |
+| T               | T               | F                               | *                               | *                                      | Invalid       | x :: Int<br/>x = "hello" + 4<br/>main = print "hello"  | _fail_grammar_expr_plus_3 |
+| T               | T               | T                               | F                               | *                                      | Invalid       | x :: Int<br/>x = 4 + "hello"<br/>main = print "hello"  | _fail_grammar_expr_plus_4 |
+| T               | T               | T                               | T                               | F                                      | Invalid       | x :: Double<br/>x = 4 + 3.5<br/>main = print "hello"   | _fail_grammar_expr_plus_5 |
+| T               | T               | T                               | T                               | T                                      | Valid         | x :: Double<br/>x = 4.0 + 3.5<br/>main = print "hello" | _succ_expr_plus_1         |
+
+#### EXPR ::= EXPR minus EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_2 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double or Int | EXPR_2 is of Type Double or Int | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                              | Program                    |
+| --------------- | --------------- | ------------------------------- | ------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------ | -------------------------- |
+| F               | *               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = jl - 4<br/>main = print "hello"       | _fail_grammar_expr_minus_1 |
+| T               | F               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = 4 - jl<br/>main = print "hello"       | _fail_grammar_expr_minus_2 |
+| T               | T               | F                               | *                               | *                                      | Invalid       | x :: Int<br/>x = "hello" - 4<br/>main = print "hello"  | _fail_sem_expr_minus_1     |
+| T               | T               | T                               | F                               | *                                      | Invalid       | x :: Int<br/>x = 4 - "hello"<br/>main = print "hello"  | _fail_sem_expr_minus_2     |
+| T               | T               | T                               | T                               | F                                      | Invalid       | x :: Double<br/>x = 4 - 3.5<br/>main = print "hello"   | _fail_sem_expr_minus_3     |
+| T               | T               | T                               | T                               | T                                      | Valid         | x :: Double<br/>x = 4.0 - 3.5<br/>main = print "hello" | _succ_expr_minus_1         |
+
+#### EXPR ::= EXPR times EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_2 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double or Int | EXPR_2 is of Type Double or Int | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                              | Program                    |
+| --------------- | --------------- | ------------------------------- | ------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------ | -------------------------- |
+| F               | *               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = jl * 4<br/>main = print "hello"       | _fail_grammar_expr_times_1 |
+| T               | F               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = 4 * jl<br/>main = print "hello"       | _fail_grammar_expr_times_2 |
+| T               | T               | F                               | *                               | *                                      | Invalid       | x :: Int<br/>x = "hello" * 4<br/>main = print "hello"  | _fail_sem_expr_times_1     |
+| T               | T               | T                               | F                               | *                                      | Invalid       | x :: Int<br/>x = 4 * "hello"<br/>main = print "hello"  | _fail_sem_expr_times_2     |
+| T               | T               | T                               | T                               | F                                      | Invalid       | x :: Double<br/>x = 4 * 3.5<br/>main = print "hello"   | _fail_sem_expr_times_3     |
+| T               | T               | T                               | T                               | T                                      | Valid         | x :: Double<br/>x = 4.0 * 3.5<br/>main = print "hello" | _succ_expr_times_1         |
+
+#### EXPR ::= EXPR div EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_2 is of Type Double or Int        | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double or Int | EXPR_2 is of Type Double or Int | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                              | Program                  |
+| --------------- | --------------- | ------------------------------- | ------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------ | ------------------------ |
+| F               | *               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = jl / 4<br/>main = print "hello"       | _fail_grammar_expr_div_1 |
+| T               | F               | *                               | *                               | *                                      | Invalid       | x :: Int<br/>x = 4 / jl<br/>main = print "hello"       | _fail_grammar_expr_div_2 |
+| T               | T               | F                               | *                               | *                                      | Invalid       | x :: Int<br/>x = "hello" / 4<br/>main = print "hello"  | _fail_sem_expr_div_1     |
+| T               | T               | T                               | F                               | *                                      | Invalid       | x :: Int<br/>x = 4 / "hello"<br/>main = print "hello"  | _fail_sem_expr_div_2     |
+| T               | T               | T                               | T                               | F                                      | Invalid       | x :: Double<br/>x = 4 / 3.5<br/>main = print "hello"   | _fail_sem_expr_div_3     |
+| T               | T               | T                               | T                               | T                                      | Valid         | x :: Double<br/>x = 4.0 / 3.5<br/>main = print "hello" | _succ_expr_div_1         |
+
+#### EXPR ::= EXPR intdiv EXPR
+
+| Condition             | Value |
+| --------------------- | ----- |
+| EXPR_1 compiles       | True  |
+|                       | False |
+| EXPR_2 compiles       | True  |
+|                       | False |
+| EXPR_1 is of Type Int | True  |
+|                       | False |
+| EXPR_2 is of Type Int | True  |
+|                       | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Int | EXPR_2 is of Type Int | Valid/Invalid | Test case                                               | Program                     |
+| --------------- | --------------- | --------------------- | --------------------- | ------------- | ------------------------------------------------------- | --------------------------- |
+| F               | *               | *                     | *                     | Invalid       | x :: Int<br/>x = jl div 4<br/>main = print "hello"      | _fail_grammar_expr_intdiv_1 |
+| T               | F               | *                     | *                     | Invalid       | x :: Int<br/>x = 4 div jl<br/>main = print "hello"      | _fail_grammar_expr_intdiv_2 |
+| T               | T               | F                     | *                     | Invalid       | x :: Int<br/>x = "hello" div 4<br/>main = print "hello" | _fail_sem_expr_intdiv_1     |
+| T               | T               | T                     | F                     | Invalid       | x :: Int<br/>x = 4 div "hello"<br/>main = print "hello" | _fail_sem_expr_intdiv_2     |
+| T               | T               | T                     | T                     | Valid         | x :: Int <br/>x = 4 div 3<br/>main = print "hello"      | _succ_expr_intdiv_1         |
+
+#### EXPR ::= mod ACTARG ACTARG
+
+| Condition               | Value |
+| ----------------------- | ----- |
+| ACTARG_1 compiles       | True  |
+|                         | False |
+| ACTARG_2 compiles       | True  |
+|                         | False |
+| ACTARG_1 is of Type Int | True  |
+|                         | False |
+| ACTARG_2 is of Type Int | True  |
+|                         | False |
+
+| ACTARG_1 compiles | ACTARG_2 compiles | ACTARG_1 is of Type Int | ACTARG_2 is of Type Int | Valid/Invalid | Test case                                               | Program                  |
+| ----------------- | ----------------- | ----------------------- | ----------------------- | ------------- | ------------------------------------------------------- | ------------------------ |
+| F                 | *                 | *                       | *                       | Invalid       | x :: Int<br/>x = mod jl 4<br/>main = print "hello"      | _fail_grammar_expr_mod_1 |
+| T                 | F                 | *                       | *                       | Invalid       | x :: Int<br/>x = mod 4 jl<br/>main = print "hello"      | _fail_grammar_expr_mod_2 |
+| T                 | T                 | F                       | *                       | Invalid       | x :: Int<br/>x = mod "hello" 4<br/>main = print "hello" | _fail_sem_expr_mod_1     |
+| T                 | T                 | T                       | F                       | Invalid       | x :: Int<br/>x = mod 4 "hello"<br/>main = print "hello" | _fail_sem_expr_mod_2     |
+| T                 | T                 | T                       | T                       | Valid         | x :: Int <br/>x = mod 4 3<br/>main = print "hello"      | _succ_expr_mod_1         |
+
+#### EXPR ::= EXPR and EXPR
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| EXPR_1 compiles        | True  |
+|                        | False |
+| EXPR_2 compiles        | True  |
+|                        | False |
+| EXPR_1 is of Type Bool | True  |
+|                        | False |
+| EXPR_2 is of Type Bool | True  |
+|                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Bool | EXPR_2 is of Type Bool | Valid/Invalid | Test case                                                | Program                  |
+| --------------- | --------------- | ---------------------- | ---------------------- | ------------- | -------------------------------------------------------- | ------------------------ |
+| F               | *               | *                      | *                      | Invalid       | x :: Bool<br/>x = jl && True<br/>main = print "hello"    | _fail_grammar_expr_and_1 |
+| T               | F               | *                      | *                      | Invalid       | x :: Bool<br/>x = True && jl<br/>main = print "hello"    | _fail_grammar_expr_and_2 |
+| T               | T               | F                      | *                      | Invalid       | x :: Bool<br/>x = 4 && True<br/>main = print "hello"     | _fail_sem_expr_and_1     |
+| T               | T               | T                      | F                      | Invalid       | x :: Bool<br/>x = True && 4<br/>main = print "hello"     | _fail_sem_expr_and_2     |
+| T               | T               | T                      | T                      | Valid         | x :: Bool<br/>x = True && False<br/>main = print "hello" | _succ_expr_and_1         |
+
+#### EXPR ::= EXPR or EXPR
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| EXPR_1 compiles        | True  |
+|                        | False |
+| EXPR_2 compiles        | True  |
+|                        | False |
+| EXPR_1 is of Type Bool | True  |
+|                        | False |
+| EXPR_2 is of Type Bool | True  |
+|                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Bool | EXPR_2 is of Type Bool | Valid/Invalid | Test case                                                  | Program                 |
+| --------------- | --------------- | ---------------------- | ---------------------- | ------------- | ---------------------------------------------------------- | ----------------------- |
+| F               | *               | *                      | *                      | Invalid       | x :: Bool<br/>x = jl \|\| True<br/>main = print "hello"    | _fail_grammar_expr_or_1 |
+| T               | F               | *                      | *                      | Invalid       | x :: Bool<br/>x = True \|\| jl<br/>main = print "hello"    | _fail_grammar_expr_or_2 |
+| T               | T               | F                      | *                      | Invalid       | x :: Bool<br/>x = 4 \|\| True<br/>main = print "hello"     | _fail_sem_expr_or_1     |
+| T               | T               | T                      | F                      | Invalid       | x :: Bool<br/>x = True \|\| 4<br/>main = print "hello"     | _fail_sem_expr_or_2     |
+| T               | T               | T                      | T                      | Valid         | x :: Bool<br/>x = True \|\| False<br/>main = print "hello" | _succ_expr_or_1         |
+
+#### EXPR ::= EXPR relnoteq EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_2 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double, Int or Char | EXPR_2 is of Type Double, Int or Char | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                               | Program                       |
+| --------------- | --------------- | ------------------------------------- | ------------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------- | ----------------------------- |
+| F               | *               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = jl /= 3<br/>main = print "hello"      | _fail_grammar_expr_relnoteq_1 |
+| T               | F               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 /= jl<br/>main = print "hello"      | _fail_grammar_expr_relnoteq_2 |
+| T               | T               | F                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = "hello" /= 3<br/>main = print "hello" | _fail_sem_expr_relnoteq_1     |
+| T               | T               | T                                     | F                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 /= "hello"<br/>main = print "hello" | _fail_sem_expr_relnoteq_2     |
+| T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 /= 'c'<br/>main = print "hello"     | _fail_sem_expr_relnoteq_3     |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 /= 4<br/>main = print "hello"       | _succ_expr_relnoteq_1         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 /= 4.0<br/>main = print "hello"   | _succ_expr_relnoteq_2         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' /= 'd'<br/>main = print "hello"   | _succ_expr_relnoteq_3         |
+
+#### EXPR ::= EXPR releq EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_2 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double, Int or Char | EXPR_2 is of Type Double, Int or Char | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                               | Program                    |
+| --------------- | --------------- | ------------------------------------- | ------------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------- | -------------------------- |
+| F               | *               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = jl == 3<br/>main = print "hello"      | _fail_grammar_expr_releq_1 |
+| T               | F               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 == jl<br/>main = print "hello"      | _fail_grammar_expr_releq_2 |
+| T               | T               | F                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = "hello" == 3<br/>main = print "hello" | _fail_sem_expr_releq_1     |
+| T               | T               | T                                     | F                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 == "hello"<br/>main = print "hello" | _fail_sem_expr_releq_2     |
+| T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 == 'c'<br/>main = print "hello"     | _fail_sem_expr_releq_3     |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 == 4<br/>main = print "hello"       | _succ_expr_releq_1         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 == 4.0<br/>main = print "hello"   | _succ_expr_releq_2         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' == 'd'<br/>main = print "hello"   | _succ_expr_releq_3         |
+
+#### EXPR ::= EXPR relgt EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_2 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double, Int or Char | EXPR_2 is of Type Double, Int or Char | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                              | Program                    |
+| --------------- | --------------- | ------------------------------------- | ------------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------ | -------------------------- |
+| F               | *               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = jl > 3<br/>main = print "hello"      | _fail_grammar_expr_relgt_1 |
+| T               | F               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 > jl<br/>main = print "hello"      | _fail_grammar_expr_relgt_2 |
+| T               | T               | F                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = "hello" > 3<br/>main = print "hello" | _fail_sem_expr_relgt_1     |
+| T               | T               | T                                     | F                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 > "hello"<br/>main = print "hello" | _fail_sem_expr_relgt_2     |
+| T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 >  'c'<br/>main = print "hello"    | _fail_sem_expr_relgt_3     |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  > 4<br/>main = print "hello"      | _succ_expr_relgt_1         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 > 4.0<br/>main = print "hello"   | _succ_expr_relgt_2         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' > 'd'<br/>main = print "hello"   | _succ_expr_relgt_3         |
+
+#### EXPR ::= EXPR relge EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_2 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double, Int or Char | EXPR_2 is of Type Double, Int or Char | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                               | Program                    |
+| --------------- | --------------- | ------------------------------------- | ------------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------- | -------------------------- |
+| F               | *               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = jl >= 3<br/>main = print "hello"      | _fail_grammar_expr_relge_1 |
+| T               | F               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 >= jl<br/>main = print "hello"      | _fail_grammar_expr_relge_2 |
+| T               | T               | F                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = "hello" >= 3<br/>main = print "hello" | _fail_sem_expr_relge_1     |
+| T               | T               | T                                     | F                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 >= "hello"<br/>main = print "hello" | _fail_sem_expr_relge_2     |
+| T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 >=  'c'<br/>main = print "hello"    | _fail_sem_expr_relge_3     |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  >= 4<br/>main = print "hello"      | _succ_expr_relge_1         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 >= 4.0<br/>main = print "hello"   | _succ_expr_relge_2         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' >= 'd'<br/>main = print "hello"   | _succ_expr_relge_3         |
+
+#### EXPR ::= EXPR rellt EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_2 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double, Int or Char | EXPR_2 is of Type Double, Int or Char | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                              | Program                    |
+| --------------- | --------------- | ------------------------------------- | ------------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------ | -------------------------- |
+| F               | *               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = jl < 3<br/>main = print "hello"      | _fail_grammar_expr_rellt_1 |
+| T               | F               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 < jl<br/>main = print "hello"      | _fail_grammar_expr_rellt_2 |
+| T               | T               | F                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = "hello" < 3<br/>main = print "hello" | _fail_sem_expr_rellt_1     |
+| T               | T               | T                                     | F                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 < "hello"<br/>main = print "hello" | _fail_sem_expr_rellt_2     |
+| T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 <  'c'<br/>main = print "hello"    | _fail_sem_expr_rellt_3     |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  < 4<br/>main = print "hello"      | _succ_expr_rellt_1         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 < 4.0<br/>main = print "hello"   | _succ_expr_rellt_2         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' < 'd'<br/>main = print "hello"   | _succ_expr_rellt_3         |
+
+#### EXPR ::= EXPR relle EXPR
+
+| Condition                              | Value |
+| -------------------------------------- | ----- |
+| EXPR_1 compiles                        | True  |
+|                                        | False |
+| EXPR_2 compiles                        | True  |
+|                                        | False |
+| EXPR_1 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_2 is of Type Double, Int or Char  | True  |
+|                                        | False |
+| EXPR_1 and EXPR_2 are of the same Type | True  |
+|                                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Double, Int or Char | EXPR_2 is of Type Double, Int or Char | EXPR_1 and EXPR_2 are of the same Type | Valid/Invalid | Test case                                               | Program                    |
+| --------------- | --------------- | ------------------------------------- | ------------------------------------- | -------------------------------------- | ------------- | ------------------------------------------------------- | -------------------------- |
+| F               | *               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = jl <= 3<br/>main = print "hello"      | _fail_grammar_expr_relle_1 |
+| T               | F               | *                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 <= jl<br/>main = print "hello"      | _fail_grammar_expr_relle_2 |
+| T               | T               | F                                     | *                                     | *                                      | Invalid       | x :: Bool<br/>x = "hello" <= 3<br/>main = print "hello" | _fail_sem_expr_relle_1     |
+| T               | T               | T                                     | F                                     | *                                      | Invalid       | x :: Bool<br/>x = 3 <= "hello"<br/>main = print "hello" | _fail_sem_expr_relle_2     |
+| T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 <=  'c'<br/>main = print "hello"    | _fail_sem_expr_relle_3     |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  <= 4<br/>main = print "hello"      | _succ_expr_relle_1         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 <= 4.0<br/>main = print "hello"   | _succ_expr_relle_2         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' <= 'd'<br/>main = print "hello"   | _succ_expr_relle_3         |
+
+#### EXPR ::= elem ACTARG
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| ACTARG compiles        | True  |
+|                        | False |
+| ACTARG is of List Type | True  |
+|                        | False |
+
+| ACTARG compiles | ACTARG is of List Type | Valid/Invalid | Test case                                              | Program                   |
+| --------------- | ---------------------- | ------------- | ------------------------------------------------------ | ------------------------- |
+| F               | *                      | Invalid       | x :: Int<br/>x = elem []<br/>main = print "hello"      | _fail_grammar_expr_elem_1 |
+| T               | F                      | Invalid       | x :: Int<br/>x = elem 3<br/>main = print "hello"       | _fail_sem_expr_elem_1     |
+| T               | T                      | Valid         | x :: Int<br/>x = elem [1,2,3]<br/>main = print "hello" | _succ_expr_elem_1         |
+
+#### EXPR ::= EXPR index EXPR
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| EXPR_1 compiles        | True  |
+|                        | False |
+| EXPR_2 compiles        | True  |
+|                        | False |
+| EXPR_1 is of Type List | True  |
+|                        | False |
+| EXPR_2 is of Type Int  | True  |
+|                        | False |
+
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type List | EXPR_2 is of Type Int | Valid/Invalid | Test case                                               | Program                    |
+| --------------- | --------------- | ---------------------- | --------------------- | ------------- | ------------------------------------------------------- | -------------------------- |
+| F               | *               | *                      | *                     | Invalid       | x :: Int<br/>x = [] !! 3<br/>main = print "hello"       | _fail_grammar_expr_index_1 |
+| T               | F               | *                      | *                     | Invalid       | x :: Int<br/>x = [1,2,3] !! jl<br/>main = print "hello" | _fail_grammar_expr_index_2 |
+| T               | T               | F                      | *                     | Invalid       | x :: Int<br/>x = 3 !! 3<br/>main = print "hello"        | _fail_sem_expr_index_1     |
+| T               | T               | T                      | F                     | Invalid       | x :: Int<br/>x = [1] !! 'c'<br/>main = print "hello"    | _fail_sem_expr_index_2     |
+| T               | T               | T                      | T                     | Valid         | x :: Char<br/>x = "hello" !! 1<br/>main = print "hello" | _succ_expr_index_1         |
+
+#### EXPR ::= ro EXPR rc
+
+| Condition     | Value |
+| ------------- | ----- |
+| EXPR compiles | True  |
+|               | False |
+
+| ACTARG compiles | Valid/Invalid | Test case                                      | Program                          |
+| --------------- | ------------- | ---------------------------------------------- | -------------------------------- |
+| F               | Invalid       | x :: Int<br/>x = (jl)<br/>main = print "hello" | _fail_grammar_expr_parentheses_1 |
+| T               | Valid         | x :: Int<br/>x = (3)<br/>main = print "hello"  | _succ_expr_parentheses_1         |
+
+#### EXPR ::= not EXPR
+
+| Condition            | Value |
+| -------------------- | ----- |
+| EXPR compiles        | True  |
+|                      | False |
+| EXPR is of Type Bool | True  |
+|                      | False |
+
+| EXPR compiles | EXPR is of Type Bool | Valid/Invalid | Test case                                           | Program                  |
+| ------------- | -------------------- | ------------- | --------------------------------------------------- | ------------------------ |
+| F             | *                    | Invalid       | x :: Bool<br/>x = not jl<br/>main = print "hello"   | _fail_grammar_expr_not_1 |
+| T             | F                    | Invalid       | x :: Bool<br/>x = not 3<br/>main = print "hello"    | _fail_sem_expr_not_1     |
+| T             | T                    | Valid         | x :: Bool<br/>x = not True<br/>main = print "hello" | _succ_expr_not_1         |
+
+#### EXPR ::= minus EXPR
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| EXPR compiles          | True  |
+|                        | False |
+| EXPR is of Type Double | True  |
+|                        | False |
+
+| EXPR compiles | EXPR is of Type Double | Valid/Invalid | Test case                                      | Program                     |
+| ------------- | ---------------------- | ------------- | ---------------------------------------------- | --------------------------- |
+| F             | *                      | Invalid       | x :: Int<br/>x = -jl<br/>main = print "hello"  | _fail_grammar_expr_uminus_1 |
+| T             | F                      | Invalid       | x :: Int<br/>x = -'c'<br/>main = print "hello" | _fail_sem_expr_uminus_1     |
+| T             | T                      | Valid         | x :: Int<br/>x = -4 <br/>main = print "hello"  | _succ_expr_not_1            |
+
+#### EXPR ::= LET_BLOCK_FUNC
+
+| Condition               | Value |
+| ----------------------- | ----- |
+| LET_BLOCK_FUNC compiles | True  |
+|                         | False |
+
+| LET_BLOCK_FUNC compiles | Valid/Invalid | Test case                                                    | Program                  |
+| ----------------------- | ------------- | ------------------------------------------------------------ | ------------------------ |
+| F                       | Invalid       | x :: Int<br/>x = let in 3<br/>main = print "hello"           | _fail_grammar_expr_let_1 |
+| T                       | Valid         | x :: Int<br/>x = let y :: Int; y = 3 in y<br/>main = print "hello" | _succ_expr_let_1         |
+
+#### EXPR ::= IF_BLOCK_FUNC
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| IF_BLOCK_FUNC compiles | True  |
+|                        | False |
+
+| IF_BLOCK_FUNC compiles | Valid/Invalid | Test case                                                  | Program                 |
+| ---------------------- | ------------- | ---------------------------------------------------------- | ----------------------- |
+| F                      | Invalid       | x :: Int<br/>x = if then 3 else 4<br/>main = print "hello" | _fail_grammar_expr_if_1 |
+| T                      | Valid         | x :: Int<br/>x = if True then 3 else 4<br/>main = print x  | _succ_expr_if_1         |
+
+#### EXPR ::= id LACTARG
+
+| Condition                                           | Value |
+| --------------------------------------------------- | ----- |
+| LACTARG compiles                                    | True  |
+|                                                     | False |
+| id is declared                                      | True  |
+|                                                     | False |
+| id is assigned                                      | True  |
+|                                                     | False |
+| LACTARG size > 0                                    | True  |
+|                                                     | False |
+| id is a Function                                    | True  |
+|                                                     | False |
+| id arity == LACTARG size                            | True  |
+|                                                     | False |
+| Actual arguments' Type match Formal arguments' Type | True  |
+|                                                     | False |
+
+#### EXPR ::= VALUE
+
+#### EXPR ::= VALUE_LIST
+
+
 

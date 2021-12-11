@@ -211,7 +211,7 @@ EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR",
 		tipo di "EXPR_NOTUNARYOP";
 		tipo di "EXPR" (parent) corrispondente a Bool;
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double o di Char e devono essere l'uno subtype dell'altro);
+		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double o di Char e devono essere equivalenti);
 		(IR generation) se "EXPR".type =/= "EXPR_NOTUNARYOP".type, effettuare il casting dell'expr di tipo più specifico
 //	(xiv):  tipo di "ACTARG";
 		tipo di "EXPR" corrispondente a "ACTARG";
