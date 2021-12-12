@@ -292,12 +292,12 @@ VALUE 	(i):	valore di "VALUE_BASIC",
 		valore di "VALUE" corrispondente a quello di "VALUE_BASIC",
 		tipo di "VALUE" corrispondente a quello di "VALUE_BASIC";
 		;
-	(ii):	valore di "VALUE_LIST",
+	// (ii):	valore di "VALUE_LIST",
 		tipo di "VALUE_LIST";
 		valore di "VALUE" corrispondente a quello di "VALUE_LIST",
 		tipo di "VALUE" corrispondente a quello di "VALUE_LIST";
 		;
-	(iii):	valore di "VALUE_TUPLE",
+	// (iii):	valore di "VALUE_TUPLE",
 		tipo di "VALUE_TUPLE";
 		valore di "VALUE" corrispondente a quello di "VALUE_TUPLE",
 		tipo di "VALUE" corrispondente a quello di "VALUE_TUPLE";

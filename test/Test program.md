@@ -9,8 +9,6 @@ SEMANTIC ANALYSIS
   - public static Boolean getEntryAssignFlag(String id)		OK
   - public void dumpSymTableStack()				OK
 
-
-
 - UNIT TESTING:
   - Utilizzare Equivalence Class Partitioning sulla singola Regola di Produzione
   - Se i test ottenuti non sono sufficienti, raggiungere Decision Coverage al 100% con test addizionali
@@ -1038,3 +1036,358 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | ------------------- | ------------- | ------------------------------------------------------------ | -------------------------- |
 | F                   | Invalid       | main = do<br/>       let x :: [Int]; x = []<br/>       print (x !! 0) | _fail_grammar_value_list_1 |
 | T                   | Valid         | main = do<br/>       let x :: [Int]; x = [1,2,3]<br/>       print (x !! 0) | _succ_expr_value_list_1    |
+
+#### LET_BLOCK_FUNC ::= let indent LET_STMTS indent in EXPR
+
+| Condition               | Value |
+| ----------------------- | ----- |
+| LET_STMTS compiles      | True  |
+|                         | False |
+| EXPR compiles           | True  |
+|                         | False |
+| Indentation is followed | True  |
+|                         | False |
+
+| LET_STMTS compiles | EXPR compiles | Indentation is followed | Valid/Invalid | Test case                                                    | Program                        |
+| ------------------ | ------------- | ----------------------- | ------------- | ------------------------------------------------------------ | ------------------------------ |
+| F                  | *             | *                       | Invalid       | x :: Int<br/>x = let y in 3<br/>main = print "hello"         | _fail_grammar_let_block_func_1 |
+| T                  | F             | *                       | Invalid       | x :: Int<br/>x = let y :: Int; y = 3 in jl<br/>main = print "hello" | _fail_grammar_let_block_func_2 |
+| T                  | T             | F                       | Invalid       | x :: Int<br/>x = let y :: Int<br/>       y = 3 <br/>	in jl<br/>main = print "hello" | _fail_grammar_let_block_func_3 |
+| T                  | T             | T                       | Valid         | x :: Int<br/>x = let y :: Int; y = 3 in y<br/>main = print "hello" | _succ_let_block_func_1         |
+
+#### IF_BLOCK_FUNC ::= if_begin COND then EXPR else_begin EXPR  
+
+| Condition                  | Value |
+| -------------------------- | ----- |
+| COND compiles              | True  |
+|                            | False |
+| EXPR_1 compiles            | True  |
+|                            | False |
+| EXPR_2 compiles            | True  |
+|                            | False |
+| EXPR_1.type == EXPR_2.type | True  |
+|                            | False |
+
+| COND compiles | EXPR_1 compiles | EXPR_2 compiles | EXPR_1.type == EXPR_2.type | Valid/Invalid | Test case                                                    | Program                       |
+| ------------- | --------------- | --------------- | -------------------------- | ------------- | ------------------------------------------------------------ | ----------------------------- |
+| F             | *               | *               | *                          | Invalid       | x :: Int<br/>x = if jl then 3 else 4<br/>main = print "hello" | _fail_grammar_if_block_func_1 |
+| T             | F               | *               | *                          | Invalid       | x :: Int<br/>x = if True then jl else 4<br/>main = print "hello" | _fail_grammar_if_block_func_2 |
+| T             | T               | F               | *                          | Invalid       | x :: Int<br/>x = if True then 4 else jl<br/>main = print "hello" | _fail_grammar_if_block_func_3 |
+| T             | T               | T               | F                          | Invalid       | x :: Int<br/>x = if True then 4 else "hello"<br/>main = print "hello" | _fail_sem_if_block_func_1     |
+| T             | T               | T               | T                          | Valid         | x :: Int<br/>x = if True then 4 else 3<br/>main = print "hello" | _succ_if_block_func_1         |
+
+#### ACTARG ::= id
+
+| Condition           | Value |
+| ------------------- | ----- |
+| id is declared      | True  |
+|                     | False |
+| id is assigned      | True  |
+|                     | False |
+| id.type == arg.type | True  |
+|                     | False |
+
+| id is declared | id is assigned | id.type == arg.type | Valid/Invalid | Test case                                                    | Program            |
+| -------------- | -------------- | ------------------- | ------------- | ------------------------------------------------------------ | ------------------ |
+| F              | *              | *                   | Invalid       | main = print x                                               | _fail_sem_actarg_1 |
+| T              | F              | *                   | Invalid       | x :: Int -> Int<br/>x y = y<br/>z :: Int<br/>z = x w<br/>main = print "hello" | _fail_sem_actarg_2 |
+| T              | T              | F                   | Invalid       | x :: Int -> Int<br/>x y = y<br/>w :: Bool<br/>w = True<br/>z :: Int<br/>z = x w<br/>main = print "hello" | _fail_sem_actarg_3 |
+| T              | T              | T                   | Valid         | x :: Int -> Int<br/>x y = y<br/>y, z :: Int<br/>y = 3<br/>z = x y<br/>main = print "hello" | _succ_actarg_1     |
+
+#### ACTARG ::= VALUE
+
+| Condition      | Value |
+| -------------- | ----- |
+| VALUE compiles | True  |
+|                | False |
+
+| VALUE compiles | Valid/Invalid | Test case                                                    | Program                |
+| -------------- | ------------- | ------------------------------------------------------------ | ---------------------- |
+| F              | Invalid       | x :: Int -> Int<br/>x y = y<br/>z :: Int<br/>z = x t45<br/>main = print "hello" | _fail_grammar_actarg_1 |
+| T              | Valid         | x :: Int -> Int<br/>x y = y<br/>y' :: Int<br/>y' = x 3<br/>main = print "hello" | _succ_actarg_2         |
+
+#### ACTARG ::= ro EXPR rc
+
+| Condition     | Value |
+| ------------- | ----- |
+| EXPR compiles | True  |
+|               | False |
+
+| EXPR compiles | Valid/Invalid | Test case          | Program                |
+| ------------- | ------------- | ------------------ | ---------------------- |
+| F             | Invalid       | main = print ()    | _fail_grammar_actarg_2 |
+| T             | Valid         | main = print (3+4) | _succ_actarg_2         |
+
+#### LACTARG ::= /* empty */
+
+| Condition    | Value |
+| ------------ | ----- |
+| RHS compiles | True  |
+
+| RHS compiles | Valid/Invalid | Test case                                                | Program         |
+| ------------ | ------------- | -------------------------------------------------------- | --------------- |
+| T            | Valid         | x :: Int<br/>y :: Int<br/>y = x<br/>main = print "hello" | _succ_lactarg_1 |
+
+#### LACTARG ::= LACTARG ACTARG
+
+| Condition        | Value |
+| ---------------- | ----- |
+| LACTARG compiles | True  |
+|                  | False |
+| ACTARG compiles  | True  |
+|                  | False |
+
+| LACTARG compiles | ACTARG compiles | Valid/Invalid | Test case                                                    | Program                 |
+| ---------------- | --------------- | ------------- | ------------------------------------------------------------ | ----------------------- |
+| F                | *               | Invalid       | x :: Int -> Int -> Int<br/>x y z = y + z<br/>y :: Int<br/>y = x t 3<br/>main = print "hello" | _fail_grammar_lactarg_1 |
+| T                | F               | Invalid       | x :: Int -> Int -> Int<br/>x y z = y + z<br/>y :: Int<br/>y = x 3 t<br/>main = print "hello" | _fail_grammar_lactarg_2 |
+| T                | T               | Valid         | x :: Int -> Int -> Int<br/>x y z = y + z<br/>w :: Int<br/>w = 3<br/>y :: Int<br/>y = x w 4<br/>main = print "hello" | _succ_lactarg_2         |
+
+#### VALUE ::= VALUE_BASIC
+
+| Condition            | Value |
+| -------------------- | ----- |
+| VALUE_BASIC compiles | True  |
+|                      | False |
+
+| VALUE_BASIC compiles | Valid/Invalid | Test case                                     | Program               |
+| -------------------- | ------------- | --------------------------------------------- | --------------------- |
+| F                    | Invalid       | x :: Int<br/>x = 3t4<br/>main = print "hello" | _fail_grammar_value_1 |
+| T                    | Valid         | x :: Int<br/>x = 3<br/>main = print x         | _succ_value_1         |
+
+#### VALUE_BASIC ::= val_int
+
+| Condition             | Value |
+| --------------------- | ----- |
+| val_int is recognized | True  |
+
+| val_int is recognized | Valid/Invalid | Test case                                   | Program             |
+| --------------------- | ------------- | ------------------------------------------- | ------------------- |
+| T                     | Valid         | x :: Int<br/>x = 3<br/>main = print "hello" | _succ_value_basic_1 |
+
+#### VALUE_BASIC ::= val_double
+
+| Condition                | Value |
+| ------------------------ | ----- |
+| val_double is recognized | True  |
+
+| val_double is recognized | Valid/Invalid | Test case                                        | Program             |
+| ------------------------ | ------------- | ------------------------------------------------ | ------------------- |
+| T                        | Valid         | x :: Double<br/>x = 3.0<br/>main = print "hello" | _succ_value_basic_2 |
+
+#### VALUE_BASIC ::= val_bool
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| val_bool is recognized | True  |
+
+| val_bool is recognized | Valid/Invalid | Test case                                       | Program             |
+| ---------------------- | ------------- | ----------------------------------------------- | ------------------- |
+| T                      | Valid         | x :: Bool<br/>x = True<br/>main = print "hello" | _succ_value_basic_3 |
+
+#### VALUE_BASIC ::= val_char
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| val_char is recognized | True  |
+
+| val_char is recognized | Valid/Invalid | Test case                                      | Program             |
+| ---------------------- | ------------- | ---------------------------------------------- | ------------------- |
+| T                      | Valid         | x :: Char<br/>x = 'a'<br/>main = print "hello" | _succ_value_basic_4 |
+
+#### VALUE_BASIC ::= val_string
+
+| Condition                | Value |
+| ------------------------ | ----- |
+| val_string is recognized | True  |
+
+| val_string is recognized | Valid/Invalid | Test case                                                    | Program             |
+| ------------------------ | ------------- | ------------------------------------------------------------ | ------------------- |
+| T                        | Valid         | main = do<br/>       let x :: String<br/>           x = "hello"<br/>       print x | _succ_value_basic_5 |
+
+#### VALUE_LIST ::= bo LEXPR bc
+
+| Condition      | Value |
+| -------------- | ----- |
+| LEXPR compiles | True  |
+|                | False |
+
+| LEXPR compiles | Valid/Invalid | Test case                                                    | Program                    |
+| -------------- | ------------- | ------------------------------------------------------------ | -------------------------- |
+| F              | Invalid       | main = do<br/>       let x :: [Int]; x = []<br/>       print "hello" | _fail_grammar_value_list_1 |
+| T              | Valid         | main = do<br/>       let x :: [Int]; x = [1,2]<br/>       print "hello" | _succ_value_list_1         |
+
+#### LEXPR ::= EXPR
+
+| Condition     | Value |
+| ------------- | ----- |
+| EXPR compiles | True  |
+|               | False |
+
+| EXPR compiles | Valid/Invalid | Test case                                                    | Program               |
+| ------------- | ------------- | ------------------------------------------------------------ | --------------------- |
+| F             | Invalid       | main = do<br/>       let x :: [Int]; x = [jl, 2]<br/>       print "hello" | _fail_grammar_lexpr_1 |
+| T             | Valid         | main = do<br/>       let y :: Int; y = 3; x :: [Int]; x = [1,2]<br/>       print "hello" | _succ_lexpr_1         |
+
+#### LEXPR ::= LEXPR cm EXPR
+
+| Condition               | Value |
+| ----------------------- | ----- |
+| EXPR compiles           | True  |
+|                         | False |
+| LEXPR compiles          | True  |
+|                         | False |
+| LEXPR.type == EXPR.type | True  |
+|                         | False |
+
+| LEXPR compiles | EXPR compiles | LEXPR.type == EXPR.type | Valid/Invalid | Test case                                                    | Program               |
+| -------------- | ------------- | ----------------------- | ------------- | ------------------------------------------------------------ | --------------------- |
+| F              | *             | *                       | Invalid       | main = do<br/>       let x :: [Int]; x = [jl, 2]<br/>       print "hello" | _fail_grammar_lexpr_1 |
+| T              | F             | *                       | Invalid       | main = do<br/>       let x :: [Int]; x = [2, jl]<br/>       print "hello" | _fail_grammar_lexpr_2 |
+| T              | T             | F                       | Invalid       | main = do<br/>       let y :: Int; y = 3; x :: [Int]; x = [1,'c']<br/>       print "hello" | _fail_sem_lexpr_1     |
+| T              | T             | T                       | Valid         | main = do<br/>       let y :: Int; y = 3; x :: [Int]; x = [1,y]<br/>       print "hello" | _succ_lexpr_2         |
+
+#### TYPE ::= TYPE_VALUE
+
+| Condition           | Value |
+| ------------------- | ----- |
+| TYPE_VALUE compiles | True  |
+|                     | False |
+
+| TYPE_VALUE compiles | Valid/Invalid | Test case                         | Program              |
+| ------------------- | ------------- | --------------------------------- | -------------------- |
+| F                   | Invalid       | x :: int<br/>main = print "hello" | _fail_grammar_type_1 |
+| T                   | Valid         | x :: Int<br/>main = print "hello" | _succ_type_1         |
+
+#### TYPE ::= TYPE_FUNC
+
+| Condition          | Value |
+| ------------------ | ----- |
+| TYPE_FUNC compiles | True  |
+|                    | False |
+
+| TYPE_FUNC compiles | Valid/Invalid | Test case                                | Program              |
+| ------------------ | ------------- | ---------------------------------------- | -------------------- |
+| F                  | Invalid       | x :: Int -> int<br/>main = print "hello" | _fail_grammar_type_2 |
+| T                  | Valid         | x :: Int -> Int<br/>main = print "hello" | _succ_type_2         |
+
+#### TYPE_VALUE ::= TYPE_LIST
+
+| Condition          | Value |
+| ------------------ | ----- |
+| TYPE_LIST compiles | True  |
+|                    | False |
+
+| TYPE_LIST compiles | Valid/Invalid | Test case                                                    | Program                    |
+| ------------------ | ------------- | ------------------------------------------------------------ | -------------------------- |
+| F                  | Invalid       | main = do<br/>       let x :: [int]<br/>       print "hello" | _fail_grammar_type_value_1 |
+| T                  | Valid         | main = do<br/>       let x :: [Int]<br/>       print "hello" | _succ_type_value_1         |
+
+#### TYPE_VALUE ::= TYPE_BASIC
+
+| Condition           | Value |
+| ------------------- | ----- |
+| TYPE_BASIC compiles | True  |
+|                     | False |
+
+| TYPE_BASIC compiles | Valid/Invalid | Test case                         | Program              |
+| ------------------- | ------------- | --------------------------------- | -------------------- |
+| F                   | Invalid       | x :: int<br/>main = print "hello" | _fail_grammar_type_1 |
+| T                   | Valid         | x :: Int<br/>main = print "hello" | _succ_type_1         |
+
+#### TYPE_BASIC ::= type_int
+
+| Condition              | Value |
+| ---------------------- | ----- |
+| type_int is recognized | True  |
+|                        | False |
+
+| type_int is recognized | Valid/Invalid | Test case                         | Program      |
+| ---------------------- | ------------- | --------------------------------- | ------------ |
+| T                      | Valid         | x :: Int<br/>main = print "hello" | _succ_type_1 |
+
+#### TYPE_BASIC ::= type_double
+
+| Condition                 | Value |
+| ------------------------- | ----- |
+| type_double is recognized | True  |
+|                           | False |
+
+| type_double is recognized | Valid/Invalid | Test case                            | Program            |
+| ------------------------- | ------------- | ------------------------------------ | ------------------ |
+| T                         | Valid         | x :: Double<br/>main = print "hello" | _succ_type_basic_1 |
+
+#### TYPE_BASIC ::= type_bool
+
+| Condition               | Value |
+| ----------------------- | ----- |
+| type_bool is recognized | True  |
+|                         | False |
+
+| type_bool is recognized | Valid/Invalid | Test case                           | Program            |
+| ----------------------- | ------------- | ----------------------------------- | ------------------ |
+| T                       | Valid         | x :: Bool <br/>main = print "hello" | _succ_type_basic_2 |
+
+#### TYPE_BASIC ::= type_char
+
+| Condition               | Value |
+| ----------------------- | ----- |
+| type_char is recognized | True  |
+|                         | False |
+
+| type_char is recognized | Valid/Invalid | Test case                          | Program            |
+| ----------------------- | ------------- | ---------------------------------- | ------------------ |
+| T                       | Valid         | x :: Char<br/>main = print "hello" | _succ_type_basic_3 |
+
+#### TYPE_LIST ::= type_string
+
+| Condition                 | Value |
+| ------------------------- | ----- |
+| type_string is recognized | True  |
+|                           | False |
+
+| type_string is recognized | Valid/Invalid | Test case                                                    | Program            |
+| ------------------------- | ------------- | ------------------------------------------------------------ | ------------------ |
+| T                         | Valid         | main = do<br/>       let x :: String<br/>       print "hello" | _succ_type_basic_4 |
+
+#### TYPE_LIST ::= bo TYPE_BASIC bc
+
+| Condition           | Value |
+| ------------------- | ----- |
+| TYPE_BASIC compiles | True  |
+|                     | False |
+
+| type_string is recognized | Valid/Invalid | Test case                                                    | Program                   |
+| ------------------------- | ------------- | ------------------------------------------------------------ | ------------------------- |
+| F                         | Invalid       | main = do<br/>       let x :: [bool]<br/>       print "hello" | _fail_grammar_type_list_1 |
+| T                         | Valid         | main = do<br/>       let x :: [Int]<br/>       print "hello" | _succ_type_list_1         |
+
+#### TYPE_FUNC ::= TYPE_VALUE arrow TYPE_FUNC
+
+| Condition           | Value |
+| ------------------- | ----- |
+| TYPE_VALUE compiles | True  |
+|                     | False |
+| TYPE_FUNC compiles  | True  |
+|                     | False |
+
+| TYPE_VALUE compiles | TYPE_FUNC compiles | Valid/Invalid | Test case                                        | Program                   |
+| ------------------- | ------------------ | ------------- | ------------------------------------------------ | ------------------------- |
+| F                   | *                  | Invalid       | x :: int -> Int -> Bool<br/>main = print "hello" | _fail_grammar_type_func_1 |
+| T                   | F                  | Invalid       | x :: Int -> int -> Bool<br/>main = print "hello" | _fail_grammar_type_func_2 |
+| T                   | T                  | Valid         | x :: Int -> Int -> Bool<br/>main = print "hello" | _succ_type_func_1         |
+
+#### TYPE_FUNC ::= TYPE_VALUE arrow TYPE_VALUE
+
+| Condition             | Value |
+| --------------------- | ----- |
+| TYPE_VALUE_1 compiles | True  |
+|                       | False |
+| TYPE_VALUE_2 compiles | True  |
+|                       | False |
+
+| TYPE_VALUE_1 compiles | TYPE_VALUE_2 compiles | Valid/Invalid | Test case                                | Program                   |
+| --------------------- | --------------------- | ------------- | ---------------------------------------- | ------------------------- |
+| F                     | *                     | Invalid       | x :: int -> Int<br/>main = print "hello" | _fail_grammar_type_func_3 |
+| T                     | F                     | Invalid       | x :: Int -> int<br/>main = print "hello" | _fail_grammar_type_func_4 |
+| T                     | T                     | Valid         | x :: Int -> Int<br/>main = print "hello" | _succ_type_func_2         |
