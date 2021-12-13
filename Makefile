@@ -27,7 +27,7 @@ build:
 	cd $(BIN_DIR)/ ; java Main ../$(PROGRAM_DIR)/$(FILE).hs $(FILE).ll
 	
 test: 
-	cd $(BIN_DIR)/ ; java Main ../$(TEST_DIR)/*.hs *.ll
+	cd $(BIN_DIR)/ ; java Main ../$(TEST_DIR)/$(KIND)/$(LEVEL)/*.hs *.ll
 	
 run: build
 	lli $(FILE).ll 

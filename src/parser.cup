@@ -11,10 +11,14 @@ parser code {:
 
 	public boolean noCompileErrors = true;
 	
+	/* Current Line and Column Index (i.e. yyline() and yycolumn() in JFlex) */
+	public int currLine = 0;
+	public int currColumn = 0;
+	
 	/*
 	 *  Define the name of the output file, containing the final Intermediate Representation in LLVM
-	 *	Params: String outputFileName - name of the output file
-	 *	Return: nothing
+	 *	@param: String outputFileName - name of the output file
+	 *	@return: nothing
 	 */
 	public void setOutputFileName(String outputFileName) {
 		this.outputFileName = outputFileName;
@@ -22,11 +26,11 @@ parser code {:
 	
 	/* 
 	 * 	Default Cup Function for reporting Syntax Errors
-	 *  Params: java_cup.runtime.Symbol current - The last parsed symbol before raising the last Syntax Error 
-	 *  Return: nothing
+	 *  @param: java_cup.runtime.Symbol current - The last parsed symbol before raising the last Syntax Error 
+	 *  @return: nothing
 	 */
 	public void syntax_error(java_cup.runtime.Symbol current) {
-		report_error("", current);
+		report_error(current);
 	}
 	
 	/*
@@ -40,34 +44,36 @@ parser code {:
 	
 	/* 
 	 *  Inform the user that a Syntax Error has been raised, and inform them about the nature of the Syntax Error
-	 *	Params: Object info - The last parsed symbol before raising the last Syntax Error
+	 *	@param: Object info - The last parsed symbol before raising the last Syntax Error
 	 *  		String msg - The additional message describing the kind of Syntax Error
-	 *	Return: nothing
+	 *	@return: nothing
 	 */
-    public void report_error(String msg, Object info) {
+    public void report_error(Object info) {
 		noCompileErrors = false;
         System.err.print("ERROR: Syntax error");
         if (info instanceof Symbol)
             if (((Symbol)info).left != -1){
                 int line = (((Symbol)info).left);
                 int column = (((Symbol)info).right);
-                System.err.print(" (line "+line+", column "+column+"): " + msg);
-            } else System.err.print(": " + msg);
-        else System.err.print(": " + msg);
+                System.err.print(" (line "+line+", column "+column+"): ");
+            } else System.err.print(": ");
+        else System.err.print(": ");
     }
+	
+	/*
+	 * Inform the user what caused a Syntax Error
+	 * @param: String msg - the error msg
+	 * @return: nothing
+	 */
+	public void report_syntax_error(String msg) {
+		System.out.println(msg);
+	}
 	
 	public void report_semantic_error(String msg) {
 		noCompileErrors = false;
 		System.err.print("ERROR: Semantic error");
-        //if (info instanceof Symbol)
-        //    if (((Symbol)info).left != -1){
-        //        int line = (((Symbol)info).left);
-        //        int column = (((Symbol)info).right);
-        //System.err.println(" (line "+line+", column "+column+"): " + msg);
-        //    } else System.err.println(": " + msg);
-        //else System.err.println(": " + msg);
-		System.err.println(": " + msg);
-		CUP$Parser$actions.SymTableStack.dumpSymTableStack();
+        System.err.println(" (line "+currLine+", column "+currColumn+"): " + msg);
+        //CUP$Parser$actions.SymTableStack.dumpSymTableStack();
 	}
 	
 :};
@@ -143,7 +149,7 @@ action code {:
 		/* 
 		 * Method for Type Widening
 		 * This Method is asymmetric: it takes the first type and tries to upcast it into the second one
-		 * Params: String typeName1, typeName2 - the types to be compared
+		 * @param: String typeName1, typeName2 - the types to be compared
 		 * Returns: The resulting widened type (null if widening is not possible) //TODO
 		 */
 		public static String widen(String typeName1, String typeName2) {
@@ -161,7 +167,7 @@ action code {:
 		 * - Any represents Type Variables (i.e. Java Generics)
 		 * - Int is a subtype of Double
 		 * The widen Method checks Subtyping for the single TreeNode
-		 * Params: String other - the type to be compared with the calling one
+		 * @param: String other - the type to be compared with the calling one
 		 * Returns: Boolean - true if other is Parent of this, false otherwise
 		 */
 		public boolean isSubtype(String other) {
@@ -183,7 +189,7 @@ action code {:
 		 * The isSubtype relationship is a Partial Ordering Relation, 
 		 * Type Equivalence is equivalent to checking that 
 		 * the first type is a subtype of the second one and viceversa.
-		 * Params: String other - the type to compare with the calling one
+		 * @param: String other - the type to compare with the calling one
 		 * Returns: Boolean - true if the Trees are equivalent, false otherwise
 		 */
 		 
@@ -195,7 +201,7 @@ action code {:
 		
 		/* 
 		 * Additional Method for Type Equivalence Checking
-		 * Params: Type other - the tree of the type to compare with the calling one
+		 * @param: Type other - the tree of the type to compare with the calling one
 		 * Returns: Boolean - true if the Trees are equivalent, false otherwise
 		 */
 		public boolean isEquivalent(Type other) {
@@ -209,8 +215,8 @@ action code {:
 		
 		/*
 		 * Create TypeMap with the predefined available Types
-		 * Params: nothing
-		 * Return: nothing
+		 * @param: nothing
+		 * @return: nothing
 		 */
 		private static void createTypeMap() {
 			// childType is used only for making the code slightly more readable
@@ -248,9 +254,9 @@ action code {:
 		
 		/* 
 		 * Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
-		 * Params: String typeName - the name of the new Type
+		 * @param: String typeName - the name of the new Type
 		 * 		   Type type - the corresponding type 
-		 * Return: boolean - true if no error occured, false otherwise
+		 * @return: boolean - true if no error occured, false otherwise
 		 */
 		public static boolean addType(String typeName, Type type) {
 			if (typeMap.containsKey(typeName)) return false;
@@ -269,8 +275,8 @@ action code {:
 		
 		/* 
 		 * Retrieve a clone of the Type of a specific type from the typeMap, if present
-		 * Params: String typeName - the name of the Type
-		 * Return: the corresponding typeTree if the Type exists, null otherwise
+		 * @param: String typeName - the name of the Type
+		 * @return: the corresponding typeTree if the Type exists, null otherwise
 		 */
 		public static Type getType(String typeName) {
 			if (typeMap.containsKey(typeName))
@@ -280,7 +286,7 @@ action code {:
 		
 		/*
 		 * Debugging method for dumping the whole TypeMap TODO
-		 * Params: nothing
+		 * @param: nothing
 		 * Returns: nothing
 		 */
 		public static void dumpTypeMap(){
@@ -294,7 +300,7 @@ action code {:
 		
 		/*
 		 * Debugging method for dumping a single Type TODO
-		 * Params: int level - defines the level inside the Type, used for hierarchical printing of the Tree
+		 * @param: int level - defines the level inside the Type, used for hierarchical printing of the Tree
 		 * Returns: nothing
 		 */
 		private void dumpType(int level){
@@ -391,8 +397,8 @@ action code {:
 		
 		/* 
 		 * Method that pushes a new SymTable to the Stack
-		 * Params: nothing
-		 * Return: nothing
+		 * @param: nothing
+		 * @return: nothing
 		 */
 		public static void pushSymTable() {
 			symTableStack.push(new HashMap<String, SymTableEntry>());
@@ -400,8 +406,8 @@ action code {:
 		
 		/* 
 		 * Method that pops the SymTable on top of the Stack
-		 * Params: nothing
-		 * Return: nothing
+		 * @param: nothing
+		 * @return: nothing
 		 */
 		public static void popSymTable() {
 			if(debug_mode) dumpSymTableStack();
@@ -419,9 +425,9 @@ action code {:
 		 * Insert a new Entry in the SymTable on top of the Stack
 		 * This method is sensitive to the context (it depends on the current position in the Parser Tree)
 		 * The Parser must guarantee the correct SymTable for a given Entry
-		 * Params: String id - the name of the Entry (the corresponding token)
+		 * @param: String id - the name of the Entry (the corresponding token)
 		 * 		   SymTableEntry entry - the Entry
-		 * Return: nothing
+		 * @return: nothing
 		 */
 		public static void putEntry(String id, SymTableEntry entry) {
 			symTableStack.peek().put(id, entry);
@@ -431,8 +437,8 @@ action code {:
 		 * Check whether a certain Entry is present in the whole SymTable Stack
 		 * Search is applied from the top of the Stack to the bottom;
 		 * the first match is considered
-		 * Params: String id - the name of the Entry (the corresponding token)
-		 * Return: the flag that indicates whether the Entry is present or not
+		 * @param: String id - the name of the Entry (the corresponding token)
+		 * @return: the flag that indicates whether the Entry is present or not
 		 */
 		public static boolean containsEntry(String id) {
 			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
@@ -447,8 +453,8 @@ action code {:
 		 * Check whether a certain Entry is present in the whole SymTable Stack and return it
 		 * Search is applied from the top of the Stack to the bottom;
 		 * the first match is considered
-		 * Params: String id - the name of the Entry (the corresponding token)
-		 * Return: the Entry itself, if found (null otherwise)
+		 * @param: String id - the name of the Entry (the corresponding token)
+		 * @return: the Entry itself, if found (null otherwise)
 		 */
 		public static SymTableEntry getEntry(String id) {
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
@@ -463,8 +469,8 @@ action code {:
 		 * Check whether a certain Entry is present in the whole SymTable Stack and return its Type
 		 * Search is applied from the top of the Stack to the bottom;
 		 * the first match is considered
-		 * Params: String id - the name of the Entry (the corresponding token)
-		 * Return: the Type of the Entry itself, if found (null otherwise)
+		 * @param: String id - the name of the Entry (the corresponding token)
+		 * @return: the Type of the Entry itself, if found (null otherwise)
 		 */
 		/*public static Type getEntryType(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
@@ -476,8 +482,8 @@ action code {:
 		 * Check whether a certain Entry is present in the whole SymTable Stack and check if it has been already assigned
 		 * Search is applied from the top of the Stack to the bottom;
 		 * the first match is considered
-		 * Params: String id - the name of the Entry (the corresponding token)
-		 * Return: a Boolean flag indicating whether the variable has been assigned, null if the Entry has not been found
+		 * @param: String id - the name of the Entry (the corresponding token)
+		 * @return: a Boolean flag indicating whether the variable has been assigned, null if the Entry has not been found
 		 */
 		/*public static Boolean getEntryAssignFlag(String id) {
 			SymTableEntry entry = SymTableStack.getEntry(id);
@@ -487,7 +493,7 @@ action code {:
 		
 		/*
 		 * Debugging method that prints out the content of the whole symTableStack 
-		 * Params: nothing
+		 * @param: nothing
 		 * Returns: nothing
 		 */
 		public static void dumpSymTableStack(){
@@ -588,10 +594,10 @@ action code {:
 	}
 	
 	/*
-	 * Method that returns the Return Type of a Function
+	 * Method that returns the @return Type of a Function
 	 * Checking that funcName actually refers to a Funcion is up to other Semantic Rules
-	 * @param: String funcName - the Function whose Return Type is required
-	 * @return: Type - the Type of the Return Type
+	 * @param: String funcName - the Function whose @return Type is required
+	 * @return: Type - the Type of the @return Type
 	 */
 	public Type returnType(String funcName) {
 		Type funcType = SymTableStack.getEntry(funcName).getType();
@@ -603,10 +609,10 @@ action code {:
 	}
 	
 	/*
-	 * Method that returns the Return Type of a Function
+	 * Method that returns the @return Type of a Function
 	 * Checking that the argument actually refers to a Funcion is up to other Semantic Rules
-	 * @param: Type type - the Function whose Return Type is required
-	 * @return: Type - the Type of the Return Type
+	 * @param: Type type - the Function whose @return Type is required
+	 * @return: Type - the Type of the @return Type
 	 */
 	public Type returnType(Type type) {
 		Type rightChildType = type.getChild(1);
@@ -676,6 +682,10 @@ action code {:
 	
 	public static class LActArgAST {
 		public LinkedList<ActArgAST> actArgList;
+		
+		LActArgAST () {
+			this.actArgList = new LinkedList<ActArgAST>();
+		}
 		
 		LActArgAST (LinkedList<ActArgAST> actArgList) {
 			this.actArgList = actArgList;
@@ -759,7 +769,11 @@ init with {:
 scan with {:   
 		if (true) {
 			Scanner scanner = (Scanner) this.getScanner();
-			Symbol s = scanner.next_token_custom(); 
+			Symbol s = scanner.next_token_custom();
+			if (s.left != -1) {
+				currLine = s.left;
+				currColumn = s.right;
+			}
 			Tree.push(s.toString(), 0); // necessary to build the graphical Parsing Tree
 			return s;
 		}	
@@ -856,7 +870,12 @@ PROGRAM ::= /* empty program */
 				if (noCompileErrors) {
 					System.out.println("CODE COMPILED SUCCESSFULLY");
 				}	
+				else {
+					System.out.println("CODE NOT COMPILED: FAILED");
+				} 
 			:}
+		   | error dedent 
+				{:	report_syntax_error("Error in Imperative Part");  :}
 ;
 
 /// ////////////////// ///
@@ -874,6 +893,8 @@ IO_ACTION ::= PRINT
 IO_ACTIONS ::= IO_ACTION
 			 | IO_ACTIONS sep IO_ACTION
 			 | LET_BLOCK_IMPER
+			 | error sep IO_ACTION 
+				{: report_syntax_error("Error in Imperative Part Statement"); :}
 ;
 
 PRINT ::= print ACTARG:actarg
@@ -886,6 +907,7 @@ PRINT ::= print ACTARG:actarg
 ;
 
 DO_BLOCK ::= do_begin indent IO_ACTIONS dedent
+		   | do_begin indent error dedent {: report_syntax_error("Error in Do Block"); :}
 ;
 
 IF_BLOCK_IMPER ::= if_begin COND:cond then IO_ACTION else_begin IO_ACTION
@@ -894,6 +916,14 @@ IF_BLOCK_IMPER ::= if_begin COND:cond then IO_ACTION else_begin IO_ACTION
 						report_semantic_error("Wrong Type (Expected Type: Bool)");
 					}
 				:}
+				| if_begin error then IO_ACTION else_begin IO_ACTION 
+					{: report_syntax_error("Error in Condition of If Statement"); :}
+				| if_begin COND then error else_begin IO_ACTION 
+					{: report_syntax_error("Error in Then Block of If Statement"); :}
+				| error then IO_ACTION else_begin IO_ACTION 
+					{: report_syntax_error("Missing \"If\" in If Statement"); :}
+				| if_begin COND error else_begin IO_ACTION 
+					{: report_syntax_error("Missing \"Then\" in If Statement"); :}
 ;
 
 LET_BLOCK_IMPER ::= let {:
@@ -904,12 +934,18 @@ LET_BLOCK_IMPER ::= let {:
 						SymTableStack.popSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 					:}
+				| let error dedent IO_ACTION 
+					{: report_syntax_error("Error in Let Statements of a Let Block"); :}
 ;
 // DECL_FUNCT not supported (for now)
 LET_STMTS ::= LET_STMTS sep DECL_TYPE
 			| LET_STMTS sep DECL_VALUE
 			| DECL_TYPE
 			| DECL_VALUE
+			| error sep DECL_TYPE 
+				{: report_syntax_error("Error in Statement inside a Let Block"); :}
+			| error sep DECL_VALUE 
+				{: report_syntax_error("Error in Statement inside a Let Block"); :}
 ;
 
 /// ////////////////// ///
@@ -918,6 +954,8 @@ LET_STMTS ::= LET_STMTS sep DECL_TYPE
  
 FUNCT_PART ::= /* empty Functional section */
 			 | FUNCT_PART DECL sep
+			 | FUNCT_PART error sep 
+				{: report_syntax_error("Error in Expression"); :}
 ;
 
 /* special expression management for boolean conditions */
@@ -953,7 +991,7 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
 				}
 				else {
-					report_semantic_error("Lists as a Return Value are not supported");
+					report_semantic_error("Lists as a @return Value are not supported");
 				}
 				RESULT = new DeclTypeAST(new Type(type));
 			:}
@@ -966,10 +1004,14 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
 				}
 				else {
-					report_semantic_error("Lists as a Return Value are not supported");
+					report_semantic_error("Lists as a @return Value are not supported");
 				}
 				RESULT = new DeclTypeAST(type);
 			:}
+			| error cm DECL_TYPE 
+				{: report_syntax_error("Expected valid identifier in Type Declaration"); :}
+			| error clns TYPE
+				{: report_syntax_error("Expected valid identifier in Type Declaration"); :}
 ; 
 
 /* pattern and expr should be of the same type */
@@ -994,8 +1036,9 @@ DECL_VALUE ::= id:id eq EXPR:expr
 					}
 				}
 			:}
+			| error eq EXPR 
+				{: report_syntax_error("Expected valid identifier in Value Declaration"); :}
 ;
-
 /* no nullary functions */
 DECL_FUNCT ::= id:id {: 
 					SymTableStack.pushSymTable();
@@ -1030,6 +1073,8 @@ DECL_FUNCT ::= id:id {:
 						report_semantic_error("Multiple Value Assignment (Symbol " + id + ")");
 					}
 			   :}  
+			   | id error eq EXPR
+					{: report_syntax_error("Expected valid Arguments in Function Declaration"); :}
 			    //WHERE
 ;
 
@@ -1908,6 +1953,10 @@ LET_BLOCK_FUNC ::= 	let {:
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
 						RESULT = new LetBlockAST(expr.type);
 					:}
+					| let error in EXPR 
+						{: report_syntax_error("Error in Statement inside a Let Block"); :}
+					| error in EXPR
+						{: report_syntax_error("Missing 'let' in Let Block"); :} 
 ;
 
 
@@ -1917,10 +1966,18 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:expr1 else_begin EXPR:expr2
 						RESULT = new IfBlockAST(expr1.type);
 					}
 					else {
-						report_semantic_error("Multiple Return Types for If Statement");
+						report_semantic_error("Multiple @return Types for If Statement");
 						RESULT = new IfBlockAST(Type.getType("error")); 
 					}
 				:}
+				| if_begin error else_begin EXPR 
+					{: report_syntax_error("Error in Condition inside an If-Then-Else Block"); :}
+				| if_begin COND then error else_begin EXPR
+					{: report_syntax_error("Error in Then Block of an In-Then-Else Block"); :}
+				| error then EXPR else_begin EXPR
+					{: report_syntax_error("Missing 'if' inside an If-Then-Else Block"); :}
+				| if_begin COND error else_begin EXPR
+					{: report_syntax_error("Missing 'then' inside an If-Then-Else Block"); :}
 ;
 
 
@@ -1931,13 +1988,13 @@ ACTARG ::= id:id
 			if (isDeclared(id) && isAssigned(id)) {
 				RESULT = new ActArgAST(SymTableStack.getEntry(id).getType());
 			}
-			else if (!isAssigned(id)) {
-				report_semantic_error("Value Declared but Not Assigned (Symbol " + id + ")");
-				RESULT = new ActArgAST(SymTableStack.getEntry(id).getType());
-			}
-			else {
+			else if (!isDeclared(id)){
 				report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
 				RESULT = new ActArgAST(Type.getType("error")); 
+			}
+			else {
+				report_semantic_error("Value Declared but Not Assigned (Symbol " + id + ")");
+				RESULT = new ActArgAST(SymTableStack.getEntry(id).getType());
 			}
 		:}
          | VALUE:value
@@ -2026,6 +2083,8 @@ LEXPR ::= EXPR:expr
 				RESULT = new LExprAST(lexpr.exprArray, lexpr.type);
 			}
 		:}
+		| error cm EXPR
+			{: report_syntax_error("Error in List of Expressions"); :}
 ;
 
 //TEXPR ::= EXPR cm EXPR
@@ -2057,6 +2116,8 @@ TYPE_LIST ::= bo TYPE_BASIC:type_basic bc
 		   RESULT = type;
 		:}
 		| type_string {: RESULT = Type.getType("String"); :}
+		| bo error bc 
+			{: report_syntax_error("Expected Type in List Declaration"); :}
 ;
 
 //TYPE_TUPLE ::= ro TTYPE_VALUE rc
@@ -2077,6 +2138,10 @@ TYPE_FUNC ::= TYPE_VALUE:type_value arrow TYPE_FUNC:type_func
 			type.setChild(1, type_valueR);
 			RESULT = type;
 		:}
+			| error arrow TYPE_VALUE
+		{: report_syntax_error("Error in Argument Type of Function"); :}
+			| error arrow TYPE_FUNC
+		{: report_syntax_error("Error in Argument Type of Function"); :}
 ;
 
 // 0-Tuple are not allowed
