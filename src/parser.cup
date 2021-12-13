@@ -988,10 +988,10 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
 				else if (!isUnique(id)) {
-					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
+					report_semantic_error("Multiple Value Declaration (Symbol \"" + id + "\")");
 				}
 				else {
-					report_semantic_error("Lists as a @return Value are not supported");
+					report_semantic_error("Lists as a Return Value are not supported");
 				}
 				RESULT = new DeclTypeAST(new Type(type));
 			:}
@@ -1001,7 +1001,7 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
 				else if (!isUnique(id)) {
-					report_semantic_error("Multiple Value Declaration (Symbol " + id + ")");
+					report_semantic_error("Multiple Value Declaration (Symbol \"" + id + "\")");
 				}
 				else {
 					report_semantic_error("Lists as a @return Value are not supported");
@@ -1023,16 +1023,16 @@ DECL_VALUE ::= id:id eq EXPR:expr
 				}
 				else {
 					if (!isDeclared(id)) {
-						report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+						report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
 					}
 					else if (isUnique(id)) {
-						report_semantic_error("Value is not Locally Declared (Symbol " + id + ")");
+						report_semantic_error("Value is not Locally Declared (Symbol \"" + id + "\")");
 					}
 					else if (isAssigned(id)) {
-						report_semantic_error("Multiple Value Assignment (Symbol " + id + ")");
+						report_semantic_error("Multiple Value Assignment (Symbol \"" + id + "\")");
 					}
 					else {
-						report_semantic_error("Mismatching Type on Assignment (Symbol " + id + ")"); 
+						report_semantic_error("Mismatching Type on Assignment (Symbol \"" + id + "\")"); 
 					}
 				}
 			:}
@@ -1058,19 +1058,19 @@ DECL_FUNCT ::= id:id {:
 						}
 					}
 					else if (!isDeclared(id)) {
-						report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+						report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
 					}
 					else if (idTree != null && !idTree.isSubtype("Function")) {
-						report_semantic_error("Not a Function (Symbol " + id + ")");
+						report_semantic_error("Not a Function (Symbol \"" + id + "\")");
 					}
 					else if (!hasArity(id, lformarg.argList.size())) {
-						report_semantic_error("Mismatching Arity (Symbol " + id + ")");
+						report_semantic_error("Mismatching Arity (Symbol \"" + id + "\")");
 					}
 					else if (!expr.type.isEquivalent(returnType(id).getTypeName())) {
-						report_semantic_error("Mismatching Type on Function Declaration (Symbol " + id + ")");
+						report_semantic_error("Mismatching Type on Function Declaration (Symbol \"" + id + "\")");
 					}
 					else if (isAssigned(id)) {
-						report_semantic_error("Multiple Value Assignment (Symbol " + id + ")");
+						report_semantic_error("Multiple Value Assignment (Symbol \"" + id + "\")");
 					}
 			   :}  
 			   | id error eq EXPR
@@ -1133,7 +1133,7 @@ LFORMARG ::= LFORMARG:lformarg id:id
 					RESULT = new LFormArgAST(lformarg.argList, propTree.getChild(1));
 				}
 				else if (!isUnique(id)) {
-					report_semantic_error("Multiple Argument Declaration (Symbol " + id + ")");
+					report_semantic_error("Multiple Argument Declaration (Symbol \"" + id + "\")");
 					// Error Recovery
 					lformarg.argList.add(id);
 					RESULT = new LFormArgAST(lformarg.argList, propTree.getChild(1));
@@ -1158,7 +1158,7 @@ LFORMARG ::= LFORMARG:lformarg id:id
 						RESULT = new LFormArgAST(list, type.getChild(1));
 					}
 					else if (!isUnique(id)) {
-						report_semantic_error("Multiple Argument Declaration (Symbol " + id + ")");
+						report_semantic_error("Multiple Argument Declaration (Symbol \"" + id + "\")");
 						// Error Recovery
 						LinkedList<String> list = new LinkedList<>();
 						list.add(id);
@@ -1173,7 +1173,7 @@ LFORMARG ::= LFORMARG:lformarg id:id
 					}
 				}
 				else {
-					report_semantic_error("Missing Function Declaration (Symbol " + funcName + ")");
+					report_semantic_error("Missing Function Declaration (Symbol \"" + funcName + "\")");
 					LinkedList<String> list = new LinkedList<>();
 					list.add(id);
 					RESULT = new LFormArgAST(list, Type.getType("error"));
@@ -1551,20 +1551,20 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				}
 			}
 			else if (!isDeclared(id)){
-				report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
+				report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!isAssigned(id)) {
-				report_semantic_error("Value Declared but not Assigned (Symbol " + id + ")");
+				report_semantic_error("Value Declared but not Assigned (Symbol \"" + id + "\")");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			if (nArgs > 0) {
 				if (funcTree != null && !funcTree.isSubtype("Function")) {
-					report_semantic_error("Not a Function (Symbol " + id + ")");
+					report_semantic_error("Not a Function (Symbol \"" + id + "\")");
 					RESULT = new ExprAST(Type.getType("error")); 
 				}
 				else if (!hasArity(id, nArgs)) {
-					report_semantic_error("Mismatching Arity (Symbol " + id + ")");
+					report_semantic_error("Mismatching Arity (Symbol \"" + id + "\")");
 					RESULT = new ExprAST(Type.getType("error")); 
 				}
 				else if (failedArgsTypeChecking) {
@@ -1966,7 +1966,7 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:expr1 else_begin EXPR:expr2
 						RESULT = new IfBlockAST(expr1.type);
 					}
 					else {
-						report_semantic_error("Multiple @return Types for If Statement");
+						report_semantic_error("Multiple Return Types for If Statement");
 						RESULT = new IfBlockAST(Type.getType("error")); 
 					}
 				:}
@@ -1993,7 +1993,7 @@ ACTARG ::= id:id
 				RESULT = new ActArgAST(Type.getType("error")); 
 			}
 			else {
-				report_semantic_error("Value Declared but Not Assigned (Symbol " + id + ")");
+				report_semantic_error("Value Declared but Not Assigned (Symbol \"" + id + "\")");
 				RESULT = new ActArgAST(SymTableStack.getEntry(id).getType());
 			}
 		:}
