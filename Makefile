@@ -5,6 +5,10 @@ BIN_DIR = "bin"
 OUTPUT_DIR = "output"
 SRC_DIR = "src"
 TEST_DIR = "test"
+#TEST_SRC = $(wildcard $(TEST_DIR)/$(KIND)/$(LEVEL)/*.hs)
+TEST_SRC := $(shell find $(TEST_DIR)/$(KIND)/$(LEVEL)/ -name '*.hs')
+TEST_OUT := $(patsubst %.hs,%.ll,$(TEST_SRC))
+JAVA = "java"
 
 all: clean scanner parser
 	
@@ -26,8 +30,11 @@ clean:
 build:
 	cd $(BIN_DIR)/ ; java Main ../$(PROGRAM_DIR)/$(FILE).hs $(FILE).ll
 	
-test: 
-	cd $(BIN_DIR)/ ; java Main ../$(TEST_DIR)/$(KIND)/$(LEVEL)/*.hs *.ll
+.PHONY: test
+test: $(TEST_OUT)
+	
+%.ll: %.hs
+	cd $(BIN_DIR)/ ; java Main ../$< ../$@
 	
 run: build
 	lli $(FILE).ll 
