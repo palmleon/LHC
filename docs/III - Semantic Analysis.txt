@@ -148,6 +148,7 @@ DECL_FUNCT (i): tipo di "id", stringa di "id";
 		aggiornare isAssigned relativo a "id";
 		Declaration check su "id",
 		Local Declaration check su "id",
+		Local Declaration check su "id",
 		Type Checking su "id" (deve essere di tipo Function),
 		Arity check su "id" (deve essere pari alla lunghezza di "LFORMARG"),
 		Type Checking su "EXPR" (deve corrispondere al tipo di ritorno di "id"),
