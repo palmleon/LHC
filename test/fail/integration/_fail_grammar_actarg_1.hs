@@ -1,5 +1,5 @@
 x :: Int -> Int
 x y = y
 z :: Int
-z = x t45
+z = 't45
 main = print "hello"

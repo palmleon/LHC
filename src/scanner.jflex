@@ -40,11 +40,10 @@ import java.io.IOException;
 	/* Flag for printing debug info */
 	private boolean debugMode = true;
 	
-	public void report_error(String errorType) {
+	public void report_error(String msg) {
 		System.err.print("ERROR: Lexical error");
-		System.err.print("(" + errorType + ")");
-		System.err.print(" (line " + yyline + ", column " + yycolumn + "): ");
-		System.err.println("on token" + yytext());
+		System.err.print(" (line " + (yyline+1) + ", column " + (yycolumn+1) + "): " + msg);
+		System.err.println(" (Token \"" + yytext() + "\")");
 	}
 	
 	/* Custom scanning method that aims to empty the Token Queue
@@ -77,7 +76,7 @@ import java.io.IOException;
 		//System.out.println ("Matched text: " + yytext());
 		//System.out.println("Current value of indentEnable: " + indentEnable);
 		//System.out.println("Current value of dedentEnable: " + dedentEnable);
-		if (scanIndent) {
+		if (scanIndent && !endOfCode) {
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
 				indentStack.push(indentColumn);
@@ -136,8 +135,8 @@ import java.io.IOException;
 %}
 
 %eofval{
-	/*System.out.println("EOFfound");
-	System.out.println("Current value of dedentEnable: " + dedentEnable);*/
+	//System.out.println("EOFfound");
+	//System.out.println("Current value of dedentEnable: " + dedentEnable);
 	endOfCode = true;
 	return this.manageToken(createSymbol(sym.EOF));
 %eofval}
@@ -167,9 +166,9 @@ rational = {int}\.[0-9]+				//unsigned rational
 expform = {rational}[eE]-?{int}
 double = {rational}|{expform}
 bool = True|False
-char = '[a-zA-Z0-9]'
+char = \'[a-zA-Z0-9]\'
 string = \"~\"
-id = [a-z][a-zA-Z0-9_']*
+id = [a-z][a-zA-Z0-9_\']*
 nl = \r|\n|\r\n
 ws = [ \t]
 
@@ -223,12 +222,12 @@ print			{return manageToken(createSymbol(sym.print));}
 Int				{return manageToken(createSymbol(sym.type_int));}
 Double			{return manageToken(createSymbol(sym.type_double));}
 Bool			{return manageToken(createSymbol(sym.type_bool));}
-//Char			{return manageToken(sym.type_char);}
+Char			{return manageToken(createSymbol(sym.type_char));}
 String			{return manageToken(createSymbol(sym.type_string));}
 {int}			{return manageToken(createSymbol(sym.val_int, 	 Integer.valueOf(yytext())));}
 {double}		{return manageToken(createSymbol(sym.val_double, Double.valueOf(yytext())));}
 {bool}			{return manageToken(createSymbol(sym.val_bool, 	 Boolean.valueOf(yytext())));}
-//{char}		{return manageToken(sym.val_char);}
+{char}			{return manageToken(createSymbol(sym.val_char));}
 {string}		{return manageToken(createSymbol(sym.val_string, yytext()));}
 {id}			{return manageToken(createSymbol(sym.id, 		 yytext().replace('\'', '.')));}
 {ws}			{;}

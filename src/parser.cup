@@ -878,7 +878,9 @@ PROGRAM ::= /* empty program */
 				} 
 			:}
 		   | error dedent 
-				{:	report_syntax_error("Error in Imperative Part");  :}
+				{:	report_syntax_error("Error in Imperative Part"); 
+					System.out.println("CODE NOT COMPILED: FAILED");
+			:}
 ;
 
 /// ////////////////// ///
@@ -886,6 +888,7 @@ PROGRAM ::= /* empty program */
 /// ////////////////// ///
 
 IMPER_PART ::= main eq IO_ACTION
+			 | main eq error {: report_syntax_error("Error in Main"); :}
 ;
 
 IO_ACTION ::= PRINT
@@ -896,8 +899,8 @@ IO_ACTION ::= PRINT
 IO_ACTIONS ::= IO_ACTION
 			 | IO_ACTIONS sep IO_ACTION
 			 | LET_BLOCK_IMPER
-			 | error sep IO_ACTION 
-				{: report_syntax_error("Error in Imperative Part Statement"); :}
+			 //| error sep IO_ACTION 
+			//	{: report_syntax_error("Error in Imperative Part Statement"); :}
 ;
 
 PRINT ::= print ACTARG:actarg
@@ -923,8 +926,8 @@ IF_BLOCK_IMPER ::= if_begin COND:cond then IO_ACTION else_begin IO_ACTION
 					{: report_syntax_error("Error in Condition of If Statement"); :}
 				| if_begin COND then error else_begin IO_ACTION 
 					{: report_syntax_error("Error in Then Block of If Statement"); :}
-				| error then IO_ACTION else_begin IO_ACTION 
-					{: report_syntax_error("Missing \"If\" in If Statement"); :}
+				//| error then IO_ACTION else_begin IO_ACTION 
+				//	{: report_syntax_error("Missing \"If\" in If Statement"); :}
 				| if_begin COND error else_begin IO_ACTION 
 					{: report_syntax_error("Missing \"Then\" in If Statement"); :}
 ;
@@ -945,10 +948,10 @@ LET_STMTS ::= LET_STMTS sep DECL_TYPE
 			| LET_STMTS sep DECL_VALUE
 			| DECL_TYPE
 			| DECL_VALUE
-			| error sep DECL_TYPE 
-				{: report_syntax_error("Error in Statement inside a Let Block"); :}
-			| error sep DECL_VALUE 
-				{: report_syntax_error("Error in Statement inside a Let Block"); :}
+			//| error sep DECL_TYPE 
+			//	{: report_syntax_error("Error in Statement inside a Let Block"); :}
+			//| error sep DECL_VALUE 
+			//	{: report_syntax_error("Error in Statement inside a Let Block"); :}
 ;
 
 /// ////////////////// ///
@@ -958,7 +961,7 @@ LET_STMTS ::= LET_STMTS sep DECL_TYPE
 FUNCT_PART ::= /* empty Functional section */
 			 | FUNCT_PART DECL sep
 			 | FUNCT_PART error sep 
-				{: report_syntax_error("Error in Expression"); :}
+				{: report_syntax_error("Error in Functional Statement"); :}
 ;
 
 /* special expression management for boolean conditions */
@@ -1007,14 +1010,14 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 					report_semantic_error("Multiple Value Declaration (Symbol \"" + id + "\")");
 				}
 				else {
-					report_semantic_error("Lists as a @return Value are not supported");
+					report_semantic_error("Lists as a Return Value are not supported");
 				}
 				RESULT = new DeclTypeAST(type);
 			:}
-			| error cm DECL_TYPE 
-				{: report_syntax_error("Expected valid identifier in Type Declaration"); :}
-			| error clns TYPE
-				{: report_syntax_error("Expected valid identifier in Type Declaration"); :}
+			//| error cm DECL_TYPE 
+			//	{: report_syntax_error("Expected valid identifier in Type Declaration"); :}
+			//| error clns TYPE
+			//	{: report_syntax_error("Expected valid identifier in Type Declaration"); :}
 ; 
 
 /* pattern and expr should be of the same type */
@@ -1036,14 +1039,14 @@ DECL_VALUE ::= id:id
 					}
 				}
 			:}
-				eq EXPR:expr
+			eq EXPR:expr
 			{:
 				if (isDeclared(id) && (!isLocallyDeclared(id)) && (!isAssigned(id)) && !expr.type.isEquivalent(SymTableStack.getEntry(id).getType().getTypeName())) {
 						report_semantic_error("Mismatching Type on Assignment (Symbol \"" + id + "\")"); 
 				}
 			:}
-			| error eq EXPR 
-				{: report_syntax_error("Expected valid identifier in Value Declaration"); :}
+			//| error eq EXPR 
+			//	{: report_syntax_error("Expected valid identifier in Value Declaration"); :}
 ;
 /* no nullary functions */
 DECL_FUNCT ::= id:id {: 
@@ -1080,9 +1083,8 @@ DECL_FUNCT ::= id:id {:
 					SymTableStack.popSymTable();
 					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable popped");
 			   :}  
-			   | id error eq EXPR
-					{: report_syntax_error("Expected valid Arguments in Function Declaration"); :}
-			    //WHERE
+			   //| id error eq EXPR
+				//	{: report_syntax_error("Expected valid Arguments in Function Declaration"); :}
 ;
 
 /* GUARDS ::= GUARDS sep GUARD
@@ -1199,15 +1201,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(new Type(expr1.type));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1219,15 +1221,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(new Type(expr1.type));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");	
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1239,15 +1241,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(new Type(expr1.type));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1259,15 +1261,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Double"));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1279,15 +1281,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Int"));
 			}
 			else if (!expr1.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1298,15 +1300,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Int"));
 			}
 			else if (!actarg1.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!actarg2.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1318,15 +1320,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 	   :}
@@ -1338,15 +1340,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 	   :}
@@ -1357,15 +1359,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1377,15 +1379,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");	
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1397,15 +1399,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");	
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1417,15 +1419,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");	
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1437,15 +1439,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");	
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1457,15 +1459,15 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
+				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 		:}
@@ -1478,7 +1480,7 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(new Type(actarg.type.getChild(0)));
 			}
 			else {
-				report_semantic_error("Wrong Type in Expression of Type " + opType);
+				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error"));
 			}
 	   :}
@@ -1490,11 +1492,11 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(new Type(expr1.type.getChild(0)));
 			}
 			else if (!expr1.type.isSubtype("List")){
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);
+				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 	   :}
@@ -1512,7 +1514,7 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("Bool"));
 			}
 			else {
-				report_semantic_error("Wrong Type in Expression of Type " + opType);
+				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 	   :}
@@ -1524,7 +1526,7 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(new Type(expr.type));
 			}
 			else {
-				report_semantic_error("Wrong Type in Expression of Type " + opType);
+				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 	   :} %prec uminus 
@@ -1549,7 +1551,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				}
 				// This is a Function Call
 				else if (nArgs > 0 && funcType != null && funcType.isSubtype("Function") && hasArity(id, nArgs)) {
-					System.out.println("imin");
 					for (ActArgAST actarg : lactarg.actArgList) {
 						if (!actarg.type.isEquivalent(funcType.getChild(0).getTypeName()))
 							failedArgsTypeChecking = true;
@@ -1601,365 +1602,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 	   :}
 ;
 
-/*EXPR_NOTUNARYOP ::= 
-		 EXPR_NOTUNARYOP plus EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP minus EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP times EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP div EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP intdiv EXPR_NOTUNARYOP
-	   | mod ACTARG:actarg1 ACTARG:actarg2
-	   | EXPR_NOTUNARYOP and EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP or EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP releq EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP relgt EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP relge EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP rellt EXPR_NOTUNARYOP
-	   | EXPR_NOTUNARYOP relle EXPR_NOTUNARYOP
-	   // | head ACTARG
-	   // | tail ACTARG
-	   | elem ACTARG
-	   | EXPR_NOTUNARYOP index EXPR_NOTUNARYOP
-	   // | EXPR_NOTUNARYOP cons EXPR_NOTUNARYOP
-	   // | EXPR_NOTUNARYOP conc EXPR_NOTUNARYOP
-	   | ro EXPR rc
-	   | LET_BLOCK_FUNC
-	   | IF_BLOCK_FUNC
-	   | id LACTARG 
-	   | VALUE
-;
-*/
-
-/*EXPR_NOTUNARYOP ::= EXPR_NOTUNARYOP:expr1 plus EXPR_NOTUNARYOP:expr2
-		{:
-			String opType = "+";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(new Type(expr1.type));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 minus EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = "-";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(new Type(expr1.type));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 times EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = "*";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(new Type(expr1.type));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 div EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = "/";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(new Type(expr1.type));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 intdiv EXPR_NOTUNARYOP:expr2 
-	   {:
-			String opType = "div";
-			if (expr1.type.isSubtype("Int") && expr2.type.isSubtype("Int") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Int"));
-			}
-			else if (!expr1.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | mod ACTARG:actarg1 ACTARG:actarg2 
-	   {:
-			String opType = "mod";
-			if (actarg1.type.isSubtype("Int") && actarg2.type.isSubtype("Int") && actarg1.type.isEquivalent(actarg2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Int"));
-			}
-			else if (!actarg1.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!actarg2.type.isSubtype("Int")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 and EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = "and";
-			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"));
-			}
-			else if (!expr1.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-	   :}
-	   | EXPR_NOTUNARYOP:expr1 or EXPR_NOTUNARYOP:expr2
-	    {:
-			String opType = "or";
-			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"));
-			}
-			else if (!expr1.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Bool")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-	   :}
-	   | EXPR_NOTUNARYOP:expr1 releq EXPR_NOTUNARYOP:expr2
-	    {:
-			String opType = "==";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 relgt EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = ">";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 relge EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = ">=";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 rellt EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = "<";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   | EXPR_NOTUNARYOP:expr1 relle EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = "<=";
-			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"));
-			}
-			else if (!expr1.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!expr2.type.isSubtype("Double")) {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);	
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-			else {
-				report_semantic_error("Mismatching Operand Type on Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-		:}
-	   //| head ACTARG
-	   //| tail ACTARG
-	   | elem ACTARG:actarg
-	   {:
-		 	String opType = "elem";
-			if (actarg.type.isSubtype("List")) {
-				RESULT = new ExprAST(new Type(actarg.type.getChild(0)));
-			}
-			else {
-				report_semantic_error("Wrong Type in Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error"));
-			}
-	   :}
-	   | EXPR_NOTUNARYOP:expr1 index EXPR_NOTUNARYOP:expr2
-	   {:
-			String opType = "!!";
-			if (expr1.type.isSubtype("List") && expr2.type.isSubtype("Int")) {
-				RESULT = new ExprAST(new Type(expr1.type.getChild(0)));
-			}
-			else if (!expr1.type.isSubtype("List")){
-				report_semantic_error("Wrong Type in LHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else {
-				report_semantic_error("Wrong Type in RHS of Expression of Type " + opType);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-	   :}
-	   //| EXPR cons EXPR_NOTUNARYOP
-	   //| EXPR conc EXPR_NOTUNARYOP
-	   | ro EXPR:expr rc
-	   {:
-			RESULT = new ExprAST(new Type(expr.type));
-	   :}
-	   | LET_BLOCK_FUNC:let_block_func 
-	   {:
-			RESULT = new ExprAST(new Type(let_block_func.type));
-	   :}
-	   | IF_BLOCK_FUNC:if_block_func 
-	   {:
-			RESULT = new ExprAST(new Type(if_block_func.type));
-	   :}
-	   | id:id LACTARG:lactarg 
-	   {:
-			int nArgs = lactarg.actArgList.size();
-			Type funcType = SymTableStack.getEntry(id).getType();
-			boolean failedArgsTypeChecking = false;
-			if(isDeclared(id) && funcType.isSubtype("Function") && hasArity(id, nArgs)) {
-				for (ActArgAST actarg : lactarg.actArgList) {
-					if (!actarg.type.isEquivalent(funcType.getChild(0).getTypeName()))
-						failedArgsTypeChecking = true;
-					funcType = funcType.getChild(1); //extract the right child of the funcType
-				}
-				if (!failedArgsTypeChecking) {
-					RESULT = new ExprAST(new Type(funcType));
-				}
-			}
-			else if (!isDeclared(id)){
-				report_semantic_error("Missing Value Declaration (Symbol " + id + ")");
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!funcType.isSubtype("Function")) {
-				report_semantic_error("Not a Function (Symbol " + id + ")");
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (!hasArity(id, nArgs)) {
-				report_semantic_error("Mismatching Arity (Symbol " + id + ")");
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-			else if (failedArgsTypeChecking) {
-				report_semantic_error("Wrong Type in Arguments applied to Function " + id);
-				RESULT = new ExprAST(Type.getType("error")); 
-			}
-	   :}
-	   | VALUE:value
-	   {:
-			RESULT = new ExprAST(new Type(value.type));
-	   :}
-	   | VALUE_LIST:value_list
-	   {:
-			RESULT = new ExprAST(new Type(value_list.type));
-	   :}
-;*/
-
 LET_BLOCK_FUNC ::= 	let {:
 						SymTableStack.pushSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
@@ -1970,9 +1612,11 @@ LET_BLOCK_FUNC ::= 	let {:
 						RESULT = new LetBlockAST(expr.type);
 					:}
 					| let error in EXPR 
-						{: report_syntax_error("Error in Statement inside a Let Block"); :}
-					| error in EXPR
-						{: report_syntax_error("Missing 'let' in Let Block"); :} 
+						{: report_syntax_error("Error in Statement inside a Let Block"); 
+							RESULT = new LetBlockAST(Type.getType("error"));
+						:}
+					//| error in EXPR
+					//	{: report_syntax_error("Missing 'let' in Let Block"); :} 
 ;
 
 
@@ -1987,13 +1631,21 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:expr1 else_begin EXPR:expr2
 					}
 				:}
 				| if_begin error else_begin EXPR 
-					{: report_syntax_error("Error in Condition inside an If-Then-Else Block"); :}
+					{: report_syntax_error("Error in Condition inside an If-Then-Else Block");
+						RESULT = new IfBlockAST(Type.getType("error"));
+					:}
 				| if_begin COND then error else_begin EXPR
-					{: report_syntax_error("Error in Then Block of an In-Then-Else Block"); :}
-				| error then EXPR else_begin EXPR
-					{: report_syntax_error("Missing 'if' inside an If-Then-Else Block"); :}
+					{: report_syntax_error("Error in Then Block of an In-Then-Else Block"); 
+						RESULT = new IfBlockAST(Type.getType("error"));
+					:}
+				//| error then EXPR else_begin EXPR
+				//	{: report_syntax_error("Missing 'if' inside an If-Then-Else Block"); 
+				//		RESULT = new IfBlockAST(Type.getType("error"));
+				//	:}
 				| if_begin COND error else_begin EXPR
-					{: report_syntax_error("Missing 'then' inside an If-Then-Else Block"); :}
+					{: report_syntax_error("Missing 'then' inside an If-Then-Else Block"); 
+						RESULT = new IfBlockAST(Type.getType("error"));
+					:}
 ;
 
 
@@ -2099,8 +1751,8 @@ LEXPR ::= EXPR:expr
 				RESULT = new LExprAST(lexpr.exprArray, lexpr.type);
 			}
 		:}
-		| error cm EXPR
-			{: report_syntax_error("Error in List of Expressions"); :}
+		//| error cm EXPR
+		//	{: report_syntax_error("Error in List of Expressions"); :}
 ;
 
 //TEXPR ::= EXPR cm EXPR
@@ -2154,10 +1806,10 @@ TYPE_FUNC ::= TYPE_VALUE:type_value arrow TYPE_FUNC:type_func
 			type.setChild(1, type_valueR);
 			RESULT = type;
 		:}
-			| error arrow TYPE_VALUE
-		{: report_syntax_error("Error in Argument Type of Function"); :}
-			| error arrow TYPE_FUNC
-		{: report_syntax_error("Error in Argument Type of Function"); :}
+			//| error arrow TYPE_VALUE
+		//{: report_syntax_error("Error in Argument Type of Function"); :}
+			//| error arrow TYPE_FUNC
+		//{: report_syntax_error("Error in Argument Type of Function"); :}
 ;
 
 // 0-Tuple are not allowed

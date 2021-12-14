@@ -383,7 +383,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 
 | EXPR compiles | EXPR is of type Bool | Valid/Invalid | Test case                                                    | Program              |
 | ------------- | -------------------- | ------------- | ------------------------------------------------------------ | -------------------- |
-| F             | *                    | Invalid       | x :: Int<br/>x = if a then 1 else 2<br/>main = print "hello" | _fail_grammar_cond_1 |
+| F             | *                    | Invalid       | x :: Int<br/>x = if 'a then 1 else 2<br/>main = print "hello" | _fail_grammar_cond_1 |
 | *             | F                    | Invalid       | x :: Int<br/>x = if 3 then 1 else 2<br/>main = print "hello" | _fail_sem_cond_1     |
 | T             | T                    | Valid         | x :: Int<br/>x = if True then 1 else 2<br/>main = print "hello" | _succ_cond_1         |
 
@@ -1103,7 +1103,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 
 | VALUE compiles | Valid/Invalid | Test case                                                    | Program                |
 | -------------- | ------------- | ------------------------------------------------------------ | ---------------------- |
-| F              | Invalid       | x :: Int -> Int<br/>x y = y<br/>z :: Int<br/>z = x t45<br/>main = print "hello" | _fail_grammar_actarg_1 |
+| F              | Invalid       | x :: Int -> Int<br/>x y = y<br/>z :: Int<br/>z = x 't45<br/>main = print "hello" | _fail_grammar_actarg_1 |
 | T              | Valid         | x :: Int -> Int<br/>x y = y<br/>y' :: Int<br/>y' = x 3<br/>main = print "hello" | _succ_actarg_2         |
 
 #### ACTARG ::= ro EXPR rc
@@ -1124,11 +1124,11 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | ------------ | ----- |
 | RHS compiles | True  |
 
-| RHS compiles | Valid/Invalid | Test case                                                | Program         |
-| ------------ | ------------- | -------------------------------------------------------- | --------------- |
-| T            | Valid         | x :: Int<br/>y :: Int<br/>y = x<br/>main = print "hello" | _succ_lactarg_1 |
+| RHS compiles | Valid/Invalid | Test case                                                    | Program         |
+| ------------ | ------------- | ------------------------------------------------------------ | --------------- |
+| T            | Valid         | x :: Int<br/>x = 3 <br />y :: Int<br/>y = x<br/>main = print "hello" | _succ_lactarg_1 |
 
-#### LACTARG ::= LACTARG ACTARG
+#### xLACTARG ::= LACTARG ACTARG
 
 | Condition        | Value |
 | ---------------- | ----- |
