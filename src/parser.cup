@@ -933,9 +933,19 @@ LET_BLOCK_IMPER ::= let {:
 					{: report_syntax_error("Error in Let Statements of a Let Block"); :}
 ;
 // DECL_FUNCT not supported (for now)
-LET_STMTS ::= LET_STMTS sep DECL_TYPE
+LET_STMTS ::= LET_STMTS sep DECL_TYPE:decl_type
+			{:
+				if(decl_type.type.isSubtype("Function")) {
+					report_semantic_error("No Support for Local Functions");
+				}
+			:}
 			| LET_STMTS sep DECL_VALUE
-			| DECL_TYPE
+			| DECL_TYPE:decl_type
+			{:
+				if(decl_type.type.isSubtype("Function")) {
+					report_semantic_error("No Support for Local Functions");
+				}
+			:}
 			| DECL_VALUE
 ;
 

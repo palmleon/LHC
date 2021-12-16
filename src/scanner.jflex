@@ -28,9 +28,9 @@ import java.io.IOException;
 	/* Flags that prepares the lexer for scanning an Indent or a Dedent:
 	 * scanIndent is raised if an indent must be immediately scanned
 	 * indentEnable is raised if a block based on indentation has been recognized (let, do blocks)
-	 * dedentEnable is raised if a block based on indentation has been recognized (let, do blocks);
-	 *   if a newline is scanned, the dedentEnable will enable Indentation check
+	 * dedentForce is raised when a dedent must be scanned (right before an "in" token)
 	 * foundNewline is raised if a newline is found; it is coupled with dedentEnable for Indentation check
+	 * endOfCode is raised when EOF is found
 	 */
 	private boolean scanIndent = true;
 	private boolean indentEnable = true;
@@ -51,7 +51,8 @@ import java.io.IOException;
 	 * before trying to find new tokens;
 	 * Moreover, it prepares the scanner in case either a Separator
 	 * or a Dedent must be scanned
-	 * Returns: the next Token for the Parser
+	 * @param: nothing
+	 * @return: the next Token for the Parser
 	 */
 	public Symbol next_token_custom() throws IOException{
 		// if the token Queue is not empty, extract its content
@@ -69,8 +70,8 @@ import java.io.IOException;
 	
 	/* Method that manages the Token Queue, inserting elements in order
 	 * and providing them in a FIFO manner
-	 * Args: symbols - the symbols to add to the queue
-	 * Returns: the first Token in the Token Queue
+	 * @param: symbols - the symbols to add to the queue
+	 * @return: the first Token in the Token Queue
 	 */
 	private Symbol manageToken(Symbol... symbols) {
 		Integer indentColumn, dedentColumn, indentColumnTopLevel;
@@ -133,8 +134,6 @@ import java.io.IOException;
 %}
 
 %eofval{
-	//System.out.println("EOFfound");
-	//System.out.println("Current value of dedentEnable: " + dedentEnable);
 	endOfCode = true;
 	return this.manageToken(createSymbol(sym.EOF));
 %eofval}
