@@ -1,3 +1,3 @@
 x' :: Char -> Char -> Char -> Char
-x' y' z = 'a'
+x' y' z w = 'a'
 main = print "hello"

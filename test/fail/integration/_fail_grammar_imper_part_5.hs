@@ -1,1 +1,1 @@
-main = if
+main = do

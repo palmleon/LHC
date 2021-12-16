@@ -218,7 +218,7 @@ EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR" corrispondente a "ACTARG";
 		Type Checking su "ACTARG" (deve essere subtype di List);
 	(xv):	tipo di "ACTARG";
-		tipo di "EXPR" corrispondente a "ACTARG.child0";
+		tipo di "EXPR" corrispondente a "Int";
 		Type Checking su "ACTARG" (deve essere subtype di List);
 	(xvi):	tipo di "EXPR_1", "EXPR_2";
 		tipo di "EXPR" corrispondente a "EXPR_1.child0";

@@ -7,4 +7,4 @@ func3 xs = if (elem xs > 0) then xs !! 0 else '?'
 main = do
        let c :: Char
            c = func3 "Ciao"
-	   if c == 'C' then print "C recognized" else print "ERROR: C not found!"
+       if c == 'C' then print "C recognized" else print "ERROR: C not found!" -- condition should be True

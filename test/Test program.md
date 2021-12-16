@@ -287,7 +287,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | ------------------ | ------------------ | ----------------------- | ------------- | ------------------------------------------------------------ | ------------------------------- |
 | F                  | *                  | *                       | Invalid       | main = do <br/>       let x<br/>       print "hello"         | _fail_grammar_let_block_imper_1 |
 | *                  | F                  | *                       | Invalid       | main = do<br/>       let x :: Int<br/>       print jkl       | _fail_grammar_let_block_imper_2 |
-| *                  | *                  | F                       | Invalid       | main = do<br/>       let x :: Int<br/>          x = 1<br/>       print x | _fail_grammar_let_block_imper_2 |
+| *                  | *                  | F                       | Invalid       | main = do<br/>       let x :: Int<br/>          x = 1<br/>       print x | _fail_grammar_let_block_imper_3 |
 | T                  | T                  | T                       | Valid         | main = do<br/>       let x :: Int<br/>           x = 1<br/>       print "hello" | _succ_let_block_imper           |
 
 #### LET_STMTS ::= LET_STMTS sep DECL_TYPE
@@ -748,7 +748,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 /= 'c'<br/>main = print "hello"     | _fail_sem_expr_relnoteq_3     |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 /= 4<br/>main = print "hello"       | _succ_expr_relnoteq_1         |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 /= 4.0<br/>main = print "hello"   | _succ_expr_relnoteq_2         |
-| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' /= 'd'<br/>main = print "hello"   | _succ_expr_relnoteq_3         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 /= 4<br/>main = print "hello"   | _succ_expr_relnoteq_3         |
 
 #### EXPR ::= EXPR releq EXPR
 
@@ -774,7 +774,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 == 'c'<br/>main = print "hello"     | _fail_sem_expr_releq_3     |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 == 4<br/>main = print "hello"       | _succ_expr_releq_1         |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 == 4.0<br/>main = print "hello"   | _succ_expr_releq_2         |
-| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' == 'd'<br/>main = print "hello"   | _succ_expr_releq_3         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 == 4<br/>main = print "hello"   | _succ_expr_releq_3         |
 
 #### EXPR ::= EXPR relgt EXPR
 
@@ -800,7 +800,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 >  'c'<br/>main = print "hello"    | _fail_sem_expr_relgt_3     |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  > 4<br/>main = print "hello"      | _succ_expr_relgt_1         |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 > 4.0<br/>main = print "hello"   | _succ_expr_relgt_2         |
-| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' > 'd'<br/>main = print "hello"   | _succ_expr_relgt_3         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 > 4<br/>main = print "hello"   | _succ_expr_relgt_3         |
 
 #### EXPR ::= EXPR relge EXPR
 
@@ -826,7 +826,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 >=  'c'<br/>main = print "hello"    | _fail_sem_expr_relge_3     |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  >= 4<br/>main = print "hello"      | _succ_expr_relge_1         |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 >= 4.0<br/>main = print "hello"   | _succ_expr_relge_2         |
-| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' >= 'd'<br/>main = print "hello"   | _succ_expr_relge_3         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 >= 4<br/>main = print "hello"   | _succ_expr_relge_3         |
 
 #### EXPR ::= EXPR rellt EXPR
 
@@ -852,7 +852,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 <  'c'<br/>main = print "hello"    | _fail_sem_expr_rellt_3     |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  < 4<br/>main = print "hello"      | _succ_expr_rellt_1         |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 < 4.0<br/>main = print "hello"   | _succ_expr_rellt_2         |
-| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' < 'd'<br/>main = print "hello"   | _succ_expr_rellt_3         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 < 4<br/>main = print "hello"   | _succ_expr_rellt_3         |
 
 #### EXPR ::= EXPR relle EXPR
 
@@ -878,7 +878,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                                     | T                                     | F                                      | Invalid       | x :: Bool<br/>x = 3 <=  'c'<br/>main = print "hello"    | _fail_sem_expr_relle_3     |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3  <= 4<br/>main = print "hello"      | _succ_expr_relle_1         |
 | T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3.0 <= 4.0<br/>main = print "hello"   | _succ_expr_relle_2         |
-| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 'c' <= 'd'<br/>main = print "hello"   | _succ_expr_relle_3         |
+| T               | T               | T                                     | T                                     | T                                      | Valid         | x :: Bool<br/>x = 3 <= 4<br/>main = print "hello"   | _succ_expr_relle_3         |
 
 #### EXPR ::= elem ACTARG
 
@@ -1214,7 +1214,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 
 | LEXPR compiles | Valid/Invalid | Test case                                                    | Program                    |
 | -------------- | ------------- | ------------------------------------------------------------ | -------------------------- |
-| F              | Invalid       | main = do<br/>       let x :: [Int]; x = []<br/>       print "hello" | _fail_grammar_value_list_1 |
+| F              | Invalid       | main = do<br/>       let x :: [Int]; x = []<br/>       print "hello" | _fail_grammar_expr_value_list_1 |
 | T              | Valid         | main = do<br/>       let x :: [Int]; x = [1,2]<br/>       print "hello" | _succ_value_list_1         |
 
 #### LEXPR ::= EXPR

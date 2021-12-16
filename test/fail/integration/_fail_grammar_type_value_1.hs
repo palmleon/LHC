@@ -1,3 +1,3 @@
 main = do
-       let x :: [int]
+       let x :: int
        print "hello"

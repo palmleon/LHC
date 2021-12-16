@@ -10,4 +10,5 @@ myGCD x y =
 x, y :: Int		  
 x = 4
 y = 78
-main = print (gcd x y)
+main = do print "GCD between 4 and 78 is"
+          print (gcd x y)

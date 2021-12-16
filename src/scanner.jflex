@@ -34,6 +34,7 @@ import java.io.IOException;
 	 */
 	private boolean scanIndent = true;
 	private boolean indentEnable = true;
+	private boolean dedentForce = false;
 	private boolean foundNewline = false;
 	private boolean endOfCode = false;
 	
@@ -73,9 +74,6 @@ import java.io.IOException;
 	 */
 	private Symbol manageToken(Symbol... symbols) {
 		Integer indentColumn, dedentColumn, indentColumnTopLevel;
-		//System.out.println ("Matched text: " + yytext());
-		//System.out.println("Current value of indentEnable: " + indentEnable);
-		//System.out.println("Current value of dedentEnable: " + dedentEnable);
 		if (scanIndent && !endOfCode) {
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
@@ -88,27 +86,26 @@ import java.io.IOException;
 				report_error("Nested block is not indented further in than the enclosing expression");
 				tokenQueue.add(createSymbol(sym.error));
 			}
-			//System.out.println("INDENT DISABLED");
 			scanIndent = false;
+			foundNewline = false;
 		}
 		// scan either a Dedent or a Separator
-		else if (foundNewline && !endOfCode) {
-			dedentColumn = yycolumn+1;
-			//System.out.println("CURRENT SIZE OF THE INDENT STACK: " + indentStack.size());
-			indentColumn = indentStack.peek();
-			//System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
-			if (indentColumn.equals(dedentColumn)) {
-				// the following statement is not outside of the block
-				// add only a Separator
-				//System.out.println("SEPARATOR FOUND");
+		if (!endOfCode && !indentStack.empty() && (foundNewline || dedentForce)) {
+			indentColumn = indentStack.peek();			
+			if (!foundNewline && dedentForce) {
+				dedentColumn = indentColumn-1;
+			}
+			else {
+				dedentColumn = yycolumn+1;
+			}
+			if (indentColumn.equals(dedentColumn) && foundNewline) {
+				// the following statement is not outside of the block : add only a Separator
 				tokenQueue.add(createSymbol(sym.sep));
 			}
 			// if the next token is on the left wrt the current Indentation Level, insert Dedents
-			else if (indentColumn > dedentColumn) {
+			else if (indentColumn > dedentColumn && !indentStack.empty()) {
 				// pop the top element of the indent Stack (i.e. exit the block)
 				do {
-					/*System.out.println("Indentcolumn = " + indentColumn + "; Dedentcolumn = " + dedentColumn);
-					System.out.println("DEDENT FOUND");*/
 					indentColumn = indentStack.pop();
 					if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
 					tokenQueue.add(createSymbol(sym.dedent));
@@ -116,9 +113,10 @@ import java.io.IOException;
 						indentColumn = indentStack.peek();
 				} while (indentColumn > dedentColumn && !indentStack.empty());
 			}	
+			dedentForce = false;
 		}
 		// special dedent management in case of EOF
-		else if (endOfCode) {
+		if (endOfCode) {
 			while (!indentStack.empty()) {
 				indentColumn = indentStack.pop();
 				if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
@@ -166,7 +164,7 @@ rational = {int}\.[0-9]+				//unsigned rational
 expform = {rational}[eE]-?{int}
 double = {rational}|{expform}
 bool = True|False
-char = \'[a-zA-Z0-9]\'
+char = \'.\'
 string = \"~\"
 id = [a-z][a-zA-Z0-9_\']*
 nl = \r|\n|\r\n
@@ -176,6 +174,7 @@ ws = [ \t]
 
 "="				{return manageToken(createSymbol(sym.eq));}
 //":"				{return manageToken(sym.cons);}
+
 "::"			{return manageToken(createSymbol(sym.clns));}
 ","				{return manageToken(createSymbol(sym.cm));}
 //"|"			{return manageToken(sym.pipe);}
@@ -202,7 +201,8 @@ not				{return manageToken(createSymbol(sym.not));}
 "<"				{return manageToken(createSymbol(sym.rellt));}
 //"++"			{return manageToken(sym.conc);}
 ";"				{return manageToken(createSymbol(sym.sep));}
-in				{return manageToken(createSymbol(sym.in));}
+in				{dedentForce = true;
+				 return manageToken(createSymbol(sym.in));}
 main			{return manageToken(createSymbol(sym.main));}
 do				{indentEnable = true;
 				 return manageToken(createSymbol(sym.do_begin));}
@@ -234,7 +234,8 @@ String			{return manageToken(createSymbol(sym.type_string));}
 {nl}			{foundNewline = true;}
 
 /* Single-line Comment */
-"--"~{nl}		{foundNewline = true;}
+"--" ~ {nl}		{foundNewline = true;}
+
 
 /* Lexical error */
 .				{report_error("Not recognized token");

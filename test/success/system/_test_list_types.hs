@@ -1,5 +1,4 @@
 main = do
-       let x :: String; x = [b !! 0, b !! 1]
        let a :: [Int]
            b :: [Char]
            c :: String
@@ -10,4 +9,6 @@ main = do
            c = "Hi there!"
            d = [True, True, True]
            e = [0.0, 1.0, 2.0]
-       print x
+        do
+        let x :: String; x = [b !! 0, b !! 1]
+        print x

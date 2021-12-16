@@ -1,3 +1,3 @@
 x :: Char -> Char -> Char
-x y = y
+x y z = y
 main = print "hello"

@@ -1,6 +1,5 @@
 a :: Int
 b :: Double
-c :: String
 d :: Bool
 l, l' :: Int
 g' :: Int -> Bool
