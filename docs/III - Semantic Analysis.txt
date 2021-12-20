@@ -251,7 +251,11 @@ EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR" (parent) corrispondente a quello di "LET_BLOCK_FUNC";
 	(xx):	tipo di "IF_BLOCK_FUNC";
 		tipo di "EXPR" (parent) corrispondente a quello di "IF_BLOCK_FUNC";
-	(xxi):  stringa di "id",
+	(xxi):  tipo di "FUNCT_CALL";
+		tipo di "EXPR" (parent) corrispondente a quello di "FUNCT_CALL";
+	(xxii): tipo di "VALUE";
+		tipo di "EXPR" corrispondente a quello di "VALUE"
+FUNCT_CALL (i): stringa di "id",
 		tipo di "id",
 		cardinalità di "LACTARG",
 		tipi degli elementi di "LACTARG";
@@ -262,9 +266,6 @@ EXPR 	(i, ii, iii, iv):
 			Type Checking su "id" (deve essere una Function),
 			Arity Checking su "id",
 			Type Checking su "LACTARG" (ogni argomento deve avere tipo compatibile col corrispondente arg);
-	(xxii): tipo di "VALUE";
-		tipo di "EXPR" corrispondente a quello di "VALUE"
-EXPR_NOTUNARYOP: vedi corrispondenti regole in EXPR
 LET_BLOCK_FUNC (i): 
 		tipo di "EXPR";
 		tipo di "LET_BLOCK_FUNC" (parent) corrispondente a quello di "EXPR";

@@ -631,111 +631,229 @@ action code {:
 	}
 	
 	/*
-	 * ALL THE FOLLOWING CLASSES ARE USED FOR SEMANTIC ANALYSIS (info for the AST) and IR CODEGEN
+	 * All the following classes are used for building the AST, used for Semantic Analysis and IR Codegen
 	 */
-	
-	public static class ConstantAST<V> {
-		public V value;
+	 
+	public abstract static class BasicNodeAST {
+		LinkedList<String> code;
 		
-		ConstantAST(V value) {
-			this.value = value;
+		//abstract Integer codegen(Integer minIndex);
+	}
+	 
+	public static class ProgramAST extends BasicNodeAST {
+		FunctPartAST functPart;
+		ImperPartAST imperPart;
+		
+		ProgramAST(FunctPartAST functPart, ImperPartAST imperPart) {
+			this.functPart = functPart;
+			this.imperPart = imperPart;
 		}
 	}
 	
-	public static class ExprAST {
-		public Type type;
+	public static class FunctPartAST extends BasicNodeAST {
+		FunctPartAST functPart;
+		DeclAST decl;
 		
-		ExprAST (Type type) {
-			this.type = type;
+		FunctPartAST(FunctPartAST functPart, DeclAST decl) {
+			this.functPart = functPart;
+			this.decl = decl;
 		}
 	}
 	
-	public static class SeqExprAST {
-		// Type is inferred by the ExprAST
-		public ArrayList<ExprAST> exprArray;
+	public static class ImperPartAST extends BasicNodeAST {
+		IOActionAST ioAction;
 		
-		SeqExprAST (ArrayList<ExprAST> exprArray) {
-			this.exprArray = exprArray;
+		ImperPartAST(IOActionAST ioAction) {
+			this.ioAction = ioAction;
 		}
 	}
 	
-	public static class LExprAST extends SeqExprAST {
-		public Type type;
+	/* 
+	 * IOAction is currently empty, but it could be extended (e.g. by including
+	 * the type of the content of the last IOAction
+	 */ 
+	public abstract static class IOActionAST extends BasicNodeAST {}
+	
+	public static class PrintAST extends IOActionAST {
+		ExprAST actarg;
 		
-		LExprAST (ArrayList<ExprAST> exprArray, Type type) {
-			super(exprArray);
-			this.type = type;
+		PrintAST(ExprAST actarg) {
+			this.actarg = actarg;
 		}
 	}
 	
-	public static class LFormArgAST {
-		Type type; // used for propagating type over the arguments
-		public LinkedList<String> argList;
+	public static class DoBlockAST extends IOActionAST {
+		IOActionsAST ioActions;
 		
-		LFormArgAST (LinkedList<String> argList, Type type) {
-			this.argList = argList;
-			this.type = type;
+		DoBlockAST(IOActionsAST ioActions) {
+			this.ioActions = ioActions;
 		}
 	}
 	
-	public static class LActArgAST {
-		public LinkedList<ActArgAST> actArgList;
+	public static class IfBlockImperAST extends IOActionAST{
+		ExprAST cond;
+		IOActionAST thenBody;
+		IOActionAST elseBody;
 		
-		LActArgAST () {
-			this.actArgList = new LinkedList<ActArgAST>();
+		IfBlockImperAST(ExprAST cond, IOActionAST thenBody, IOActionAST elseBody) {
+			this.cond 	  = cond;
+			this.thenBody = thenBody;
+			this.elseBody = elseBody;
 		}
+	} 
+	
+	public abstract static class IOActionsAST extends BasicNodeAST {}
+	
+	public static class IOActionListAST extends IOActionsAST {
+		LinkedList<IOActionAST> ioActionList;
 		
-		LActArgAST (LinkedList<ActArgAST> actArgList) {
-			this.actArgList = actArgList;
+		IOActionListAST(LinkedList<IOActionAST> ioActionList) {
+			this.ioActionList = ioActionList;
 		}
 	}
 	
-	public static class ActArgAST {
-		public Type type;
-
-		ActArgAST (Type type) {
-			this.type = type;
-		}
-	}
-	
-	public static class LetBlockAST {
-		public Type type;
+	public static class LetBlockImperAST extends IOActionsAST {
+		LinkedList<DeclAST> letStmts;
+		IOActionAST ioAction; 
 		
-		LetBlockAST (Type type) {
-			this.type = type;
+		LetBlockImperAST(LinkedList<DeclAST> letStmts, IOActionAST ioAction) {
+			this.letStmts = letStmts;
+			this.ioAction = ioAction;
 		}
 	}
 	
-	public static class IfBlockAST {
-		public Type type;
+	public abstract static class DeclAST extends BasicNodeAST {}
 		
-		IfBlockAST (Type type) {
-			this.type = type;
-		}
-	}
-	
-	public static class DeclTypeAST {
-		public Type type;
+	public static class DeclTypeAST extends DeclAST {
+		Type type;
 		
 		DeclTypeAST (Type type) {
 			this.type = type;
 		}
 	}
 	
+	public static class DeclValueAST extends DeclAST {
+		String id;
+		ExprAST expr;
+		
+		DeclValueAST(String id, ExprAST expr) {
+			this.id = id;
+			this.expr = expr;
+		}
+	}
+	
+	public static class DeclFunctAST extends DeclAST {
+		String id;
+		LFormArgAST lformarg;
+		ExprAST expr;
+		
+		DeclFunctAST(String id, LFormArgAST lformarg, ExprAST expr) {
+			this.id = id;
+			this.lformarg = lformarg;
+			this.expr = expr;
+		}
+	}
+	
+	public abstract static class BasicExprAST extends BasicNodeAST {}
+	
+	public static class ExprAST extends BasicExprAST {
+		
+		enum ExprKind {
+			PLUS, MINUS, TIMES, DIV, INTDIV, MOD, AND, OR,
+			RELNOTEQ, RELEQ, RELGE, RELGT, RELLE, RELLT,
+			ELEM, INDEX, PARENTHESES, NOT, UMINUS, LET_BLOCK_FUNC,
+			IF_BLOCK_FUNC, FUNCT_CALL, VALUE, EXPR_LIST
+		}
+		
+		Type type;
+		ExprKind exprKind;
+		BasicExprAST[] subExpressions; //the subexpressions
+		
+		ExprAST (Type type, exprKind exprKind, BasicExprAST[] subExpressions) {
+			this.type = type;
+			this.exprKind = exprKind;
+			this.subExpressions = subExpressions;
+		}
+	}
+	
+	public static class LetBlockFuncAST extends BasicExprAST {
+		Type type;
+		LinkedList<DeclAST> letStmts;
+		ExprAST expr;
+		
+		LetBlockFuncAST(Type type, LinkedList<DeclAST> letStmts, ExprAST expr) {
+			this.type = type;
+			this.letStmts = letStmts;
+			this.expr = expr;
+		}
+	}
+	
+	public static class IfBlockFuncAST extends BasicExprAST {
+		Type type;
+		ExprAST cond, thenBody, elseBody;
+		
+		IfBlockFuncAST(Type type, ExprAST cond, ExprAST thenBody, ExprAST elseBody) {
+			this.type = type;
+			this.cond = cond;
+			this.thenBody = thenBody;
+			this.elseBody = elseBody;
+		}
+	}
+	
+	public static class FunctCallAST extends BasicExprAST {
+		Type type; //Return type of the function
+		String id;
+		LinkedList<ExprAST> actArgs;
+		
+		FunctCallAST(Type type, String id, LinkedList<ExprAST> actArgs) {
+			this.type = type;
+			this.id = id;
+			this.actArgs = actArgs;
+		}
+	}
+	
+	
 	/* Value is:
-	 * 		- LinkedList for lists
-	 *		- Tuple for tuples
-	 *		- Basic type for basic types (Int, Double, Char, String, Bool)
+	 *	- Basic type for basic types (Int, Double, Char, String, Bool)
 	 */
-	public static class ValueAST {
-		public Type type;
-		public Object value;
+	public static class ValueAST extends BasicExprAST{
+		Type type;
+		Object value;
 		
 		ValueAST (Type type, Object value) {
 			this.type = type;
 			this.value = value;
 		}
+	}	
+	
+	public static class ExprListAST extends BasicExprAST{
+		Type type;
+		ArrayList<ExprAST> exprArray;
+		
+		ExprListAST (ArrayList<ExprAST> exprArray, Type type) {
+			this.exprArray = exprArray;
+			this.type = type;
+		}
 	}
+	
+	public static class LFormArgAST extends BasicNodeAST{
+		Type propType; // used for propagating type over the arguments
+		LinkedList<String> argList;
+		
+		LFormArgAST (LinkedList<String> argList, Type propType) {
+			this.argList = argList;
+			this.propType = propType;
+		}
+	}
+
+	public static class ConstantAST<V> extends BasicNodeAST{
+		V value;
+		
+		ConstantAST(V value) {
+			this.value = value;
+		}
+	}
+	
 	
 :};
 
@@ -804,24 +922,30 @@ terminal String id;
 ///	NON TERMINALS (uppercase) ///
 /// ///////////////////////// ///
 
-non terminal PROGRAM;
-non terminal FUNCT_PART, IMPER_PART;
-non terminal IO_ACTIONS, IO_ACTION;
-non terminal PRINT;
-non terminal ExprAST COND, EXPR, VALUE_LIST;
+non terminal ProgramAST PROGRAM;
+non terminal FunctPartAST FUNCT_PART;
+non terminal ImperPartAST IMPER_PART;
+non terminal IOActionsAST IO_ACTIONS;
+non terminal IOActionAST IO_ACTION;
+non terminal PrintAST PRINT;
+non terminal ExprAST COND, EXPR;
+non terminal ExprListAST EXPR_LIST;
+non terminal FunctCallAST FUNCT_CALL;
 //non terminal ExprAST EXPR_NOTUNARYOP;
-non terminal LExprAST LEXPR;
-non terminal ActArgAST ACTARG;
-non terminal LActArgAST LACTARG;
+non terminal ExprListAST LEXPR;
+non terminal ExprAST ACTARG;
+non terminal LinkedList<ExprAST> LACTARG;
 non terminal LFormArgAST LFORMARG;
 //non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
-non terminal LET_STMTS;
-non terminal DO_BLOCK;
-non terminal LetBlockAST LET_BLOCK_FUNC;
-non terminal LET_BLOCK_IMPER;
-non terminal IfBlockAST IF_BLOCK_FUNC;
-non terminal IF_BLOCK_IMPER;
-non terminal DECL, DECL_VALUE, DECL_FUNCT;
+non terminal LinkedList<DeclAST> LET_STMTS;
+non terminal DoBlockAST DO_BLOCK;
+non terminal LetBlockFuncAST LET_BLOCK_FUNC;
+non terminal LetBlockImperAST LET_BLOCK_IMPER;
+non terminal IfBlockFuncAST IF_BLOCK_FUNC;
+non terminal IfBlockImperAST IF_BLOCK_IMPER;
+non terminal DeclAST DECL;
+non terminal DeclValueAST DECL_VALUE;
+non terminal DeclFunctAST DECL_FUNCT;
 non terminal DeclTypeAST DECL_TYPE;
 non terminal Type TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_LIST, TYPE_BASIC;
 //non terminal LinkedList<Type> TTYPE_VALUE;
@@ -854,13 +978,14 @@ PROGRAM ::= /* empty program */
 				if (noCompileErrors) {
 				System.out.println("CODE COMPILED SUCCESSFULLY");
 				}
+				RESULT = new ProgramAST(null, null);
 			:}
 		  | indent
 			{:	// push the top-level symtable
 				SymTableStack.pushSymTable();
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable pushed");
 			:}
-			FUNCT_PART IMPER_PART 
+			FUNCT_PART:funct_part IMPER_PART:imper_part 
 			{:
 				SymTableStack.popSymTable();
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable popped");
@@ -869,9 +994,11 @@ PROGRAM ::= /* empty program */
 			{:  // pop the top-level symtable
 				if (noCompileErrors) {
 					System.out.println("CODE COMPILED SUCCESSFULLY");
+					RESULT = new ProgramAST(funct_part, imper_part);
 				}	
 				else {
 					System.out.println("CODE NOT COMPILED: FAILED");
+					RESULT = new ProgramAST(null, null);
 				} 
 			:}
 ;
@@ -880,23 +1007,52 @@ PROGRAM ::= /* empty program */
 ///  IMPERATIVE PART   ///
 /// ////////////////// ///
 
-IMPER_PART ::= main eq IO_ACTION
-			 | main eq error
-				{: report_syntax_error("Error in Main"); :}
+IMPER_PART ::= 
+			main eq IO_ACTION:io_action
+			{:
+				RESULT = new ImperPartAST(io_action);
+			:}			
+		  | main eq error
+			{: 
+				report_syntax_error("Error in Main"); 
+				RESULT = new ImperPartAST(null);
+			:}
 ;
 
-IO_ACTION ::= PRINT
-            | DO_BLOCK
-			| IF_BLOCK_IMPER
+IO_ACTION ::= PRINT:print
+			{: 
+				RESULT = print; 
+			:}
+            | DO_BLOCK:do_block
+			{: 
+				RESULT = do_block; 
+			:}
+			| IF_BLOCK_IMPER:if_block_imper
+			{: 
+				RESULT = if_block_imper; 
+			:}
 ;
 
-IO_ACTIONS ::= IO_ACTION
-			 | IO_ACTIONS sep IO_ACTION
-			 | LET_BLOCK_IMPER
+IO_ACTIONS ::= IO_ACTION:io_action
+			{: 
+				LinkedList<IOActionAST> ioActionList = new LinkedList<>();
+				ioActionList.add(io_action);
+				RESULT = new IOActionListAST(ioActionList);
+			:}
+			 | IO_ACTIONS:io_actions sep IO_ACTION:io_action
+			{:
+				io_actions.ioActionList.add(io_action);
+				RESULT = io_actions;
+			:}
+			 | LET_BLOCK_IMPER:let_block_imper
+			{:
+				RESULT = let_block_imper;
+			:}
 			 //| error sep IO_ACTION 
 			//	{: report_syntax_error("Error in Imperative Part Statement"); :}
 ;
 
+// DA QUI
 PRINT ::= print ACTARG:actarg
 	{:
 		Type argType = actarg.type;
@@ -1121,7 +1277,7 @@ LPATTERN_CM ::= PATTERN
 
 LFORMARG ::= LFORMARG:lformarg id:id 
 			{:
-				Type propTree = lformarg.type;
+				Type propTree = lformarg.propType;
 				if (!isLocallyDeclared(id) && propTree != null && propTree.isSubtype("Function")) {
 					Type argTree = new Type(propTree.getChild(0));
 					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
@@ -1525,7 +1681,23 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 	   {:
 			RESULT = new ExprAST(new Type(if_block_func.type));
 	   :}
-	   | id:id LACTARG:lactarg 
+	   | FUNCT_CALL:funct_call
+	   {:
+			RESULT = new ExprAST(new Type(funct_call.type));
+	   :}
+	   | VALUE:value
+	   {:
+			RESULT = new ExprAST(new Type(value.type));
+	   :}
+	   | EXPR_LIST:expr_list
+	   {:
+			Type type = Type.getType("List");
+			type.setChild(0, expr_list.type);
+			RESULT = new ExprAST(type);
+	   :}
+;
+
+FUNCT_CALL ::= id:id LACTARG:lactarg 
 	   {:
 			int nArgs = lactarg.actArgList.size();
 			Type funcType = null;
@@ -1538,7 +1710,7 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				}
 				// This is a Function Call
 				else if (nArgs > 0 && funcType != null && funcType.isSubtype("Function") && hasArity(id, nArgs)) {
-					for (ActArgAST actarg : lactarg.actArgList) {
+					for (ExprAST actarg : lactarg.actArgList) {
 						if (!actarg.type.isEquivalent(funcType.getChild(0).getTypeName()))
 							failedArgsTypeChecking = true;
 						funcType = funcType.getChild(1); //extract the right child of the funcType
@@ -1582,16 +1754,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new ExprAST(Type.getType("error")); 
 			}
 	   :}
-	   | VALUE:value
-	   {:
-			RESULT = new ExprAST(new Type(value.type));
-	   :}
-	   | VALUE_LIST:value_list
-	   {:
-			Type type = Type.getType("List");
-			type.setChild(0, value_list.type);
-			RESULT = new ExprAST(type);
-	   :}
 ;
 
 LET_BLOCK_FUNC ::= 	let indent 
@@ -1602,11 +1764,11 @@ LET_BLOCK_FUNC ::= 	let indent
 					LET_STMTS dedent in EXPR:expr {:
 						SymTableStack.popSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
-						RESULT = new LetBlockAST(expr.type);
+						RESULT = new LetBlockFuncAST(expr.type);
 					:}
 					| let error in EXPR 
 						{: report_syntax_error("Error in Statement inside a Let Block"); 
-							RESULT = new LetBlockAST(Type.getType("error"));
+							RESULT = new LetBlockFuncAST(Type.getType("error"));
 						:}
 ;
 
@@ -1614,28 +1776,28 @@ LET_BLOCK_FUNC ::= 	let indent
 IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:expr1 else_begin EXPR:expr2 
 				{:
 					if(expr1.type.isEquivalent(expr2.type)) {
-						RESULT = new IfBlockAST(expr1.type);
+						RESULT = new IfBlockFuncAST(expr1.type);
 					}
 					else {
 						report_semantic_error("Multiple Return Types for If Statement");
-						RESULT = new IfBlockAST(Type.getType("error")); 
+						RESULT = new IfBlockFuncAST(Type.getType("error")); 
 					}
 				:}
 				| if_begin error else_begin EXPR 
 					{: report_syntax_error("Error in Condition inside an If-Then-Else Block");
-						RESULT = new IfBlockAST(Type.getType("error"));
+						RESULT = new IfBlockFuncAST(Type.getType("error"));
 					:}
 				| if_begin COND then error else_begin EXPR
 					{: report_syntax_error("Error in Then Block of an In-Then-Else Block"); 
-						RESULT = new IfBlockAST(Type.getType("error"));
+						RESULT = new IfBlockFuncAST(Type.getType("error"));
 					:}
 				//| error then EXPR else_begin EXPR
 				//	{: report_syntax_error("Missing 'if' inside an If-Then-Else Block"); 
-				//		RESULT = new IfBlockAST(Type.getType("error"));
+				//		RESULT = new IfBlockFuncAST(Type.getType("error"));
 				//	:}
 				| if_begin COND error else_begin EXPR
 					{: report_syntax_error("Missing 'then' inside an If-Then-Else Block"); 
-						RESULT = new IfBlockAST(Type.getType("error"));
+						RESULT = new IfBlockFuncAST(Type.getType("error"));
 					:}
 ;
 
@@ -1645,36 +1807,36 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:expr1 else_begin EXPR:expr2
 ACTARG ::= id:id 
 		{:
 			if (isDeclared(id) && isAssigned(id)) {
-				RESULT = new ActArgAST(SymTableStack.getEntry(id).getType());
+				RESULT = new ExprAST(SymTableStack.getEntry(id).getType());
 			}
 			else if (!isDeclared(id)){
 				report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
-				RESULT = new ActArgAST(Type.getType("error")); 
+				RESULT = new ExprAST(Type.getType("error")); 
 			}
 			else {
 				report_semantic_error("Value Declared but Not Assigned (Symbol \"" + id + "\")");
-				RESULT = new ActArgAST(SymTableStack.getEntry(id).getType());
+				RESULT = new ExprAST(SymTableStack.getEntry(id).getType());
 			}
 		:}
          | VALUE:value
 		{:
-			RESULT = new ActArgAST(value.type);			
+			RESULT = new ExprAST(value.type);			
 		:}
 		 | ro EXPR:expr rc
 		{:
-			RESULT = new ActArgAST(expr.type);			
+			RESULT = new ExprAST(expr.type);			
 		:}
 ;
 
 // list of input arguments for function call
 LACTARG ::= /* empty list of args: we call a variable */
 			{:
-				RESULT = new LActArgAST(new LinkedList<ActArgAST>());
+				RESULT = new LExprAST(new LinkedList<ExprAST>());
 			:}
 		  | LACTARG:lactarg ACTARG:actarg
 			{:
 				lactarg.actArgList.add(actarg);
-				RESULT = new LActArgAST(lactarg.actArgList);
+				RESULT = new LExprAST(lactarg.actArgList);
 			:}
 ;
 
@@ -1684,7 +1846,7 @@ VALUE ::= VALUE_BASIC:value_basic
 		{: 
 			RESULT = new ValueAST(value_basic.type, value_basic.value);
 		:}
-		/*| VALUE_LIST:value_list
+		/*| EXPR_LIST:value_list
 		{:
 			RESULT = new ValueAST(value_list.type, value_list.value);
 		:}*/
@@ -1715,7 +1877,7 @@ VALUE_BASIC ::=
 ;
 
 // Empty List can only be directly used in declaration, to avoid Type Variables propagation
-VALUE_LIST ::= bo LEXPR:lexpr bc
+EXPR_LIST ::= bo LEXPR:lexpr bc
 		{:
 			RESULT = new ExprAST(lexpr.type);
 		:}
@@ -1728,18 +1890,18 @@ LEXPR ::= EXPR:expr
 		{:
 			ArrayList<ExprAST> lexpr = new ArrayList<>();
 			lexpr.add(expr);
-			RESULT = new LExprAST(lexpr, expr.type);
+			RESULT = new ExprListAST(lexpr, expr.type);
 		:}
 		| LEXPR:lexpr cm EXPR:expr 
 		{:
 			lexpr.exprArray.add(expr);
 			if (lexpr.type.isEquivalent(expr.type)) {
-				RESULT = new LExprAST(lexpr.exprArray, lexpr.type);
+				RESULT = new ExprListAST(lexpr.exprArray, lexpr.type);
 			}
 			else {
 				report_semantic_error("Wrong Type in List Expression");
 				// Error Recovery
-				RESULT = new LExprAST(lexpr.exprArray, lexpr.type);
+				RESULT = new ExprListAST(lexpr.exprArray, lexpr.type);
 			}
 		:}
 		//| error cm EXPR
