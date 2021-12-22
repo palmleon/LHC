@@ -103,6 +103,8 @@ PRINT: 	tipo di "ACTARG";
 	tipo di "PRINT" corrispondente a "IOAction ACTARG.type";
 	Type Checking su "ACTARG" /* (deve appartenere alla Show Typeclass) */
 DO_BLOCK:	 tipo di "IO_ACTIONS";
+		 push SymTable dopo "indent",
+		 pop SymTable dopo "indent";
 		 tipo di "DO_BLOCK" corrispondente a quello di "IO_ACTIONS";
 		 Type Checking su "IO_ACTIONS" (deve essere IOAction);
 IF_BLOCK_IMPER:
@@ -114,7 +116,6 @@ IF_BLOCK_IMPER:
 		 Type Checking su "COND" (deve essere Bool);
 LET_BLOCK_IMPER: 
 		 tipo di "IO_ACTION";
-		 push symTable (dopo "let") e pop symTable (alla fine);
 		 tipo di "LET_BLOCK_IMPER" corrispondente a quello di "IO_ACTION";
 		 Type Checking su "IO_ACTION" (deve essere IoAction);
 LET_STMTS (i):
@@ -190,30 +191,34 @@ LFORMARG (i): 	stringa di "id",
 //		 attribuisci la lista a LPATTERN_CM
 //	    (ii): appendi il Pattern Tree corrispondente a "PATTERN" a sx della lista di pattern definita da "LPATTERN_CM",
 //		  attribuisci tale lista a "LPATTERN_CM"
-EXPR 	(i, ii, iii, iv):
-		tipo di "EXPR",
-		tipo di "EXPR_NOTUNARYOP";
+EXPR 	(i, ii, iii):
+		tipo di "EXPR_1",
+		tipo di "EXPR_2";
 		tipo di "EXPR" (parent) corrispondente a "EXPR".type;
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double ed equivalenti),
-	(v):	tipo di "EXPR",
-		tipo di "EXPR_NOTUNARYOP";
+		Type Checking su "EXPR_1" e "EXPR_2"(devono essere subtype di Double ed equivalenti),
+	(iv):	tipo di "EXPR_1",
+		tipo di "EXPR_2";
+		tipo di "EXPR" (parent) corrispondente a Double;
+		Type Checking su "EXPR_1" e "EXPR_2"(devono essere subtype di Double ed equivalenti),
+	(v):	tipo di "EXPR_1",
+		tipo di "EXPR_2";
 		tipo di "EXPR" (parent) corrispondente a Int;
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Int)
-	(vi):	tipo di "ACTARG"_1,
-		tipo di "ACTARG"_2;
+		Type Checking su "EXPR_1" e "EXPR_2" (devono essere subtype di Int)
+	(vi):	tipo di "EXPR_1",
+		tipo di "EXPR_2";
 		tipo di "EXPR" (parent) corrispondente a Int;
-		Type Checking su "ACTARG"_1 e "ACTARG"_2 (devono essere subtype di Int) 
+		Type Checking su "EXPR_1" e "EXPR_2" (devono essere subtype di Int) 
 	(vii, viii):
 		tipo di "EXPR",
-		tipo di "EXPR_NOTUNARYOP";
+		tipo di "EXPR_2";
 		tipo di "EXPR" (parent) corrispondente a Bool;
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Bool);
+		Type Checking su "EXPR" e "EXPR_2" (devono essere subtype di Bool);
 	(ix, x, xi, xii, xiii):
 		tipo di "EXPR",
-		tipo di "EXPR_NOTUNARYOP";
+		tipo di "EXPR_2";
 		tipo di "EXPR" (parent) corrispondente a Bool;
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" (devono essere subtype di Double o di Char e devono essere equivalenti);
-		(IR generation) se "EXPR".type =/= "EXPR_NOTUNARYOP".type, effettuare il casting dell'expr di tipo più specifico
+		Type Checking su "EXPR" e "EXPR_2" (devono essere subtype di Double o di Char e devono essere equivalenti);
+		(IR generation) se "EXPR".type =/= "EXPR_2".type, effettuare il casting dell'expr di tipo più specifico
 //	(xiv):  tipo di "ACTARG";
 		tipo di "EXPR" corrispondente a "ACTARG";
 		Type Checking su "ACTARG" (deve essere subtype di List);
@@ -228,16 +233,16 @@ EXPR 	(i, ii, iii, iv):
 		tipo di "EXPR" corrispondente a "ACTARG.child0";
 		Type Checking su "ACTARG" (deve essere subtype di List);
 //	(xiv):	tipo di "EXPR",
-		tipo di "EXPR_NOTUNARYOP";
+		tipo di "EXPR_2";
 		tipo di "EXPR" corrispondente a List["EXPR".type];
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" 
-			("EXPR_NOTUNARYOP" deve essere subtype di List[Any];
-			 se "EXPR_NOTUNARYOP" = List[k] =/= List[Any], allora "EXPR.Type" deve essere uguale a k);
+		Type Checking su "EXPR" e "EXPR_2" 
+			("EXPR_2" deve essere subtype di List[Any];
+			 se "EXPR_2" = List[k] =/= List[Any], allora "EXPR.Type" deve essere uguale a k);
 //	(xv):	tipo di "EXPR",
-		tipo di "EXPR_NOTUNARYOP";
+		tipo di "EXPR_2";
 		tipo di "EXPR" corrispondente a quella della lista non vuota, o a List[Any] se entrambe lo sono;
-		Type Checking su "EXPR" e "EXPR_NOTUNARYOP" 
-			("EXPR" e "EXPR_NOTUNARYOP" devono essere di tipo List[k] e List[l];
+		Type Checking su "EXPR" e "EXPR_2" 
+			("EXPR" e "EXPR_2" devono essere di tipo List[k] e List[l];
 			 se entrambe non sono vuote, allora k deve essere uguale a l);
 	(xvi):	tipo di "EXPR";
 		tipo di "EXPR" (parent) corrispondente a quello di "EXPR";

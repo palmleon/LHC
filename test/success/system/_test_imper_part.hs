@@ -9,3 +9,4 @@ main = do
         let x :: Int; x = 5
             y :: Double; y = 3.4
         print x
+        print x
