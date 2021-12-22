@@ -3,7 +3,7 @@ x = 1 + 3 - 4 * 2
 y :: Int
 y = 3 div 2
 z :: Int 
-z = mod 3 2
+z = 3 mod 2
 w :: Double
 w = -0.0
 res :: Bool

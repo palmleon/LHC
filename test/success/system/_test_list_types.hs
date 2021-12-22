@@ -9,6 +9,6 @@ main = do
            c = "Hi there!"
            d = [True, True, True]
            e = [0.0, 1.0, 2.0]
-        do
+       do
         let x :: String; x = [b !! 0, b !! 1]
         print x

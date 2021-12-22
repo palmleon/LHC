@@ -704,11 +704,11 @@ action code {:
 	
 	public static class LetBlockImperAST extends DoStmtAST {
 		LinkedList<StmtAST> letStmts;
-		IOActionAST ioAction; 
+		//IOActionAST ioAction; 
 		
-		LetBlockImperAST(LinkedList<StmtAST> letStmts, IOActionAST ioAction) {
+		LetBlockImperAST(LinkedList<StmtAST> letStmts) {//, IOActionAST ioAction) {
 			this.letStmts = letStmts;
-			this.ioAction = ioAction;
+			//this.ioAction = ioAction;
 		}
 	}
 	
@@ -922,7 +922,7 @@ non terminal ExprAST ACTARG;
 non terminal LinkedList<ExprAST> LACTARG;
 non terminal LFormArgAST LFORMARG;
 //non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
-non terminal LinkedList<StmtAST> LET_STMTS, LSTMT;
+non terminal LinkedList<StmtAST> LET_STMTS, GLOBAL_STMTS;
 non terminal DoBlockAST DO_BLOCK;
 non terminal LetBlockFuncAST LET_BLOCK_FUNC;
 non terminal LetBlockImperAST LET_BLOCK_IMPER;
@@ -1041,8 +1041,11 @@ IO_ACTIONS ::=
 			ioActions.add(let_block_imper);
 			RESULT = ioActions;
 		:}
-			 //| error sep IO_ACTION 
-			//	{: report_syntax_error("Error in Imperative Part Statement"); :}
+		| IO_ACTIONS:io_actions sep error
+		{: 
+			report_syntax_error("Error in Imperative Part Statement"); 
+			RESULT = io_actions;
+		:}
 ;
 
 PRINT ::= print ACTARG:actarg
@@ -1100,15 +1103,15 @@ IF_BLOCK_IMPER ::=
 ;
 
 LET_BLOCK_IMPER ::= 
-		let indent LET_STMTS:let_stmts dedent IO_ACTION:io_action 
+		let indent LET_STMTS:let_stmts dedent// IO_ACTION:io_action 
 		{:
-			RESULT = new LetBlockImperAST(let_stmts, io_action);
+			RESULT = new LetBlockImperAST(let_stmts); //, io_action);
 		:}
-	  | let error dedent IO_ACTION:io_action
+	  /*| let error dedent // IO_ACTION:io_action
 		{: 
 			report_syntax_error("Error in Let Statements of a Let Block"); 
-			RESULT = new LetBlockImperAST(null, io_action);
-		:}
+			RESULT = new LetBlockImperAST(null); //, io_action);
+		:}*/
 ;
 // DEF_FUNCT not supported (for now)
 LET_STMTS ::= LET_STMTS:let_stmts sep DECL_TYPE:decl_type
@@ -1144,26 +1147,26 @@ LET_STMTS ::= LET_STMTS:let_stmts sep DECL_TYPE:decl_type
 ///  FUNCTIONAL PART   ///
 /// ////////////////// ///
  
-FUNCT_PART ::= LSTMT:lstmt
+FUNCT_PART ::= GLOBAL_STMTS:global_stmts
 			{:
-				RESULT = new FunctPartAST(lstmt);
+				RESULT = new FunctPartAST(global_stmts);
 			:}
 ; 
  
-LSTMT ::= /* empty List of Statements section */
+GLOBAL_STMTS ::= /* empty List of Statements section */
 			{:
 				RESULT = new LinkedList<StmtAST>();
 			:}
-			 | LSTMT:lstmt STMT:stmt sep
+			 | GLOBAL_STMTS:global_stmts STMT:stmt sep
 			{:
-				lstmt.add(stmt);
-				RESULT = lstmt;
+				global_stmts.add(stmt);
+				RESULT = global_stmts;
 			:}
-			 | LSTMT:lstmt error sep 
+			 | GLOBAL_STMTS:global_stmts error sep 
 			{: 
 				report_syntax_error("Error in Functional Statement"); 
-				lstmt.add(null);
-				RESULT = lstmt;
+				global_stmts.add(null);
+				RESULT = global_stmts;
 			:}
 ;
 

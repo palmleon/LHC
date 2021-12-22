@@ -74,8 +74,8 @@ import java.io.IOException;
 	 * @return: the first Token in the Token Queue
 	 */
 	private Symbol manageToken(Symbol... symbols) {
-		Integer indentColumn, dedentColumn, indentColumnTopLevel;
-		if (scanIndent && !endOfCode) {
+		Integer indentColumn, dedentColumn;
+		if (!endOfCode && scanIndent) {
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
 				indentStack.push(indentColumn);
@@ -92,19 +92,21 @@ import java.io.IOException;
 		}
 		// scan either a Dedent or a Separator
 		if (!endOfCode && !indentStack.empty() && (foundNewline || dedentForce)) {
-			indentColumn = indentStack.peek();			
+			dedentColumn = yycolumn + 1;
+			/* indentColumn = indentStack.peek();			
 			if (!foundNewline && dedentForce) {
 				dedentColumn = indentColumn-1;
 			}
 			else {
 				dedentColumn = yycolumn+1;
 			}
-			if (indentColumn.equals(dedentColumn) && foundNewline) {
+			*/
+			/*if (indentColumn.equals(dedentColumn) && foundNewline) {
 				// the following statement is not outside of the block : add only a Separator
 				tokenQueue.add(createSymbol(sym.sep));
 			}
 			// if the next token is on the left wrt the current Indentation Level, insert Dedents
-			else if (indentColumn > dedentColumn && !indentStack.empty()) {
+			/*else if (indentColumn > dedentColumn && !indentStack.empty()) {
 				// pop the top element of the indent Stack (i.e. exit the block)
 				do {
 					indentColumn = indentStack.pop();
@@ -114,6 +116,24 @@ import java.io.IOException;
 						indentColumn = indentStack.peek();
 				} while (indentColumn > dedentColumn && !indentStack.empty());
 			}	
+			*/
+			boolean thereIsDedentToInsert = true;
+			while (thereIsDedentToInsert && !indentStack.empty()) {
+				indentColumn = indentStack.peek();
+				if (indentColumn > dedentColumn || dedentForce) {
+					dedentForce = false;
+					indentStack.pop();
+					if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
+					tokenQueue.add(createSymbol(sym.dedent));
+				}
+				else {
+					thereIsDedentToInsert = false;
+					if (indentColumn.equals(dedentColumn)) {
+						// the following statement is not outside of the block : add only a Separator
+						tokenQueue.add(createSymbol(sym.sep));
+					}
+				}
+			}
 			dedentForce = false;
 		}
 		// special dedent management in case of EOF

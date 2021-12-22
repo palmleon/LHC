@@ -57,7 +57,7 @@ SEMANTIC ANALYSIS
 |                  | EXPR times EXPR                                   | _test_expr, _test_list                                       |
 |                  | EXPR div EXPR                                     | _test_expr, _test_expr2                                      |
 |                  | EXPR intdiv EXPR                                  | _test_expr, _test_expr3                                      |
-|                  | mod ACTARG ACTARG                                 | _test_expr, _test_expr3                                      |
+|                  | EXPR mod EXPR                                     | _test_expr, _test_expr3                                      |
 |                  | EXPR and EXPR                                     | _test_expr, _test_expr2                                      |
 |                  | EXPR or EXPR                                      | _test_expr, _test_expr3, _test_expr5                         |
 |                  | EXPR releq EXPR                                   | _test_expr, _test_list_2                                     |
@@ -200,6 +200,21 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | *                   | F                  | Invalid       | main = do<br />             print "Hello"<br />             if | _fail_grammar_io_actions_2         |
 | F                   | *                  | Invalid       | /* cannot happen */                                          |                                    |
 
+#### IO_ACTIONS ::= IO_ACTIONS sep LET_BLOCK_IMPER
+
+| Condition                | Value |
+| ------------------------ | ----- |
+| IO_ACTIONS compiles      | True  |
+|                          | False |
+| LET_BLOCK_IMPER compiles | True  |
+|                          | False |
+
+| IO_ACTIONS compiles | LET_BLOCK_IMPER compiles | Valid/Invalid | Test case                                                    | Program                            |
+| ------------------- | ------------------------ | ------------- | ------------------------------------------------------------ | ---------------------------------- |
+| T                   | T                        | Valid         | Any compiling program                                        | Any program in the /success folder |
+| *                   | F                        | Invalid       | main = do<br />             print "Hello"<br />             let | _fail_grammar_io_actions_3         |
+| F                   | *                        | Invalid       | /* cannot happen */                                          |                                    |
+
 #### IO_ACTIONS ::= LET_BLOCK_IMPER
 
 | Condition                | Value |
@@ -210,7 +225,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | LET_BLOCK_IMPER compiles | Valid/Invalid | Test case                        | Program                            |
 | ------------------------ | ------------- | -------------------------------- | ---------------------------------- |
 | T                        | Valid         | Any compiling program            | Any program in the /success folder |
-| F                        | Invalid       | main = do<br />              let | _fail_grammar_io_actions_3         |
+| F                        | Invalid       | main = do<br />              let | _fail_grammar_io_actions_2         |
 
 #### PRINT ::= print ACTARG
 
@@ -272,23 +287,20 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | *             | *                    | *                    | F            | Invalid       | main = if 1 then print "hello" else print "hello"    | _fail_grammar_if_block_imper_4 |
 | T             | T                    | T                    | T            | Valid         | main = if True then print "hello" else print "hello" | _succ_if_block_imper           |
 
-#### LET_BLOCK_IMPER ::= let indent LET_STMTS dedent IO_ACTION
+#### LET_BLOCK_IMPER ::= let indent LET_STMTS dedent
 
 | Condition               | Value |
 | ----------------------- | ----- |
 | LET_STMTS compiles      | True  |
 |                         | False |
-| IO_ACTION compiles      | True  |
-|                         | False |
 | Indentation is followed | True  |
 |                         | False |
 
-| LET_STMTS compiles | IO_ACTION compiles | Indentation is followed | Valid/Invalid | Test case                                                    | Program                         |
-| ------------------ | ------------------ | ----------------------- | ------------- | ------------------------------------------------------------ | ------------------------------- |
-| F                  | *                  | *                       | Invalid       | main = do <br/>       let x<br/>       print "hello"         | _fail_grammar_let_block_imper_1 |
-| *                  | F                  | *                       | Invalid       | main = do<br/>       let x :: Int<br/>       print jkl       | _fail_grammar_let_block_imper_2 |
-| *                  | *                  | F                       | Invalid       | main = do<br/>       let x :: Int<br/>          x = 1<br/>       print x | _fail_grammar_let_block_imper_3 |
-| T                  | T                  | T                       | Valid         | main = do<br/>       let x :: Int<br/>           x = 1<br/>       print "hello" | _succ_let_block_imper           |
+| LET_STMTS compiles | Indentation is followed | Valid/Invalid | Test case                                                    | Program                         |
+| ------------------ | ----------------------- | ------------- | ------------------------------------------------------------ | ------------------------------- |
+| F                  | *                       | Invalid       | main = do <br/>       let x<br/>       print "hello"         | _fail_grammar_let_block_imper_1 |
+| *                  | F                       | Invalid       | main = do<br/>       let x :: Int<br/>          x = 1<br/>       print x | _fail_grammar_let_block_imper_3 |
+| T                  | T                       | Valid         | main = do<br/>       let x :: Int<br/>           x = 1<br/>       print "hello" | _succ_let_block_imper           |
 
 #### LET_STMTS ::= LET_STMTS sep DECL_TYPE
 
@@ -661,26 +673,26 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                     | F                     | Invalid       | x :: Int<br/>x = 4 div "hello"<br/>main = print "hello" | _fail_sem_expr_intdiv_2     |
 | T               | T               | T                     | T                     | Valid         | x :: Int <br/>x = 4 div 3<br/>main = print "hello"      | _succ_expr_intdiv_1         |
 
-#### EXPR ::= mod ACTARG ACTARG
+#### EXPR ::= EXPR mod EXPR
 
-| Condition               | Value |
-| ----------------------- | ----- |
-| ACTARG_1 compiles       | True  |
-|                         | False |
-| ACTARG_2 compiles       | True  |
-|                         | False |
-| ACTARG_1 is of Type Int | True  |
-|                         | False |
-| ACTARG_2 is of Type Int | True  |
-|                         | False |
+| Condition             | Value |
+| --------------------- | ----- |
+| EXPR_1 compiles       | True  |
+|                       | False |
+| EXPR_2 compiles       | True  |
+|                       | False |
+| EXPR_1 is of Type Int | True  |
+|                       | False |
+| EXPR_2 is of Type Int | True  |
+|                       | False |
 
-| ACTARG_1 compiles | ACTARG_2 compiles | ACTARG_1 is of Type Int | ACTARG_2 is of Type Int | Valid/Invalid | Test case                                               | Program                  |
-| ----------------- | ----------------- | ----------------------- | ----------------------- | ------------- | ------------------------------------------------------- | ------------------------ |
-| F                 | *                 | *                       | *                       | Invalid       | x :: Int<br/>x = mod jl 4<br/>main = print "hello"      | _fail_grammar_expr_mod_1 |
-| T                 | F                 | *                       | *                       | Invalid       | x :: Int<br/>x = mod 4 jl<br/>main = print "hello"      | _fail_grammar_expr_mod_2 |
-| T                 | T                 | F                       | *                       | Invalid       | x :: Int<br/>x = mod "hello" 4<br/>main = print "hello" | _fail_sem_expr_mod_1     |
-| T                 | T                 | T                       | F                       | Invalid       | x :: Int<br/>x = mod 4 "hello"<br/>main = print "hello" | _fail_sem_expr_mod_2     |
-| T                 | T                 | T                       | T                       | Valid         | x :: Int <br/>x = mod 4 3<br/>main = print "hello"      | _succ_expr_mod_1         |
+| EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Int | EXPR_2 is of Type Int | Valid/Invalid | Test case                                               | Program                  |
+| --------------- | --------------- | --------------------- | --------------------- | ------------- | ------------------------------------------------------- | ------------------------ |
+| F               | *               | *                     | *                     | Invalid       | x :: Int<br/>x = jl mod 4<br/>main = print "hello"      | _fail_grammar_expr_mod_1 |
+| T               | F               | *                     | *                     | Invalid       | x :: Int<br/>x = 4 mod jl<br/>main = print "hello"      | _fail_grammar_expr_mod_2 |
+| T               | T               | F                     | *                     | Invalid       | x :: Int<br/>x = "hello" mod 4<br/>main = print "hello" | _fail_sem_expr_mod_1     |
+| T               | T               | T                     | F                     | Invalid       | x :: Int<br/>x = 4 mod "hello"<br/>main = print "hello" | _fail_sem_expr_mod_2     |
+| T               | T               | T                     | T                     | Valid         | x :: Int <br/>x =4 mod 3<br/>main = print "hello"       | _succ_expr_mod_1         |
 
 #### EXPR ::= EXPR and EXPR
 

@@ -1,3 +1,3 @@
 x :: Int
-x = mod "hello" 4
+x = "hello" mod 4
 main = print "hello"
