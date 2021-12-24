@@ -421,15 +421,15 @@ action code {:
 		/*
 		 * Obtain a String as a sequence of strings in the form "${symTableId}",
 		 * where symTableId is the index of the corresponding level of the SymTable
-		 * @param: nothing
+		 * @param: int valueLevel - the level where the Value/Function is declared
 		 * @return: String - the sequence of "${symTableId}" strings, as a single string
 		 */
-		public static String getSymTableIds() {
+		public static String getSymTableIds(int valueLevel) {
 			String symTableIds = new String();
 			int level = 0;
 			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.descendingIterator();
 			HashMap<String, SymTableEntry> symTable;
-			while (iterator.hasNext()) {
+			while (iterator.hasNext() && level <= valueLevel) {
 				symTable = iterator.next();
 				if (level > 0) {	
 					symTableIds += "$" + symTableStackId.get(level);
@@ -448,7 +448,7 @@ action code {:
 		 * @return: String - the unique Id
 		 */
 		public static String createUniqueId(String id) {
-			return id + getSymTableIds();
+			return id + getSymTableIds(SymTableStack.getLevel(id));
 		}
 		
 		/* 
