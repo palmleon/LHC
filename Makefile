@@ -10,7 +10,7 @@ TEST_SRC := $(shell find $(TEST_DIR)/$(KIND)/$(LEVEL)/ -name '*.hs')
 TEST_OUT := $(patsubst %.hs,%.ll,$(TEST_SRC))
 JAVA = "java"
 
-all: clean scanner parser
+install: clean scanner parser
 	
 	javac -d $(BIN_DIR)/ $(SRC_DIR)/*.java
 

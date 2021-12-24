@@ -93,30 +93,6 @@ import java.io.IOException;
 		// scan either a Dedent or a Separator
 		if (!endOfCode && !indentStack.empty() && (foundNewline || dedentForce)) {
 			dedentColumn = yycolumn + 1;
-			/* indentColumn = indentStack.peek();			
-			if (!foundNewline && dedentForce) {
-				dedentColumn = indentColumn-1;
-			}
-			else {
-				dedentColumn = yycolumn+1;
-			}
-			*/
-			/*if (indentColumn.equals(dedentColumn) && foundNewline) {
-				// the following statement is not outside of the block : add only a Separator
-				tokenQueue.add(createSymbol(sym.sep));
-			}
-			// if the next token is on the left wrt the current Indentation Level, insert Dedents
-			/*else if (indentColumn > dedentColumn && !indentStack.empty()) {
-				// pop the top element of the indent Stack (i.e. exit the block)
-				do {
-					indentColumn = indentStack.pop();
-					if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
-					tokenQueue.add(createSymbol(sym.dedent));
-					if (!indentStack.empty())
-						indentColumn = indentStack.peek();
-				} while (indentColumn > dedentColumn && !indentStack.empty());
-			}	
-			*/
 			boolean thereIsDedentToInsert = true;
 			while (thereIsDedentToInsert && !indentStack.empty()) {
 				indentColumn = indentStack.peek();
@@ -134,7 +110,6 @@ import java.io.IOException;
 					}
 				}
 			}
-			dedentForce = false;
 		}
 		// special dedent management in case of EOF
 		if (endOfCode) {
@@ -147,7 +122,6 @@ import java.io.IOException;
 		for (Symbol sym: symbols) {
 			tokenQueue.add(sym);
 		}
-		
 		foundNewline = false;
 		return this.tokenQueue.remove();
 	}
@@ -227,7 +201,7 @@ do				{indentEnable = true;
 				 return manageToken(createSymbol(sym.do_begin));}
 //head			{return manageToken(sym.head);}
 //tail			{return manageToken(sym.tail);}
-elem			{return manageToken(createSymbol(sym.elem));}
+length			{return manageToken(createSymbol(sym.length));}
 "!!"			{return manageToken(createSymbol(sym.index));}
 if				{return manageToken(createSymbol(sym.if_begin));}
 then			{return manageToken(createSymbol(sym.then));}

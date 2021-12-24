@@ -1,3 +1,3 @@
 x :: Int
-x = elem []
+x = length 3
 main = print "hello"

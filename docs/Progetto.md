@@ -1,7 +1,13 @@
 Features da implementare:
 - Tipi accettati:
-  Int, Double, Char, Bool, Lists (1 livello), Strings, Functions
-  Un tipo speciale "Error" è utilizzato per rappresentare errori durante il type checking
+  - Int
+  - Double
+  - Char
+  - Bool
+  - Lists (1 livello)
+  - Strings
+  - Functions
+  - Un tipo speciale "Error" è utilizzato per rappresentare errori durante il type checking
 - Let bindings
 - Static scoping
 - (Tuples) (1 livello)

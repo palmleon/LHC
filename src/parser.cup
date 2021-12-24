@@ -348,7 +348,6 @@ action code {:
 	 * that allow to push/pop SymTables and to extract an Entry from them
 	 * Fields: symTableStack - the Static instance of the SymTable Stack
 	 */
-	
 	public static class SymTableStack {
 		
 		/* Class for Symbol Table Entry
@@ -359,7 +358,7 @@ action code {:
 		private static class SymTableEntry {
 			
 			private Type type;
-			private boolean isAssigned = false;
+			private boolean isAssigned;
 			
 			/* TODO UNCOMMENT WHEN GENERATING IR
 			// corresponding name in the intermediate representation
@@ -393,9 +392,64 @@ action code {:
 			}
 		}
 		
-		
 		// Symbol Table Stack (there is only one global instance whose lifetime corresponds to the lifetime of the parser itself)
 		private static LinkedList<HashMap<String, SymTableEntry>> symTableStack = new LinkedList<>();
+		
+		// Data Structure that contains, for all current SymTables (i.e. for all levels) in the Stack, their Id (i.e. how many times a SymTable has been defined at that level
+		// This Data Structure is used for generating unique names for variables during IR Generation
+		private static ArrayList<Integer> symTableStackId = new ArrayList<>();
+		
+		/*
+		 * Update the indexes in the symTableStackId list
+		 * It is called every time that a new SymTable is pushed
+		 * The method increments the index corresponding to the level 
+		 * of the last inserted symTable
+		 * @param: nothing
+		 * @return: nothing
+		 */
+		public static void updateSymTableStackId() {
+			int stackSize = symTableStack.size();
+			int stackIdSize = symTableStackId.size();
+			if (stackSize > stackIdSize) {
+				symTableStackId.add(0);
+			}
+			// increment the index of the top level symTable (it's the only new one)
+			int currSymTableId = symTableStackId.get(stackSize-1);
+			symTableStackId.set(stackSize - 1, currSymTableId + 1);
+		}
+		
+		/*
+		 * Obtain a String as a sequence of strings in the form "${symTableId}",
+		 * where symTableId is the index of the corresponding level of the SymTable
+		 * @param: nothing
+		 * @return: String - the sequence of "${symTableId}" strings, as a single string
+		 */
+		public static String getSymTableIds() {
+			String symTableIds = new String();
+			int level = 0;
+			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.descendingIterator();
+			HashMap<String, SymTableEntry> symTable;
+			while (iterator.hasNext()) {
+				symTable = iterator.next();
+				if (level > 0) {	
+					symTableIds += "$" + symTableStackId.get(level);
+				}
+				level++;
+			}
+			return symTableIds;
+		}
+		
+		/*
+		 * Create a unique Id for IR Code Generation
+		 * A unique Id is composed of:
+		 * - the name of the Value/Function itself
+		 * - a sequence of strings in the form "${symTableId}"
+		 * @param:  String id - the Value/Function name
+		 * @return: String - the unique Id
+		 */
+		public static String createUniqueId(String id) {
+			return id + getSymTableIds();
+		}
 		
 		/* 
 		 * Method that pushes a new SymTable to the Stack
@@ -404,6 +458,7 @@ action code {:
 		 */
 		public static void pushSymTable() {
 			symTableStack.push(new HashMap<String, SymTableEntry>());
+			updateSymTableStackId();
 		}
 		
 		/* 
@@ -417,7 +472,9 @@ action code {:
 		}
 		
 		/*
-		 * 
+		 * Extract the SymTable on top of the Stack
+		 * @param: nothing
+		 * @return: the expected SymTable
 		 */
 		public static HashMap<String, SymTableEntry> peekSymTable() {
 			return symTableStack.peek();
@@ -468,35 +525,25 @@ action code {:
 		}
 		
 		/*
-		 * Check whether a certain Entry is present in the whole SymTable Stack and return its Type
-		 * Search is applied from the top of the Stack to the bottom;
-		 * the first match is considered
-		 * @param: String id - the name of the Entry (the corresponding token)
-		 * @return: the Type of the Entry itself, if found (null otherwise)
+		 * Get level of the argument Id in the SymTable Stack
+		 * @param: String id - the argument Id
+		 * @return: int - the level in the SymTable Stack
 		 */
-		/*public static Type getEntryType(String id) {
-			SymTableEntry entry = SymTableStack.getEntry(id);
-			if (debug_mode) System.err.println("WARNING: Inside getEntryType - no Entry found for " + id);
-			return entry == null? null : entry.getType();
-		}*/
-		
-		/*
-		 * Check whether a certain Entry is present in the whole SymTable Stack and check if it has been already assigned
-		 * Search is applied from the top of the Stack to the bottom;
-		 * the first match is considered
-		 * @param: String id - the name of the Entry (the corresponding token)
-		 * @return: a Boolean flag indicating whether the variable has been assigned, null if the Entry has not been found
-		 */
-		/*public static Boolean getEntryAssignFlag(String id) {
-			SymTableEntry entry = SymTableStack.getEntry(id);
-			if (debug_mode) System.err.println("WARNING: Inside getEntryAssignFlag - no Entry found for " + id);
-			return entry == null? null : entry.getIsAssigned();
-		} */
+		public static int getLevel(String id) {
+			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
+			int entryLevel = -1, level = symTableStack.size()-1;
+			while (iterator.hasNext()) {
+				HashMap<String, SymTableEntry> currentSymTable = iterator.next();
+				if (currentSymTable.containsKey(id)) entryLevel = level;
+				level--;
+			}
+			return entryLevel;
+		}
 		
 		/*
 		 * Debugging method that prints out the content of the whole symTableStack 
 		 * @param: nothing
-		 * Returns: nothing
+		 * @return: nothing
 		 */
 		public static void dumpSymTableStack(){
 			int level = symTableStack.size()-1;
@@ -507,8 +554,7 @@ action code {:
 				iterator.next().forEach
 					( (k, v) -> { 
 						System.out.print("->");
-						System.out.print(" Name: " + k);
-						System.out.println(", isAssigned: " + v.getIsAssigned());
+						System.out.println(" Name: " + k + ", isAssigned: " + v.getIsAssigned());
 						v.getType().dumpType(1);
 					});
 				level--;
@@ -558,6 +604,15 @@ action code {:
 		
 	}
 	
+	/*
+	 * Check whether a value/function is global or not
+	 * @param: String id - the value/function name
+	 * @return: boolean - the boolean result
+	 */
+	public boolean isGlobal(String id) {
+		if(!isDeclared(id)) return false;
+		return SymTableStack.getLevel(id) == 0;
+	}
 	
 	/*
 	 * Method that implements Uniqueness check, i.e. verifies whether a variable has already been declared in
@@ -580,17 +635,19 @@ action code {:
 	
 	/*
 	 * Method that implements Arity check, i.e. verifies whether the function has the same arity of its actual arguments
-	 * @param:  String funcName - the name of the function whose arity needs to be checked
-	 * 			int arity - the expected arity of the function
+	 * No check is performed on whether funcName actually holds the name of a Function
+	 * The method traverses the Function Tree, following the Function nodes until only Non-Function nodes are found
+	 * @param:  String funcName - the name of the function whose Arity needs to be checked
+	 * 			int arity - the expected Arity of the function
 	 * @return: boolean - true if the function has the same Arity, false otherwise
 	 */
 	public boolean hasArity(String funcName, int arity) {
 		int count = 1;
 		Type funcType = SymTableStack.getEntry(funcName).getType();
-		Type rightChildType = funcType.getTypeParam(1);
-		while(rightChildType.isSubtype("Function")) {
+		Type rightTypeParam = funcType.getTypeParam(1);
+		while(rightTypeParam.isSubtype("Function")) {
 			count++;
-			rightChildType = rightChildType.getTypeParam(1);
+			rightTypeParam = rightTypeParam.getTypeParam(1);
 		}
 		return count == arity;
 	}
@@ -613,11 +670,11 @@ action code {:
 	 * @return: Type - the Type of the @return Type
 	 */
 	public Type returnType(Type type) {
-		Type rightChildType = type.getTypeParam(1);
-		while(rightChildType.isSubtype("Function")) {
-			rightChildType = rightChildType.getTypeParam(1);
+		Type rightTypeParam = type.getTypeParam(1);
+		while(rightTypeParam.isSubtype("Function")) {
+			rightTypeParam = rightTypeParam.getTypeParam(1);
 		}
-		return rightChildType;
+		return rightTypeParam;
 	}
 	
 	/* 
@@ -630,14 +687,15 @@ action code {:
 		return SymTableStack.containsEntry(entryName);
 	}
 	
-	/*
-	 * All the following classes are used for building the AST, used for Semantic Analysis and IR Codegen
-	 */
+	/// Classes for building the AST, used for Semantic Analysis and IR Codegen
 	 
+	/*
+	 * Basic 
+	 */
 	public abstract static class BasicNodeAST {
 		LinkedList<String> code = new LinkedList<>();
 		
-		//abstract Integer codegen(Integer minIndex);
+	//	abstract Integer codegen();
 	}
 	 
 	public static class ProgramAST extends BasicNodeAST {
@@ -648,6 +706,7 @@ action code {:
 			this.functPart = functPart;
 			this.imperPart = imperPart;
 		}
+		
 	}
 	
 	public static class FunctPartAST extends BasicNodeAST {
@@ -723,22 +782,22 @@ action code {:
 	}
 	
 	public static class DefValueAST extends StmtAST {
-		String id;
+		String id; // must be a "unique" id
 		ExprAST expr;
 		
 		DefValueAST(String id, ExprAST expr) {
-			this.id = id;
+			this.id = SymTableStack.createUniqueId(id);
 			this.expr = expr;
 		}
 	}
 	
 	public static class DefFunctAST extends StmtAST {
-		String id;
+		String id; // must be a "unique" id
 		LFormArgAST lformarg;
 		ExprAST expr;
 		
 		DefFunctAST(String id, LFormArgAST lformarg, ExprAST expr) {
-			this.id = id;
+			this.id = SymTableStack.createUniqueId(id);
 			this.lformarg = lformarg;
 			this.expr = expr;
 		}
@@ -751,7 +810,7 @@ action code {:
 	public enum ExprKind {
 			PLUS, MINUS, TIMES, DIV, INTDIV, MOD, AND, OR,
 			RELNOTEQ, RELEQ, RELGE, RELGT, RELLE, RELLT,
-			ELEM, INDEX, NOT, UMINUS, LET_BLOCK_FUNC,
+			LENGTH, INDEX, NOT, UMINUS, LET_BLOCK_FUNC,
 			IF_BLOCK_FUNC, FUNCT_CALL, VALUE, EXPR_LIST
 	}
 	
@@ -790,12 +849,12 @@ action code {:
 	}
 	
 	public static class FunctCallAST extends BasicExprAST {
-		String id;
+		String id; // must be a unique id
 		LinkedList<ExprAST> actArgs;
 		
 		FunctCallAST(Type type, String id, LinkedList<ExprAST> actArgs) {
 			this.type = type;
-			this.id = id;
+			this.id = SymTableStack.createUniqueId(id);
 			this.actArgs = actArgs;
 		}
 	}
@@ -824,22 +883,24 @@ action code {:
 	
 	public static class LFormArgAST extends BasicNodeAST{
 		Type propType; // used for propagating type over the arguments
-		LinkedList<String> argList;
+		ArrayList<String> argNames; // must be unique ids
+		ArrayList<Type> argTypes;
 		
-		LFormArgAST (LinkedList<String> argList, Type propType) {
-			this.argList = argList;
+		LFormArgAST (ArrayList<String> argNames, ArrayList<Type> argTypes, Type propType) {
+			ArrayList<String> uniqueArgNames = argNames;
+			uniqueArgNames.iterator().forEachRemaining( id -> { SymTableStack.createUniqueId(id); } );
+			this.argNames = uniqueArgNames;
+			this.argTypes = argTypes;
 			this.propType = propType;
 		}
-	}
-
-	public static class ConstantAST<V> extends BasicNodeAST{
-		V value;
-		
-		ConstantAST(V value) {
-			this.value = value;
-		}
-	}
+	}	
 	
+	public static class LLVM {
+		private int ifCounter = 0;
+		
+		public int getIfCounter() { return ifCounter; }
+		public void updateIfCounter() { ifCounter++; }
+	}
 	
 :};
 
@@ -891,7 +952,7 @@ terminal main;
 terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep/*, us */;
 terminal plus, minus, times, div, intdiv, mod, uminus, and, or, not;
 //terminal head, tail, cons, conc; 
-terminal elem, index;
+terminal length, index;
 terminal releq, relnoteq, relge, relgt, relle, rellt;
 terminal indent, dedent;
 //terminal where, pipe;
@@ -929,7 +990,7 @@ non terminal LetBlockImperAST LET_BLOCK_IMPER;
 non terminal IfBlockFuncAST IF_BLOCK_FUNC;
 non terminal IfBlockImperAST IF_BLOCK_IMPER;
 non terminal StmtAST STMT;
-non terminal DefValueAST DEF_VALUE;
+non terminal StmtAST DEF_VALUE;
 non terminal DefFunctAST DEF_FUNCT;
 non terminal DeclTypeAST DECL_TYPE;
 non terminal Type TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_LIST, TYPE_BASIC;
@@ -984,7 +1045,7 @@ PROGRAM ::= /* empty program */
 				else {
 					System.out.println("CODE NOT COMPILED: FAILED");
 					RESULT = new ProgramAST(null, null);
-				} 
+				}
 			:}
 ;
 
@@ -1242,7 +1303,16 @@ DEF_VALUE ::= id:id
 				if (isDeclared(id) && isLocallyDeclared(id) && isAssigned(id) && !expr.type.isEquivalent(SymTableStack.getEntry(id).getType().getTypeName())) {
 						report_semantic_error("Mismatching Type on Assignment (Symbol \"" + id + "\")"); 
 				}
-				RESULT = new DefValueAST(id, expr);
+				if (isGlobal(id)) {
+					// Global Values are actually Nullary Functions
+					ArrayList<String> argNames = new ArrayList<>();
+					ArrayList<Type> argTypes = new ArrayList<>();
+					LFormArgAST lformarg = new LFormArgAST(argNames, argTypes, expr.type);
+					RESULT = new DefFunctAST(id, lformarg, expr);
+				}
+				else {
+					RESULT = new DefValueAST(id, expr);
+				}
 			:}
 ;
 /* no nullary functions */
@@ -1270,7 +1340,7 @@ DEF_FUNCT ::= id:id {:
 						if (idTree != null && !idTree.isSubtype("Function")) {
 							report_semantic_error("Not a Function (Symbol \"" + id + "\")");
 						}
-						else if (!hasArity(id, lformarg.argList.size())) {
+						else if (!hasArity(id, lformarg.argNames.size())) {
 							report_semantic_error("Mismatching Arity (Symbol \"" + id + "\")");
 						}
 						else if (!expr.type.isEquivalent(returnType(id).getTypeName())) {
@@ -1334,20 +1404,23 @@ LFORMARG ::= LFORMARG:lformarg id:id
 				if (!isLocallyDeclared(id) && propTree != null && propTree.isSubtype("Function")) {
 					Type argTree = new Type(propTree.getTypeParam(0));
 					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
-					lformarg.argList.add(id);
-					RESULT = new LFormArgAST(lformarg.argList, propTree.getTypeParam(1));
+					lformarg.argNames.add(id);
+					lformarg.argTypes.add(argTree);
+					RESULT = new LFormArgAST(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
 				}
 				else if (isLocallyDeclared(id)) {
 					report_semantic_error("Multiple Argument Declaration (Symbol \"" + id + "\")");
 					// Error Recovery
-					lformarg.argList.add(id);
-					RESULT = new LFormArgAST(lformarg.argList, propTree.getTypeParam(1));
+					lformarg.argNames.add(id);
+					lformarg.argTypes.add(Type.getType("error"));
+					RESULT = new LFormArgAST(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
 				}
 				else {
 					report_semantic_error("Mismatching Arity in Function"); 
 					// Error Recovery
-					lformarg.argList.add(id);
-					RESULT = new LFormArgAST(lformarg.argList, Type.getType("error"));
+					lformarg.argNames.add(id);
+					lformarg.argTypes.add(Type.getType("error"));
+					RESULT = new LFormArgAST(lformarg.argNames, lformarg.argTypes, Type.getType("error"));
 				}
 			:}
 		   | id:id 
@@ -1358,30 +1431,38 @@ LFORMARG ::= LFORMARG:lformarg id:id
 					if (!isLocallyDeclared(id) && type != null && type.isSubtype("Function")) {
 						Type argTree = new Type(type.getTypeParam(0));
 						SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
-						LinkedList<String> list = new LinkedList<>();
-						list.add(id);
-						RESULT = new LFormArgAST(list, type.getTypeParam(1));
+						ArrayList<String> argNames = new ArrayList<>();
+						ArrayList<Type> argTypes = new ArrayList<>();
+						argNames.add(id);
+						argTypes.add(argTree);
+						RESULT = new LFormArgAST(argNames, argTypes, type.getTypeParam(1));
 					}
 					else if (isLocallyDeclared(id)) {
 						report_semantic_error("Multiple Argument Declaration (Symbol \"" + id + "\")");
 						// Error Recovery
-						LinkedList<String> list = new LinkedList<>();
-						list.add(id);
-						RESULT = new LFormArgAST(list, type.getTypeParam(1));
+						ArrayList<String> argNames = new ArrayList<>();
+						ArrayList<Type> argTypes = new ArrayList<>();
+						argNames.add(id);
+						argTypes.add(Type.getType("error"));
+						RESULT = new LFormArgAST(argNames, argTypes, type.getTypeParam(1));
 					}
 					else {
 						report_semantic_error("Mismatching Arity in Function"); 
 						// Error Recovery
-						LinkedList<String> list = new LinkedList<>();
-						list.add(id);
-						RESULT = new LFormArgAST(list, Type.getType("error"));
+						ArrayList<String> argNames = new ArrayList<>();
+						ArrayList<Type> argTypes = new ArrayList<>();
+						argNames.add(id);
+						argTypes.add(Type.getType("error"));
+						RESULT = new LFormArgAST(argNames, argTypes, Type.getType("error"));
 					}
 				}
 				else {
 					report_semantic_error("Missing Function Declaration (Symbol \"" + funcName + "\")");
-					LinkedList<String> list = new LinkedList<>();
-					list.add(id);
-					RESULT = new LFormArgAST(list, Type.getType("error"));
+					ArrayList<String> argNames = new ArrayList<>();
+					ArrayList<Type> argTypes = new ArrayList<>();
+					argNames.add(id);
+					argTypes.add(Type.getType("error"));
+					RESULT = new LFormArgAST(argNames, argTypes, Type.getType("error"));
 				}
 				
 		   :}
@@ -1692,16 +1773,16 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 		:}
 	   //| head ACTARG
 	   //| tail ACTARG
-	   | elem ACTARG:actarg
+	   | length ACTARG:actarg
 	   {:
-			String opType = "elem";
+			String opType = "length";
 			BasicExprAST[] subExpressions = { actarg };
 			if (actarg.type.isSubtype("List")) {
-				RESULT = new ExprAST(Type.getType("Int"), ExprKind.ELEM, subExpressions);
+				RESULT = new ExprAST(Type.getType("Int"), ExprKind.LENGTH, subExpressions);
 			}
 			else {
 				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.ELEM, subExpressions);
+				RESULT = new ExprAST(Type.getType("error"), ExprKind.LENGTH, subExpressions);
 			}
 	   :}
 	   //| EXPR:expr1 index EXPR_NOTUNARYOP:expr2
