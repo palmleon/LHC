@@ -695,7 +695,11 @@ action code {:
 	public abstract static class BasicNodeAST {
 		LinkedList<String> code = new LinkedList<>();
 		
-	//	abstract Integer codegen();
+		abstract String codegen();
+		
+		void mountCode(BasicNodeAST otherNode) {
+			this.code.addAll(otherNode.code);
+		}
 	}
 	 
 	public static class ProgramAST extends BasicNodeAST {
@@ -707,6 +711,15 @@ action code {:
 			this.imperPart = imperPart;
 		}
 		
+		@Override
+		String codegen() {
+			functPart.codegen();
+			mountCode(functPart);
+			imperPart.codegen();
+			mountCode(imperPart);
+			return null;
+		}
+		
 	}
 	
 	public static class FunctPartAST extends BasicNodeAST {
@@ -715,6 +728,15 @@ action code {:
 		FunctPartAST(LinkedList<StmtAST> stmts) {
 			this.stmts = stmts;
 		}
+		
+		@Override
+		String codegen() {
+			for (StmtAST stmt: stmts) {
+				stmt.codegen();
+				mountCode(stmt);
+			}
+			return null;
+		}
 	}
 	
 	public static class ImperPartAST extends BasicNodeAST {
@@ -722,6 +744,21 @@ action code {:
 		
 		ImperPartAST(IOActionAST ioAction) {
 			this.ioAction = ioAction;
+		}
+		
+		@Override
+		String codegen() { 
+			LLVM.resetCounterSSA();
+			LFormArgAST lformarg = new LFormArgAST(new ArrayList<String>(), new ArrayList<Type>(), null); 
+			code.add(LLVM.createPrintDeclaration());
+			code.addAll(LLVM.createPrintFormatStrings());
+			code.add(LLVM.createMainDefinition());
+			code.addAll(LLVM.openFunction());
+			ioAction.codegen();
+			mountCode(ioAction);
+			code.add(LLVM.createReturnVoid());
+			code.add(LLVM.closeFunction());
+			return null;
 		}
 	}
 	
@@ -739,6 +776,14 @@ action code {:
 		PrintAST(ExprAST actarg) {
 			this.actarg = actarg;
 		}
+		
+		@Override
+		String codegen() { 
+			int result = actarg.codegen();
+			mountCode(actarg);
+			code.addAll(LLVM.createPrintCall(result, actarg.type));
+			return null;
+		}
 	}
 	
 	public static class DoBlockAST extends IOActionAST {
@@ -746,6 +791,15 @@ action code {:
 		
 		DoBlockAST(LinkedList<DoStmtAST> ioActions) {
 			this.ioActions = ioActions;
+		}
+		
+		@Override
+		String codegen() { 
+			for (DoStmtAST ioAction: ioActions) {
+				ioAction.codegen();
+				mountCode(ioAction);
+			}
+			return null;
 		}
 	}
 	
@@ -759,15 +813,42 @@ action code {:
 			this.thenBody = thenBody;
 			this.elseBody = elseBody;
 		}
+		
+		@Override
+		String codegen() {
+			final int ifIndex, condIndex;
+			ifIndex = LLVM.getCounterIf();
+			LLVM.updateCounterIf();
+			condIndex = cond.codegen();
+			mountCode(cond);
+			code.add(LLVM.createBranchCond(condIndex, "if.then." + ifIndex, "if.else." + ifIndex));
+			code.add(LLVM.createLabel("if.then." + ifIndex));
+			thenBody.codegen();
+			mountCode(thenBody);
+			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
+			code.add(LLVM.createLabel("if.else." + ifIndex));
+			elseBody.codegen();
+			mountCode(elseBody);
+			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
+			code.add(LLVM.createLabel("if.exit." + ifIndex));
+			return null;
+		}
 	}
 	
 	public static class LetBlockImperAST extends DoStmtAST {
 		LinkedList<StmtAST> letStmts;
-		//IOActionAST ioAction; 
 		
-		LetBlockImperAST(LinkedList<StmtAST> letStmts) {//, IOActionAST ioAction) {
+		LetBlockImperAST(LinkedList<StmtAST> letStmts) {
 			this.letStmts = letStmts;
-			//this.ioAction = ioAction;
+		}
+		
+		@Override
+		String codegen() {
+			for (StmtAST letStmt: letStmts) {
+				letStmt.codegen();
+				mountCode(letStmt);
+			}
+			return null;
 		}
 	}
 	
@@ -779,6 +860,9 @@ action code {:
 		DeclTypeAST (Type type) {
 			this.type = type;
 		}
+		
+		@Override
+		String codegen() { return null;}
 	}
 	
 	public static class DefValueAST extends StmtAST {
@@ -788,6 +872,15 @@ action code {:
 		DefValueAST(String id, ExprAST expr) {
 			this.id = SymTableStack.createUniqueId(id);
 			this.expr = expr;
+		}
+		
+		@Override
+		String codegen() { 
+			final exprIndex = expr.codegen();
+			mountCode(expr);
+			code.add(LLVM.createAlloca(id, expr.type));
+			code.add(LLVM.createStore(id, exprIndex, expr.type));
+			return null;
 		}
 	}
 	
@@ -800,6 +893,18 @@ action code {:
 			this.id = SymTableStack.createUniqueId(id);
 			this.lformarg = lformarg;
 			this.expr = expr;
+		}
+		
+		@Override
+		String codegen() { 
+			LLVM.resetCounterSSA();
+			code.add(LLVM.createFunctionDefinition(id, expr.type, lformarg));
+			code.addAll(LLVM.openFunction());
+			String result = expr.codegen();
+			mountCode(expr);
+			code.add(LLVM.createReturn(result, expr.type));
+			code.add(LLVM.closeFunction());
+			return null;
 		}
 	}
 	
@@ -824,6 +929,37 @@ action code {:
 			this.exprKind = exprKind;
 			this.subExpressions = subExpressions;
 		}
+		
+		@Override
+		String codegen() {	// TO BE COMPLETED
+			String result;
+			switch (exprKind) {
+				case PLUS: break;
+				case MINUS: break;
+				case TIMES: break;
+				case DIV: break;
+				case INTDIV: break;
+				case MOD: break;
+				case AND: break;
+				case OR: break;
+				case RELNOTEQ: break;
+				case RELEQ: break;
+				case RELGE: break;
+				case RELGT: break;
+				case RELLE: break;
+				case RELLT: break;
+				case LENGTH: break;
+				case INDEX: break;
+				case NOT: break;
+				case UMINUS: break;
+				case LET_BLOCK_FUNC: break;
+				case IF_BLOCK_FUNC: break;
+				case FUNCT_CALL: break;
+				case VALUE: break;
+				case EXPR_LIST: break;
+			}
+			return 0;
+		}
 	}
 	
 	public static class LetBlockFuncAST extends BasicExprAST {
@@ -834,6 +970,17 @@ action code {:
 			this.type = type;
 			this.letStmts = letStmts;
 			this.expr = expr;
+		}
+		
+		@Override
+		String codegen() { 
+			for (StmtAST letStmt: letStmts) {
+				letStmt.codegen();
+				mountCode(letStmt);
+			}
+			String result = expr.codegen();
+			mountCode(expr);
+			return result;
 		}
 	}
 	
@@ -846,19 +993,66 @@ action code {:
 			this.thenBody = thenBody;
 			this.elseBody = elseBody;
 		}
-	}
-	
-	public static class FunctCallAST extends BasicExprAST {
-		String id; // must be a unique id
-		LinkedList<ExprAST> actArgs;
 		
-		FunctCallAST(Type type, String id, LinkedList<ExprAST> actArgs) {
-			this.type = type;
-			this.id = SymTableStack.createUniqueId(id);
-			this.actArgs = actArgs;
+		@Override
+		String codegen() { 
+			final int ifIndex;
+			String condIndex, thenIndex, elseIndex, result;
+			ifIndex = LLVM.getCounterIf();
+			LLVM.updateCounterIf();
+			condIndex = cond.codegen();
+			mountCode(cond);
+			code.add(LLVM.createBranchCond(condIndex, "if.then." + ifIndex, "if.else." + ifIndex));
+			code.add(LLVM.createLabel("if.then." + ifIndex));
+			thenIndex = thenBody.codegen();
+			mountCode(thenBody);
+			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
+			code.add(LLVM.createLabel("if.else." + ifIndex));
+			elseIndex = elseBody.codegen();
+			mountCode(elseBody);
+			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
+			code.add(LLVM.createLabel("if.exit." + ifIndex));
+			result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+			code.add(LLVM.createPHINode(result, this.type, "if.then." + ifIndex, thenIndex, "if.else." + ifIndex, elseIndex));
+			return result;
 		}
 	}
 	
+	/*
+	 * Includes both global variables and functions
+	 */
+	public static class FunctCallAST extends BasicExprAST {
+		String id; // must be a unique id
+		LinkedList<ExprAST> actargs;
+		
+		FunctCallAST(Type type, String id, LinkedList<ExprAST> actargs) {
+			this.type = type;
+			this.id = SymTableStack.createUniqueId(id);
+			this.actargs = actargs;
+			//System.out.println("DEBUG: FUNCTION CALL ON " + this.id); 
+		}
+		
+		@Override
+		String codegen() {
+			ArrayList<Integer> argIds = new ArrayList<>(); // list containing all the input argument id for the function
+			ArrayList<Type> argTypes = new ArrayList<>();
+			String result;
+			for (ExprAST actarg: actargs) {
+				argIds.add(actarg.codegen());
+				argTypes.add(actarg.type);
+				mountCode(actarg);
+			}
+			if (id.contains("$")) { // only local values have a '$' appended to their name
+				result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+				code.add(LLVM.createLoad(result, this.type, id));
+			}
+			else {
+				result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA(); 
+				code.add(LLVM.createFunctionCall(result, this.type, id, argIds, argTypes));
+			}
+			return result;
+		}
+	}
 	
 	/* Value is:
 	 *	- Basic type for basic types (Int, Double, Char, String, Bool)
@@ -870,6 +1064,36 @@ action code {:
 			this.type = type;
 			this.value = value;
 		}
+		
+		@Override
+		String codegen() { 
+			String result;
+			// trivial constants are just reported as they are and directly put
+			// onto the code
+			if (type.isEquivalent("Int")) {
+				result = (Integer) value.toString();
+			}
+			else if (type.isEquivalent("Double")) {
+				result = (Double) value.toString();
+			}
+			else if (type.isEquivalent("Char")) {
+				// chars are converted into their corresponding ASCII code
+				result = Integer.toString((int) ((Char) value).charValue());
+			}
+			else if (type.isEquivalent("Bool")) {
+				result = (Boolean) value.toString();
+			}
+			// strings need a special treatment to become usable, 
+			// so they actually define some code
+			else if (type.isEquivalent("String")) {
+				String reg = getCounterSSA().toString(); updateCounterSSA();
+				code.add(LLVM.createAlloca(reg, type, (String) value.length()+1));
+				code.add(LLVM.createStoreConstant(reg, type, value));
+				String result = getCounterSSA().toString(); updateCounterSSA();
+				code.add(LLVM.createArrayToPtrConversion(result, type, reg, ((String) value).length() + 1));
+			}
+			return result;
+		}
 	}	
 	
 	public static class ExprListAST extends BasicExprAST{
@@ -878,6 +1102,26 @@ action code {:
 		ExprListAST (ArrayList<ExprAST> exprArray, Type type) {
 			this.exprArray = exprArray;
 			this.type = type;
+		}
+		
+		@Override
+		String codegen() { 
+			LinkedList<String> subExpResults = new LinkedList<>();
+			String subExpResult;
+			for (ExprAST expr: exprArray) {
+				subExpResult = expr.codegen();
+				subExpResults.add(subExpResult);
+				mountCode(expr);
+			}
+			String reg = getCounterSSA().toString(); updateCounterSSA();
+			code.add(LLVM.createAlloca(reg, type, exprArray.size()));
+			int i = 0;
+			for (String subExp: subExpResults) {
+				code.addAll(LLVM.createStoreArrayElement(reg, type, subExp, i)); 
+			}
+			String result = getCounterSSA().toString(); updateCounterSSA();
+			code.add(LLVM.createArrayToPtrConversion(result, type, reg, exprArray.size()));
+			return result;
 		}
 	}
 	
@@ -893,13 +1137,29 @@ action code {:
 			this.argTypes = argTypes;
 			this.propType = propType;
 		}
+		
+		@Override
+		String codegen() { return null; } //Formal Argument Code is generated when generating code for Function Definition
 	}	
 	
 	public static class LLVM {
-		private int ifCounter = 0;
+		private static int counterIf = 0;
+		private static int counterSSA = 0;
 		
-		public int getIfCounter() { return ifCounter; }
-		public void updateIfCounter() { ifCounter++; }
+		public static int getCounterIf() { return counterIf; }
+		public static void updateCounterIf() { counterIf++; }
+		public static void resetCounterSSA() { counterSSA = 0; }
+		public static int getCounterSSA() { return counterSSA; }
+		public static void updateCounterSSA() { counterSSA++; }
+		
+		public static String createPrintDeclaration() { return null; } //TODO
+		public static LinkedList<String> createPrintFormatStrings() { return null; } //TODO
+		public static String createMainDefinition() { return null; } //TODO
+		public static LinkedList<String> openFunction() { return null; } //TODO
+		public static String closeFunction() { return null; } //TODO
+		public static String createReturnVoid() { return null; } //TODO
+		// TODO ADD ALL METHODS
+	
 	}
 	
 :};
@@ -930,18 +1190,19 @@ init with {:
  * This is the reason behind the fake conditional statement below
  */
 scan with {:   
-		if (true) {
-			Scanner scanner = (Scanner) this.getScanner();
-			Symbol s = scanner.next_token_custom();
-			if (s.left != -1) {
-				currLine = nextLine;		// keep track of current line and column
-				currColumn = nextColumn;
-				nextLine = s.left;
-				nextColumn = s.right;
-			}
-			Tree.push(s.toString(), 0); // necessary to build the graphical Parsing Tree
-			return s;
-		}	
+	if (true) {
+		Scanner scanner = (Scanner) this.getScanner();
+		Symbol s = scanner.next_token_custom();
+		if (s.left != -1) {
+			currLine = nextLine;		// keep track of current line and column
+			currColumn = nextColumn;
+			nextLine = s.left;
+			nextColumn = s.right;
+		}
+		// build the graphical representation of the Parsing Tree
+		Tree.push(s.toString(), 0);
+		return s;
+	}	
 :}
 
 /// ///////////////////////// ///
@@ -1041,6 +1302,8 @@ PROGRAM ::= /* empty program */
 				if (noCompileErrors) {
 					System.out.println("CODE COMPILED SUCCESSFULLY");
 					RESULT = new ProgramAST(funct_part, imper_part);
+					RESULT.codegen();
+					// TODO COPY CODE TO OUTPUT FILE
 				}	
 				else {
 					System.out.println("CODE NOT COMPILED: FAILED");
@@ -1837,29 +2100,27 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 	   | LET_BLOCK_FUNC:let_block_func 
 	   {:
 			BasicExprAST[] subExpressions = { let_block_func };
-			RESULT = new ExprAST(new Type(let_block_func.type), ExprKind.LET_BLOCK_FUNC, subExpressions);
+			RESULT = new ExprAST(let_block_func.type, ExprKind.LET_BLOCK_FUNC, subExpressions);
 	   :}
 	   | IF_BLOCK_FUNC:if_block_func 
 	   {:
 			BasicExprAST[] subExpressions = { if_block_func };
-			RESULT = new ExprAST(new Type(if_block_func.type), ExprKind.IF_BLOCK_FUNC, subExpressions);
+			RESULT = new ExprAST(if_block_func.type, ExprKind.IF_BLOCK_FUNC, subExpressions);
 	   :}
 	   | FUNCT_CALL:funct_call
 	   {:
 			BasicExprAST[] subExpressions = { funct_call };
-			RESULT = new ExprAST(new Type(funct_call.type), ExprKind.FUNCT_CALL, subExpressions);
+			RESULT = new ExprAST(funct_call.type, ExprKind.FUNCT_CALL, subExpressions);
 	   :}
 	   | VALUE:value
 	   {:
 			BasicExprAST[] subExpressions = { value };
-			RESULT = new ExprAST(new Type(value.type), ExprKind.VALUE, subExpressions);
+			RESULT = new ExprAST(value.type, ExprKind.VALUE, subExpressions);
 	   :}
 	   | EXPR_LIST:expr_list
 	   {:
 			BasicExprAST[] subExpressions = { expr_list };
-			Type type = Type.getType("List");
-			type.setTypeParam(0, expr_list.type);
-			RESULT = new ExprAST(type, ExprKind.EXPR_LIST, subExpressions);
+			RESULT = new ExprAST(expr_list.type, ExprKind.EXPR_LIST, subExpressions);
 	   :}
 ;
 
@@ -2035,7 +2296,7 @@ LACTARG ::= /* empty list of args: we call a Value */
 
 VALUE ::= VALUE_BASIC:value_basic
 		{: 
-			RESULT = new ValueAST(value_basic.type, value_basic.value);
+			RESULT = value_basic;
 		:}
 		/*| EXPR_LIST:value_list
 		{:
@@ -2082,11 +2343,13 @@ LEXPR ::= EXPR:expr
 		{:
 			ArrayList<ExprAST> lexpr = new ArrayList<>();
 			lexpr.add(expr);
-			RESULT = new ExprListAST(lexpr, expr.type);
+			Type type = Type.getType("List");
+			type.setTypeParam(0, expr.type);
+			RESULT = new ExprListAST(lexpr, type);
 		:}
 		| LEXPR:lexpr cm EXPR:expr 
 		{:
-			if (!lexpr.type.isEquivalent(expr.type)) {
+			if (!lexpr.type.getTypeParam(0).isEquivalent(expr.type)) {
 				report_semantic_error("Wrong Type in List Expression");
 			}
 			RESULT = lexpr;

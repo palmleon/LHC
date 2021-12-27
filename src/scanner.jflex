@@ -95,8 +95,8 @@ import java.io.IOException;
 			dedentColumn = yycolumn + 1;
 			boolean thereIsDedentToInsert = true;
 			while (thereIsDedentToInsert && !indentStack.empty()) {
-				indentColumn = indentStack.peek();
-				if (indentColumn > dedentColumn || dedentForce) {
+				indentColumn = indentStack.peek(); 					// take the column of the innermost block
+				if (indentColumn > dedentColumn || dedentForce) { 	// check if we are out of the innermost block
 					dedentForce = false;
 					indentStack.pop();
 					if (debugMode) System.out.println("SCANNER DEBUG: dedent at " + indentColumn);
@@ -167,7 +167,6 @@ ws = [ \t]
 
 "="				{return manageToken(createSymbol(sym.eq));}
 //":"				{return manageToken(sym.cons);}
-
 "::"			{return manageToken(createSymbol(sym.clns));}
 ","				{return manageToken(createSymbol(sym.cm));}
 //"|"			{return manageToken(sym.pipe);}
