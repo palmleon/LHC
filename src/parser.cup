@@ -75,1093 +75,18 @@ parser code {:
 		noCompileErrors = false;
 		System.err.print("ERROR: Semantic error");
         System.err.println(" (line "+currLine+", column "+currColumn+"): " + msg);
-        //CUP$Parser$actions.SymTableStack.dumpSymTableStack();
+        //CUP$Parser$actions.symTableStack.dumpSymTableStack();
 	}
 	
 :};
 
 action code {:
 
-	/*
-	 * Boolean flag that provides additional information for debugging purposes, when raised
-	 */
+	// Boolean flag that provides additional information for debugging purposes, when raised
 	public static boolean debug_mode = true; 
 	
-	/* 
-	 * Class for the Type Tree
-	 * The following Class defines the Type structure
-	 * Fields: String typeName - unique name for the Type
-	 * 		   Type[] - list containing all the subtypes for an instance of a compound type 
-	 *				(useful for functions, lists, tuples and any additional compound type) 
-	 *		   Hashmap<String, Type> typeMap - a map containg, for any typeName, the corresponding standard Type
-	 *				(initialized at Parser initialization time)
-	 */
-	public static class Type {
-		
-		private String typeName;
-		private Type[] typeParams; //better than an ArrayList because its size it's fixed
-		
-		/* Basic Copy Constructor */
-		Type(String typeName, Type[] typeParams) {
-			this.typeName = typeName;
-			this.typeParams = typeParams; // most types should have up to 2 type params
-		}
-		
-		/* (Recursive) Copy Constructor */
-		Type(Type type) {			
-			int length = type.getTypeParams().length;
-			this.typeName = type.getTypeName();
-			this.typeParams = new Type[length];
-			for (int i = 0; i < length; i++) {
-				this.typeParams[i] = new Type(type.getTypeParams()[i]);
-			}
-		}
-		
-		/* Setter method for typeName */
-		public void setTypeName(String typeName) {
-			this.typeName = typeName;
-		}
-		
-		
-		/* Setter method for typeParams */
-		public void setTypeParams(Type[] typeParams){
-			this.typeParams = typeParams;
-		}
-		
-		/* Setter method for the single child */
-		public void setTypeParam(int pos, Type child) {
-			this.typeParams[pos] = child;
-		}
-		
-		/* Getter method for typeName */
-		public String getTypeName(){
-			return this.typeName;
-		}
-		
-		/* Getter method for typeParams */
-		public Type[] getTypeParams(){
-			return this.typeParams;
-		}
-		
-		/* Getter method for the single child */
-		public Type getTypeParam(int pos) {
-			return this.typeParams[pos];
-		}
-		
-		/* 
-		 * Method for Type Widening
-		 * This Method is asymmetric: it takes the first type and tries to upcast it into the second one
-		 * @param: String typeName1, typeName2 - the types to be compared
-		 * Returns: The resulting widened type (null if widening is not possible) //TODO
-		 */
-		public static String widen(String typeName1, String typeName2) {
-			String res = null;
-			if (typeName1.equals(typeName2)) res = typeName1;
-			else if (typeName1.equals("Int") && typeName2.equals("Double")) res = "Double";
-			return res;
-		}
-		
-		/* Method that checks Subtyping
-		 * In Haskell, Type Hierarchy is not defined; instead, Hierarchy is represented by Typeclasses
-		 * and their relationship.
-		 * In this version of the Language, Typeclasses are not supported, so it is defined a simple
-		 * Type Hierarchy where:
-		 * - Any represents Type Variables (i.e. Java Generics)
-		 * - Int is a subtype of Double
-		 * The widen Method checks Subtyping for the single TreeNode
-		 * @param: String other - the type to be compared with the calling one
-		 * Returns: Boolean - true if other is Parent of this, false otherwise
-		 */
-		public boolean isSubtype(String other) {
-			boolean isSubtype = true;
-			if (other.equals("error")) return false;
-			if (other.equals("Any")) return true;
-			Type type = Type.getType(other);
-			if (type == null) return false;
-			if (Type.widen(this.getTypeName(), type.getTypeName()) == null) return false;
-			if (this.getTypeParams().length != type.getTypeParams().length) return false;
-			for (int i = 0; i < this.getTypeParams().length; i++) {
-				isSubtype = isSubtype && this.getTypeParam(i).isSubtype(type.getTypeParam(i).getTypeName());
-			}
-			return isSubtype;
-		}
-		
-		/* 
-		 * Method for Type Equivalence Checking
-		 * The isSubtype relationship is a Partial Ordering Relation, 
-		 * Type Equivalence is equivalent to checking that 
-		 * the first type is a subtype of the second one and viceversa.
-		 * @param: String other - the type to compare with the calling one
-		 * Returns: Boolean - true if the Trees are equivalent, false otherwise
-		 */
-		 
-		public boolean isEquivalent(String other) {
-			Type otherTree = Type.getType(other);
-			if (otherTree == null) return false;
-			return this.isSubtype(other) && otherTree.isSubtype(this.getTypeName());
-		}
-		
-		/* 
-		 * Additional Method for Type Equivalence Checking
-		 * @param: Type other - the tree of the type to compare with the calling one
-		 * Returns: Boolean - true if the Trees are equivalent, false otherwise
-		 */
-		public boolean isEquivalent(Type other) {
-			return this.isEquivalent(other.getTypeName());
-		}
-		
-		/*
-		 * Static TypeMap that contains all the declared Types (allows to define custom Data Types), which is initialized during Parser initialization
-		 */
-		private static HashMap<String, Type> typeMap = new HashMap<>();
-		
-		/*
-		 * Create TypeMap with the predefined available Types
-		 * @param: nothing
-		 * @return: nothing
-		 */
-		private static void createTypeMap() {
-			// childType is used only for making the code slightly more readable
-			Type type = new Type("Int", new Type[0]);
-			Type.addType(type.getTypeName(), type);
-			type = new Type("Double", new Type[0]);
-			Type.addType(type.getTypeName(), type);
-			type = new Type("Bool", new Type[0]);
-			Type.addType(type.getTypeName(), type);
-			type = new Type("Char", new Type[0]);
-			Type.addType(type.getTypeName(), type);
-			Type[] typeArray = { new Type(type) };
-			type = new Type("List", typeArray);
-			Type.addType("String", type);
-			Type anyType = new Type("Any", new Type[0]); 
-			typeArray = new Type[]{ new Type(anyType) };
-			type = new Type("List", typeArray);
-			Type.addType(type.getTypeName(), type);
-			typeArray = new Type[]{ new Type(anyType), new Type(anyType) };
-			type = new Type("Function", typeArray);
-			Type.addType(type.getTypeName(), type);
-			// special error type for propagating type checking errors
-			type = new Type("error", new Type[0]);
-			Type.addType(type.getTypeName(), type);
-			// Min Arity for Tuples = 2, Max Arity for Tuples = 10
-			/*for (int i = 2; i <= 10; i++) {
-				typeArray = new Type[i];
-				for (int j = 0; j < i; j++) {
-					typeArray[j] = new Type(anyType);
-				}	
-				type = new Type("Tuple" + i, typeArray); 
-				Type.addType(type.getTypeName(), type);
-			}*/
-		}
-		
-		/* 
-		 * Insert a new Type inside the typeMap (if already present, the new one is discarded and a Semantic Error should arise)
-		 * @param: String typeName - the name of the new Type
-		 * 		   Type type - the corresponding type 
-		 * @return: boolean - true if no error occured, false otherwise
-		 */
-		public static boolean addType(String typeName, Type type) {
-			if (typeMap.containsKey(typeName)) return false;
-			typeMap.put(typeName, type);
-			return true;
-		}
-		
-		/* 
-		 * Check whether a certain type has been defined or not
-		 * @param: String typeName - the type to look for
-		 * @return: boolean - true if the type exists, false otherwise
-		 */
-		public static boolean typeExists(String typeName) {
-			return typeMap.containsKey(typeName);
-		}
-		
-		/* 
-		 * Retrieve a clone of the Type of a specific type from the typeMap, if present
-		 * @param: String typeName - the name of the Type
-		 * @return: the corresponding typeTree if the Type exists, null otherwise
-		 */
-		public static Type getType(String typeName) {
-			if (typeMap.containsKey(typeName))
-				return new Type(typeMap.get(typeName));
-			else return null;
-		}
-		
-		/*
-		 * Debugging method for dumping the whole TypeMap TODO
-		 * @param: nothing
-		 * Returns: nothing
-		 */
-		public static void dumpTypeMap(){
-			System.out.println("DEBUG: PRINTING TYPEMAP!");
-			typeMap.forEach
-				( (k, v) -> {
-					System.out.println("TopTypeName: " + k);
-					v.dumpType(0);
-				} );
-		}
-		
-		/*
-		 * Debugging method for dumping a single Type TODO
-		 * @param: int level - defines the level inside the Type, used for hierarchical printing of the Tree
-		 * Returns: nothing
-		 */
-		private void dumpType(int level){
-			for (int i = 0; i < level; i++)
-				System.out.print("\t");
-			System.out.println("-> " + this.getTypeName());
-			for (int i = 0; i < this.getTypeParams().length; i++) {
-				this.getTypeParam(i).dumpType(level+1);
-			}
-		}
-		
-		/* 
-		 * Being the project not originally developed using an IDE, using JUnit is not the best option
-		 * It would be ideal to move testing there (TODO)
-		 */
-		public static void testType() {
-			// Check Type(Type type)
-			// 		 isEquivalent, isSubtype
-			Type type1 = Type.getType("List");
-			Type type2 = new Type(type1);
-			if (type1.isEquivalent(type2.getTypeName()))
-				System.out.println("TEST TYPE TREE 1: PASSED");
-			else
-				System.out.println("TEST TYPE TREE 1: FAILED");
-			// Check isSubtype, setTypeParam, getType
-			Type type3 = Type.getType("List");
-			type3.setTypeParam(0, Type.getType("Int"));
-			if (type3.isSubtype("List"))
-				System.out.println("TEST TYPE TREE 2: PASSED");
-			else
-				System.out.println("TEST TYPE TREE 2: FAILED");
-			Type type4 = Type.getType("Int");
-			Type type5 = Type.getType("Double");
-			if (type4.isSubtype(type5.getTypeName()) && !type5.isSubtype(type4.getTypeName()))
-				System.out.println("TEST TYPE TREE 3: PASSED");
-			else
-				System.out.println("TEST TYPE TREE 3: FAILED");
-		}
-	}
-	
-	/* Class for the Symbol Table Stack
-	 * The following Class contains a Static instance of the SymTable Stack, together with methods
-	 * that allow to push/pop SymTables and to extract an Entry from them
-	 * Fields: symTableStack - the Static instance of the SymTable Stack
-	 */
-	public static class SymTableStack {
-		
-		/* Class for Symbol Table Entry
-		 * All Entries inside any SymTable are instances of this Class
-		 * Fields: Type type - type of the value/function
-		 *		   boolean isAssigned - flag that checks whether the value/function has been assigned or not
-		 */
-		private static class SymTableEntry {
-			
-			private Type type;
-			private boolean isAssigned;
-			
-			/* TODO UNCOMMENT WHEN GENERATING IR
-			// corresponding name in the intermediate representation
-			String llvm;
-			*/
-			
-			SymTableEntry(Type type) {
-				this.type = type;
-				this.isAssigned = false;
-			}
-			
-			SymTableEntry(Type type, boolean isAssigned) {
-				this.type = type;
-				this.isAssigned = isAssigned;
-			}
-			
-			public Type getType() {
-				return this.type;
-			}
-			
-			public boolean getIsAssigned() {
-				return this.isAssigned;
-			}
-			
-			public void setType(Type type) {
-				this.type = type;
-			}
-			
-			public void setIsAssigned(boolean isAssigned) {
-				this.isAssigned = isAssigned;
-			}
-		}
-		
-		// Symbol Table Stack (there is only one global instance whose lifetime corresponds to the lifetime of the parser itself)
-		private static LinkedList<HashMap<String, SymTableEntry>> symTableStack = new LinkedList<>();
-		
-		// Data Structure that contains, for all current SymTables (i.e. for all levels) in the Stack, their Id (i.e. how many times a SymTable has been defined at that level
-		// This Data Structure is used for generating unique names for variables during IR Generation
-		private static ArrayList<Integer> symTableStackId = new ArrayList<>();
-		
-		/*
-		 * Update the indexes in the symTableStackId list
-		 * It is called every time that a new SymTable is pushed
-		 * The method increments the index corresponding to the level 
-		 * of the last inserted symTable
-		 * @param: nothing
-		 * @return: nothing
-		 */
-		public static void updateSymTableStackId() {
-			int stackSize = symTableStack.size();
-			int stackIdSize = symTableStackId.size();
-			if (stackSize > stackIdSize) {
-				symTableStackId.add(0);
-			}
-			// increment the index of the top level symTable (it's the only new one)
-			int currSymTableId = symTableStackId.get(stackSize-1);
-			symTableStackId.set(stackSize - 1, currSymTableId + 1);
-		}
-		
-		/*
-		 * Obtain a String as a sequence of strings in the form "${symTableId}",
-		 * where symTableId is the index of the corresponding level of the SymTable
-		 * @param: int valueLevel - the level where the Value/Function is declared
-		 * @return: String - the sequence of "${symTableId}" strings, as a single string
-		 */
-		public static String getSymTableIds(int valueLevel) {
-			String symTableIds = new String();
-			int level = 0;
-			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.descendingIterator();
-			HashMap<String, SymTableEntry> symTable;
-			while (iterator.hasNext() && level <= valueLevel) {
-				symTable = iterator.next();
-				if (level > 0) {	
-					symTableIds += "$" + symTableStackId.get(level);
-				}
-				level++;
-			}
-			return symTableIds;
-		}
-		
-		/*
-		 * Create a unique Id for IR Code Generation
-		 * A unique Id is composed of:
-		 * - the name of the Value/Function itself
-		 * - a sequence of strings in the form "${symTableId}"
-		 * @param:  String id - the Value/Function name
-		 * @return: String - the unique Id
-		 */
-		public static String createUniqueId(String id) {
-			return id + getSymTableIds(SymTableStack.getLevel(id));
-		}
-		
-		/* 
-		 * Method that pushes a new SymTable to the Stack
-		 * @param: nothing
-		 * @return: nothing
-		 */
-		public static void pushSymTable() {
-			symTableStack.push(new HashMap<String, SymTableEntry>());
-			updateSymTableStackId();
-		}
-		
-		/* 
-		 * Method that pops the SymTable on top of the Stack
-		 * @param: nothing
-		 * @return: nothing
-		 */
-		public static void popSymTable() {
-			if(debug_mode) dumpSymTableStack();
-			symTableStack.pop();
-		}
-		
-		/*
-		 * Extract the SymTable on top of the Stack
-		 * @param: nothing
-		 * @return: the expected SymTable
-		 */
-		public static HashMap<String, SymTableEntry> peekSymTable() {
-			return symTableStack.peek();
-		}
-		
-		/*
-		 * Insert a new Entry in the SymTable on top of the Stack
-		 * This method is sensitive to the context (it depends on the current position in the Parser Tree)
-		 * The Parser must guarantee the correct SymTable for a given Entry
-		 * @param: String id - the name of the Entry (the corresponding token)
-		 * 		   SymTableEntry entry - the Entry
-		 * @return: nothing
-		 */
-		public static void putEntry(String id, SymTableEntry entry) {
-			symTableStack.peek().put(id, entry);
-		}
-		
-		/*
-		 * Check whether a certain Entry is present in the whole SymTable Stack
-		 * Search is applied from the top of the Stack to the bottom;
-		 * the first match is considered
-		 * @param: String id - the name of the Entry (the corresponding token)
-		 * @return: the flag that indicates whether the Entry is present or not
-		 */
-		public static boolean containsEntry(String id) {
-			boolean entryFound = false; // flag, raised if an Entry having the same name as id is found
-			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
-			while (!entryFound && iterator.hasNext()) {
-				if (iterator.next().containsKey(id)) entryFound = true;
-			}
-			return entryFound;
-		}
-		
-		/*
-		 * Check whether a certain Entry is present in the whole SymTable Stack and return it
-		 * Search is applied from the top of the Stack to the bottom;
-		 * the first match is considered
-		 * @param: String id - the name of the Entry (the corresponding token)
-		 * @return: the Entry itself, if found (null otherwise)
-		 */
-		public static SymTableEntry getEntry(String id) {
-			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
-			while (iterator.hasNext()) {
-				HashMap<String, SymTableEntry> currentSymTable = iterator.next();
-				if (currentSymTable.containsKey(id)) return currentSymTable.get(id);
-			}
-			return null;
-		}
-		
-		/*
-		 * Get level of the argument Id in the SymTable Stack
-		 * @param: String id - the argument Id
-		 * @return: int - the level in the SymTable Stack
-		 */
-		public static int getLevel(String id) {
-			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
-			int entryLevel = -1, level = symTableStack.size()-1;
-			while (iterator.hasNext()) {
-				HashMap<String, SymTableEntry> currentSymTable = iterator.next();
-				if (currentSymTable.containsKey(id)) entryLevel = level;
-				level--;
-			}
-			return entryLevel;
-		}
-		
-		/*
-		 * Debugging method that prints out the content of the whole symTableStack 
-		 * @param: nothing
-		 * @return: nothing
-		 */
-		public static void dumpSymTableStack(){
-			int level = symTableStack.size()-1;
-			Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
-			System.out.println("DEBUG: PRINTING SYMTABLESTACK!");
-			while (iterator.hasNext()){
-				System.out.println("Level " + level);
-				iterator.next().forEach
-					( (k, v) -> { 
-						System.out.print("->");
-						System.out.println(" Name: " + k + ", isAssigned: " + v.getIsAssigned());
-						v.getType().dumpType(1);
-					});
-				level--;
-			}
-		}
-		
-		/* 
-		 * Being the project not originally developed using an IDE, using JUnit is not the best option
-		 * It would be ideal to move testing there (TODO)
-		 */
-		public static void testSymTableStack() {
-			SymTableStack.pushSymTable();
-			Type type = Type.getType("Int");
-			SymTableStack.putEntry("x", new SymTableEntry(type));
-			SymTableStack.putEntry("y", new SymTableEntry(type));
-			if (SymTableStack.containsEntry("x")) 
-				System.out.println ("TEST SYMTABLE STACK 1: PASSED");
-			else
-				System.out.println ("TEST SYMTABLE STACK 1: FAILED");
-			if (!SymTableStack.containsEntry("xx")) 
-				System.out.println ("TEST SYMTABLE STACK 2: PASSED");
-			else
-				System.out.println ("TEST SYMTABLE STACK 2: FAILED");
-			if (SymTableStack.getEntry("x") != null)
-				System.out.println ("TEST SYMTABLE STACK 3: PASSED");
-			else
-				System.out.println ("TEST SYMTABLE STACK 3: FAILED");
-			if (SymTableStack.getEntry("xx") == null) 
-				System.out.println ("TEST SYMTABLE STACK 4: PASSED");
-			else
-				System.out.println ("TEST SYMTABLE STACK 4: FAILED");
-			boolean isPresent = SymTableStack.getEntry("x").getIsAssigned();
-			if (!isPresent)
-				System.out.println ("TEST SYMTABLE STACK 5: PASSED");
-			else
-				System.out.println ("TEST SYMTABLE STACK 5: FAILED");
-			SymTableStack.pushSymTable();
-			Type xTree = Type.getType("Double");
-			SymTableStack.putEntry("x", new SymTableEntry(xTree));
-			SymTableEntry entry = SymTableStack.getEntry("x");
-			if (entry != null && entry.getType().isEquivalent("Double"))
-				System.out.println ("TEST SYMTABLE STACK 6: PASSED");
-			else
-				System.out.println ("TEST SYMTABLE STACK 6: FAILED");
- 			SymTableStack.popSymTable();
-		}
-		
-	}
-	
-	/*
-	 * Check whether a value/function is global or not
-	 * @param: String id - the value/function name
-	 * @return: boolean - the boolean result
-	 */
-	public boolean isGlobal(String id) {
-		if(!isDeclared(id)) return false;
-		return SymTableStack.getLevel(id) == 0;
-	}
-	
-	/*
-	 * Method that implements Uniqueness check, i.e. verifies whether a variable has already been declared in
-	 * currentSymTable or not
-	 * @param: String entryName - the name of the value whose uniqueness needs to be checked
-	 * @return: boolean - true if the value is unique, false otherwise
-	 */
-	public boolean isLocallyDeclared(String entryName) {
-		return SymTableStack.peekSymTable().containsKey(entryName);
-	}
-	
-	/*
-	 * Method that implements Assignment Uniqueness check, i.e. verifies whether a variable has already been assigned
-	 * @param: String entryName - the name of the value whose assignment uniqueness needs to be checked
-	 * @return: boolean - true if the value has not been assigned yet, false otherwise
-	 */
-	public boolean isAssigned(String entryName) {
-		return SymTableStack.getEntry(entryName).getIsAssigned();
-	}
-	
-	/*
-	 * Method that implements Arity check, i.e. verifies whether the function has the same arity of its actual arguments
-	 * No check is performed on whether funcName actually holds the name of a Function
-	 * The method traverses the Function Tree, following the Function nodes until only Non-Function nodes are found
-	 * @param:  String funcName - the name of the function whose Arity needs to be checked
-	 * 			int arity - the expected Arity of the function
-	 * @return: boolean - true if the function has the same Arity, false otherwise
-	 */
-	public boolean hasArity(String funcName, int arity) {
-		int count = 1;
-		Type funcType = SymTableStack.getEntry(funcName).getType();
-		Type rightTypeParam = funcType.getTypeParam(1);
-		while(rightTypeParam.isSubtype("Function")) {
-			count++;
-			rightTypeParam = rightTypeParam.getTypeParam(1);
-		}
-		return count == arity;
-	}
-	
-	/*
-	 * Method that returns the @return Type of a Function
-	 * Checking that funcName actually refers to a Funcion is up to other Semantic Rules
-	 * @param: String funcName - the Function whose @return Type is required
-	 * @return: Type - the Type of the @return Type
-	 */
-	public Type returnType(String funcName) {
-		Type funcType = SymTableStack.getEntry(funcName).getType();
-		return returnType(funcType);
-	}
-	
-	/*
-	 * Method that returns the @return Type of a Function
-	 * Checking that the argument actually refers to a Funcion is up to other Semantic Rules
-	 * @param: Type type - the Function whose @return Type is required
-	 * @return: Type - the Type of the @return Type
-	 */
-	public Type returnType(Type type) {
-		Type rightTypeParam = type.getTypeParam(1);
-		while(rightTypeParam.isSubtype("Function")) {
-			rightTypeParam = rightTypeParam.getTypeParam(1);
-		}
-		return rightTypeParam;
-	}
-	
-	/* 
-	 * Method that implements Declaration check, i.e. verifies whether a variable has been declared in the whole program,
-	 * since LHC supports Static Lexical Scoping
-	 * @param: String entryName - the name of the value whose declaration needs to be checked
-	 * @return: boolean - true if the value has been already declared, false otherwise
-	 */
-	public boolean isDeclared(String entryName) {
-		return SymTableStack.containsEntry(entryName);
-	}
-	
-	/// Classes for building the AST, used for Semantic Analysis and IR Codegen
-	 
-	/*
-	 * Basic 
-	 */
-	public abstract static class BasicNodeAST {
-		LinkedList<String> code = new LinkedList<>();
-		
-		abstract String codegen();
-		
-		void mountCode(BasicNodeAST otherNode) {
-			this.code.addAll(otherNode.code);
-		}
-	}
-	 
-	public static class ProgramAST extends BasicNodeAST {
-		FunctPartAST functPart;
-		ImperPartAST imperPart;
-		
-		ProgramAST(FunctPartAST functPart, ImperPartAST imperPart) {
-			this.functPart = functPart;
-			this.imperPart = imperPart;
-		}
-		
-		@Override
-		String codegen() {
-			functPart.codegen();
-			mountCode(functPart);
-			imperPart.codegen();
-			mountCode(imperPart);
-			return null;
-		}
-		
-	}
-	
-	public static class FunctPartAST extends BasicNodeAST {
-		LinkedList<StmtAST> stmts;
-		
-		FunctPartAST(LinkedList<StmtAST> stmts) {
-			this.stmts = stmts;
-		}
-		
-		@Override
-		String codegen() {
-			for (StmtAST stmt: stmts) {
-				stmt.codegen();
-				mountCode(stmt);
-			}
-			return null;
-		}
-	}
-	
-	public static class ImperPartAST extends BasicNodeAST {
-		IOActionAST ioAction;
-		
-		ImperPartAST(IOActionAST ioAction) {
-			this.ioAction = ioAction;
-		}
-		
-		@Override
-		String codegen() { 
-			LLVM.resetCounterSSA();
-			LFormArgAST lformarg = new LFormArgAST(new ArrayList<String>(), new ArrayList<Type>(), null); 
-			code.add(LLVM.createPrintDeclaration());
-			code.addAll(LLVM.createPrintFormatStrings());
-			code.add(LLVM.createMainDefinition());
-			code.addAll(LLVM.openFunction());
-			ioAction.codegen();
-			mountCode(ioAction);
-			code.add(LLVM.createReturnVoid());
-			code.add(LLVM.closeFunction());
-			return null;
-		}
-	}
-	
-	/* 
-	 * IOAction is currently empty, but it could be extended (e.g. by including
-	 * the type of the content of the last IOAction
-	 */ 
-	public abstract static class DoStmtAST extends BasicNodeAST {}
-	
-	public abstract static class IOActionAST extends DoStmtAST {}
-	
-	public static class PrintAST extends IOActionAST {
-		ExprAST actarg;
-		
-		PrintAST(ExprAST actarg) {
-			this.actarg = actarg;
-		}
-		
-		@Override
-		String codegen() { 
-			int result = actarg.codegen();
-			mountCode(actarg);
-			code.addAll(LLVM.createPrintCall(result, actarg.type));
-			return null;
-		}
-	}
-	
-	public static class DoBlockAST extends IOActionAST {
-		LinkedList<DoStmtAST> ioActions;
-		
-		DoBlockAST(LinkedList<DoStmtAST> ioActions) {
-			this.ioActions = ioActions;
-		}
-		
-		@Override
-		String codegen() { 
-			for (DoStmtAST ioAction: ioActions) {
-				ioAction.codegen();
-				mountCode(ioAction);
-			}
-			return null;
-		}
-	}
-	
-	public static class IfBlockImperAST extends IOActionAST{
-		ExprAST cond;
-		IOActionAST thenBody;
-		IOActionAST elseBody;
-		
-		IfBlockImperAST(ExprAST cond, IOActionAST thenBody, IOActionAST elseBody) {
-			this.cond 	  = cond;
-			this.thenBody = thenBody;
-			this.elseBody = elseBody;
-		}
-		
-		@Override
-		String codegen() {
-			final int ifIndex, condIndex;
-			ifIndex = LLVM.getCounterIf();
-			LLVM.updateCounterIf();
-			condIndex = cond.codegen();
-			mountCode(cond);
-			code.add(LLVM.createBranchCond(condIndex, "if.then." + ifIndex, "if.else." + ifIndex));
-			code.add(LLVM.createLabel("if.then." + ifIndex));
-			thenBody.codegen();
-			mountCode(thenBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.else." + ifIndex));
-			elseBody.codegen();
-			mountCode(elseBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.exit." + ifIndex));
-			return null;
-		}
-	}
-	
-	public static class LetBlockImperAST extends DoStmtAST {
-		LinkedList<StmtAST> letStmts;
-		
-		LetBlockImperAST(LinkedList<StmtAST> letStmts) {
-			this.letStmts = letStmts;
-		}
-		
-		@Override
-		String codegen() {
-			for (StmtAST letStmt: letStmts) {
-				letStmt.codegen();
-				mountCode(letStmt);
-			}
-			return null;
-		}
-	}
-	
-	public abstract static class StmtAST extends BasicNodeAST {}
-		
-	public static class DeclTypeAST extends StmtAST {
-		Type type; // Used to propagate Type over multiple Type Declaration on the same line
-		
-		DeclTypeAST (Type type) {
-			this.type = type;
-		}
-		
-		@Override
-		String codegen() { return null;}
-	}
-	
-	public static class DefValueAST extends StmtAST {
-		String id; // must be a "unique" id
-		ExprAST expr;
-		
-		DefValueAST(String id, ExprAST expr) {
-			this.id = SymTableStack.createUniqueId(id);
-			this.expr = expr;
-		}
-		
-		@Override
-		String codegen() { 
-			final exprIndex = expr.codegen();
-			mountCode(expr);
-			code.add(LLVM.createAlloca(id, expr.type));
-			code.add(LLVM.createStore(id, exprIndex, expr.type));
-			return null;
-		}
-	}
-	
-	public static class DefFunctAST extends StmtAST {
-		String id; // must be a "unique" id
-		LFormArgAST lformarg;
-		ExprAST expr;
-		
-		DefFunctAST(String id, LFormArgAST lformarg, ExprAST expr) {
-			this.id = SymTableStack.createUniqueId(id);
-			this.lformarg = lformarg;
-			this.expr = expr;
-		}
-		
-		@Override
-		String codegen() { 
-			LLVM.resetCounterSSA();
-			code.add(LLVM.createFunctionDefinition(id, expr.type, lformarg));
-			code.addAll(LLVM.openFunction());
-			String result = expr.codegen();
-			mountCode(expr);
-			code.add(LLVM.createReturn(result, expr.type));
-			code.add(LLVM.closeFunction());
-			return null;
-		}
-	}
-	
-	public abstract static class BasicExprAST extends BasicNodeAST {
-		Type type;
-	}
-	
-	public enum ExprKind {
-			PLUS, MINUS, TIMES, DIV, INTDIV, MOD, AND, OR,
-			RELNOTEQ, RELEQ, RELGE, RELGT, RELLE, RELLT,
-			LENGTH, INDEX, NOT, UMINUS, LET_BLOCK_FUNC,
-			IF_BLOCK_FUNC, FUNCT_CALL, VALUE, EXPR_LIST
-	}
-	
-	public static class ExprAST extends BasicExprAST {
-		
-		ExprKind exprKind;
-		BasicExprAST[] subExpressions; //the subexpressions
-		
-		ExprAST (Type type, ExprKind exprKind, BasicExprAST[] subExpressions) {
-			this.type = type;
-			this.exprKind = exprKind;
-			this.subExpressions = subExpressions;
-		}
-		
-		@Override
-		String codegen() {	// TO BE COMPLETED
-			String result;
-			switch (exprKind) {
-				case PLUS: break;
-				case MINUS: break;
-				case TIMES: break;
-				case DIV: break;
-				case INTDIV: break;
-				case MOD: break;
-				case AND: break;
-				case OR: break;
-				case RELNOTEQ: break;
-				case RELEQ: break;
-				case RELGE: break;
-				case RELGT: break;
-				case RELLE: break;
-				case RELLT: break;
-				case LENGTH: break;
-				case INDEX: break;
-				case NOT: break;
-				case UMINUS: break;
-				case LET_BLOCK_FUNC: break;
-				case IF_BLOCK_FUNC: break;
-				case FUNCT_CALL: break;
-				case VALUE: break;
-				case EXPR_LIST: break;
-			}
-			return 0;
-		}
-	}
-	
-	public static class LetBlockFuncAST extends BasicExprAST {
-		LinkedList<StmtAST> letStmts;
-		ExprAST expr;
-		
-		LetBlockFuncAST(Type type, LinkedList<StmtAST> letStmts, ExprAST expr) {
-			this.type = type;
-			this.letStmts = letStmts;
-			this.expr = expr;
-		}
-		
-		@Override
-		String codegen() { 
-			for (StmtAST letStmt: letStmts) {
-				letStmt.codegen();
-				mountCode(letStmt);
-			}
-			String result = expr.codegen();
-			mountCode(expr);
-			return result;
-		}
-	}
-	
-	public static class IfBlockFuncAST extends BasicExprAST {
-		ExprAST cond, thenBody, elseBody;
-		
-		IfBlockFuncAST(Type type, ExprAST cond, ExprAST thenBody, ExprAST elseBody) {
-			this.type = type;
-			this.cond = cond;
-			this.thenBody = thenBody;
-			this.elseBody = elseBody;
-		}
-		
-		@Override
-		String codegen() { 
-			final int ifIndex;
-			String condIndex, thenIndex, elseIndex, result;
-			ifIndex = LLVM.getCounterIf();
-			LLVM.updateCounterIf();
-			condIndex = cond.codegen();
-			mountCode(cond);
-			code.add(LLVM.createBranchCond(condIndex, "if.then." + ifIndex, "if.else." + ifIndex));
-			code.add(LLVM.createLabel("if.then." + ifIndex));
-			thenIndex = thenBody.codegen();
-			mountCode(thenBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.else." + ifIndex));
-			elseIndex = elseBody.codegen();
-			mountCode(elseBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.exit." + ifIndex));
-			result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
-			code.add(LLVM.createPHINode(result, this.type, "if.then." + ifIndex, thenIndex, "if.else." + ifIndex, elseIndex));
-			return result;
-		}
-	}
-	
-	/*
-	 * Includes both global variables and functions
-	 */
-	public static class FunctCallAST extends BasicExprAST {
-		String id; // must be a unique id
-		LinkedList<ExprAST> actargs;
-		
-		FunctCallAST(Type type, String id, LinkedList<ExprAST> actargs) {
-			this.type = type;
-			this.id = SymTableStack.createUniqueId(id);
-			this.actargs = actargs;
-			//System.out.println("DEBUG: FUNCTION CALL ON " + this.id); 
-		}
-		
-		@Override
-		String codegen() {
-			ArrayList<Integer> argIds = new ArrayList<>(); // list containing all the input argument id for the function
-			ArrayList<Type> argTypes = new ArrayList<>();
-			String result;
-			for (ExprAST actarg: actargs) {
-				argIds.add(actarg.codegen());
-				argTypes.add(actarg.type);
-				mountCode(actarg);
-			}
-			if (id.contains("$")) { // only local values have a '$' appended to their name
-				result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
-				code.add(LLVM.createLoad(result, this.type, id));
-			}
-			else {
-				result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA(); 
-				code.add(LLVM.createFunctionCall(result, this.type, id, argIds, argTypes));
-			}
-			return result;
-		}
-	}
-	
-	/* Value is:
-	 *	- Basic type for basic types (Int, Double, Char, String, Bool)
-	 */
-	public static class ValueAST extends BasicExprAST{
-		Object value;
-		
-		ValueAST (Type type, Object value) {
-			this.type = type;
-			this.value = value;
-		}
-		
-		@Override
-		String codegen() { 
-			String result;
-			// trivial constants are just reported as they are and directly put
-			// onto the code
-			if (type.isEquivalent("Int")) {
-				result = (Integer) value.toString();
-			}
-			else if (type.isEquivalent("Double")) {
-				result = (Double) value.toString();
-			}
-			else if (type.isEquivalent("Char")) {
-				// chars are converted into their corresponding ASCII code
-				result = Integer.toString((int) ((Char) value).charValue());
-			}
-			else if (type.isEquivalent("Bool")) {
-				result = (Boolean) value.toString();
-			}
-			// strings need a special treatment to become usable, 
-			// so they actually define some code
-			else if (type.isEquivalent("String")) {
-				String reg = getCounterSSA().toString(); updateCounterSSA();
-				code.add(LLVM.createAlloca(reg, type, (String) value.length()+1));
-				code.add(LLVM.createStoreConstant(reg, type, value));
-				String result = getCounterSSA().toString(); updateCounterSSA();
-				code.add(LLVM.createArrayToPtrConversion(result, type, reg, ((String) value).length() + 1));
-			}
-			return result;
-		}
-	}	
-	
-	public static class ExprListAST extends BasicExprAST{
-		ArrayList<ExprAST> exprArray;
-		
-		ExprListAST (ArrayList<ExprAST> exprArray, Type type) {
-			this.exprArray = exprArray;
-			this.type = type;
-		}
-		
-		@Override
-		String codegen() { 
-			LinkedList<String> subExpResults = new LinkedList<>();
-			String subExpResult;
-			for (ExprAST expr: exprArray) {
-				subExpResult = expr.codegen();
-				subExpResults.add(subExpResult);
-				mountCode(expr);
-			}
-			String reg = getCounterSSA().toString(); updateCounterSSA();
-			code.add(LLVM.createAlloca(reg, type, exprArray.size()));
-			int i = 0;
-			for (String subExp: subExpResults) {
-				code.addAll(LLVM.createStoreArrayElement(reg, type, subExp, i)); 
-			}
-			String result = getCounterSSA().toString(); updateCounterSSA();
-			code.add(LLVM.createArrayToPtrConversion(result, type, reg, exprArray.size()));
-			return result;
-		}
-	}
-	
-	public static class LFormArgAST extends BasicNodeAST{
-		Type propType; // used for propagating type over the arguments
-		ArrayList<String> argNames; // must be unique ids
-		ArrayList<Type> argTypes;
-		
-		LFormArgAST (ArrayList<String> argNames, ArrayList<Type> argTypes, Type propType) {
-			ArrayList<String> uniqueArgNames = argNames;
-			uniqueArgNames.iterator().forEachRemaining( id -> { SymTableStack.createUniqueId(id); } );
-			this.argNames = uniqueArgNames;
-			this.argTypes = argTypes;
-			this.propType = propType;
-		}
-		
-		@Override
-		String codegen() { return null; } //Formal Argument Code is generated when generating code for Function Definition
-	}	
-	
-	public static class LLVM {
-		private static int counterIf = 0;
-		private static int counterSSA = 0;
-		
-		public static int getCounterIf() { return counterIf; }
-		public static void updateCounterIf() { counterIf++; }
-		public static void resetCounterSSA() { counterSSA = 0; }
-		public static int getCounterSSA() { return counterSSA; }
-		public static void updateCounterSSA() { counterSSA++; }
-		
-		public static String createPrintDeclaration() { return null; } //TODO
-		public static LinkedList<String> createPrintFormatStrings() { return null; } //TODO
-		public static String createMainDefinition() { return null; } //TODO
-		public static LinkedList<String> openFunction() { return null; } //TODO
-		public static String closeFunction() { return null; } //TODO
-		public static String createReturnVoid() { return null; } //TODO
-		// TODO ADD ALL METHODS
-	
-	}
-	
+	private SymTableStack symTableStack = new SymTableStack();
+
 :};
 
 /*  In the Initialization Section, the typeMap (i.e. the list containing all declared types) is filled 
@@ -1176,11 +101,11 @@ action code {:
 init with {:
 		
 		// Create the Table containing all Types and their Types
-		CUP$Parser$actions.Type.createTypeMap();
+		Type.createTypeMap();
 		
-		//CUP$Parser$actions.Type.dumpTypeMap();
-		//CUP$Parser$actions.Type.testType();
-		//CUP$Parser$actions.SymTableStack.testSymTableStack();
+		//Type.dumpTypeMap();
+		//Type.testType();
+		//SymTableStack.testSymTableStack();
 :}
 
 /* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
@@ -1230,33 +155,33 @@ terminal String id;
 ///	NON TERMINALS (uppercase) ///
 /// ///////////////////////// ///
 
-non terminal ProgramAST PROGRAM;
-non terminal FunctPartAST FUNCT_PART;
-non terminal ImperPartAST IMPER_PART;
-non terminal LinkedList<DoStmtAST> IO_ACTIONS;
-non terminal IOActionAST IO_ACTION;
-non terminal PrintAST PRINT;
-non terminal ExprAST COND, EXPR;
-non terminal ExprListAST EXPR_LIST, LEXPR;
-non terminal FunctCallAST FUNCT_CALL;
-//non terminal ExprAST EXPR_NOTUNARYOP;
-non terminal ExprAST ACTARG;
-non terminal LinkedList<ExprAST> LACTARG;
-non terminal LFormArgAST LFORMARG;
+non terminal AST.Program PROGRAM;
+non terminal AST.FunctPart FUNCT_PART;
+non terminal AST.ImperPart IMPER_PART;
+non terminal LinkedList<AST.DoStmt> IO_ACTIONS;
+non terminal AST.IOAction IO_ACTION;
+non terminal AST.Print PRINT;
+non terminal AST.Expr COND, EXPR;
+non terminal AST.ExprList EXPR_LIST, LEXPR;
+non terminal AST.FunctCall FUNCT_CALL;
+//non terminal Expr EXPR_NOTUNARYOP;
+non terminal AST.Expr ACTARG;
+non terminal LinkedList<AST.Expr> LACTARG;
+non terminal AST.LFormArg LFORMARG;
 //non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
-non terminal LinkedList<StmtAST> LET_STMTS, GLOBAL_STMTS;
-non terminal DoBlockAST DO_BLOCK;
-non terminal LetBlockFuncAST LET_BLOCK_FUNC;
-non terminal LetBlockImperAST LET_BLOCK_IMPER;
-non terminal IfBlockFuncAST IF_BLOCK_FUNC;
-non terminal IfBlockImperAST IF_BLOCK_IMPER;
-non terminal StmtAST STMT;
-non terminal StmtAST DEF_VALUE;
-non terminal DefFunctAST DEF_FUNCT;
-non terminal DeclTypeAST DECL_TYPE;
+non terminal LinkedList<AST.Stmt> LET_STMTS, GLOBAL_STMTS;
+non terminal AST.DoBlock DO_BLOCK;
+non terminal AST.LetBlockFunc LET_BLOCK_FUNC;
+non terminal AST.LetBlockImper LET_BLOCK_IMPER;
+non terminal AST.IfBlockFunc IF_BLOCK_FUNC;
+non terminal AST.IfBlockImper IF_BLOCK_IMPER;
+non terminal AST.Stmt STMT;
+non terminal AST.Stmt DEF_VALUE;
+non terminal AST.DefFunct DEF_FUNCT;
+non terminal AST.DeclType DECL_TYPE;
 non terminal Type TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_LIST, TYPE_BASIC;
 //non terminal LinkedList<Type> TTYPE_VALUE;
-non terminal ValueAST VALUE, VALUE_BASIC;
+non terminal AST.Value VALUE, VALUE_BASIC;
 //non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
 //non terminal PATTERN_LIST, PATTERN_TUPLE;
 
@@ -1285,29 +210,29 @@ PROGRAM ::= /* empty program */
 				if (noCompileErrors) {
 				System.out.println("CODE COMPILED SUCCESSFULLY");
 				}
-				RESULT = new ProgramAST(null, null);
+				RESULT = new AST.Program(null, null);
 			:}
 		  | indent
 			{:	// push the top-level symtable
-				SymTableStack.pushSymTable();
+				symTableStack.pushSymTable();
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable pushed");
 			:}
 			FUNCT_PART:funct_part IMPER_PART:imper_part 
 			{:
-				SymTableStack.popSymTable();
+				symTableStack.popSymTable();
 				if (debug_mode) System.out.println("DEBUG: Top-level Symtable popped");
 			:}
 			dedent 
 			{:  // pop the top-level symtable
 				if (noCompileErrors) {
 					System.out.println("CODE COMPILED SUCCESSFULLY");
-					RESULT = new ProgramAST(funct_part, imper_part);
-					RESULT.codegen();
+					RESULT = new AST.Program(funct_part, imper_part);
+					//RESULT.codegen();
 					// TODO COPY CODE TO OUTPUT FILE
 				}	
 				else {
 					System.out.println("CODE NOT COMPILED: FAILED");
-					RESULT = new ProgramAST(null, null);
+					RESULT = new AST.Program(null, null);
 				}
 			:}
 ;
@@ -1319,12 +244,12 @@ PROGRAM ::= /* empty program */
 IMPER_PART ::= 
 			main eq IO_ACTION:io_action
 			{:
-				RESULT = new ImperPartAST(io_action);
+				RESULT = new AST.ImperPart(io_action);
 			:}			
 		  | main eq error
 			{: 
 				report_syntax_error("Error in Main"); 
-				RESULT = new ImperPartAST(null);
+				RESULT = new AST.ImperPart(null);
 			:}
 ;
 
@@ -1355,13 +280,13 @@ IO_ACTIONS ::=
 		:}
 		| IO_ACTION:io_action
 		{: 
-			LinkedList<DoStmtAST> ioActions = new LinkedList<>();
+			LinkedList<AST.DoStmt> ioActions = new LinkedList<>();
 			ioActions.add(io_action);
 			RESULT = ioActions;
 		:}
 		| LET_BLOCK_IMPER:let_block_imper
 		{:
-			LinkedList<DoStmtAST> ioActions = new LinkedList<>();
+			LinkedList<AST.DoStmt> ioActions = new LinkedList<>();
 			ioActions.add(let_block_imper);
 			RESULT = ioActions;
 		:}
@@ -1376,11 +301,11 @@ PRINT ::= print ACTARG:actarg
 	{:
 		Type argType = actarg.type;
 		if (argType.isSubtype("Double") || argType.isSubtype("String") || argType.isSubtype("Bool")) {
-			RESULT = new PrintAST(actarg);
+			RESULT = new AST.Print(actarg);
 		}
 		else {
 			report_semantic_error("Print does not support the Argument Type");
-			RESULT = new PrintAST(null);
+			RESULT = new AST.Print(null);
 		}
 	:}
 ;
@@ -1388,53 +313,53 @@ PRINT ::= print ACTARG:actarg
 DO_BLOCK ::=
 		do_begin indent 
 		{:
-			SymTableStack.pushSymTable();
+			symTableStack.pushSymTable();
 			if (debug_mode) System.out.println("DEBUG: Do Block - Symtable pushed");
 		:}
 		IO_ACTIONS:io_actions dedent
 		{:
-			SymTableStack.popSymTable();
+			symTableStack.popSymTable();
 			if (debug_mode) System.out.println("DEBUG: Do Block - Symtable popped");			
-			RESULT = new DoBlockAST(io_actions);
+			RESULT = new AST.DoBlock(io_actions);
 		:}
 	  | do_begin indent error dedent 
 		{: 
 			report_syntax_error("Error in Do Block"); 
-			RESULT = new DoBlockAST(null);
+			RESULT = new AST.DoBlock(null);
 		:}
 ;
 
 IF_BLOCK_IMPER ::= 
 		if_begin COND:cond then IO_ACTION:io_action_then else_begin IO_ACTION:io_action_else
 		{:
-			RESULT = new IfBlockImperAST(cond, io_action_then, io_action_else);
+			RESULT = new AST.IfBlockImper(cond, io_action_then, io_action_else);
 		:}
 	  | if_begin error then IO_ACTION:io_action_then else_begin IO_ACTION:io_action_else 
 		{: 
 			report_syntax_error("Error in Condition of If Statement"); 
-			RESULT = new IfBlockImperAST(null, io_action_then, io_action_else);
+			RESULT = new AST.IfBlockImper(null, io_action_then, io_action_else);
 		:}
 	  | if_begin COND:cond then error else_begin IO_ACTION:io_action_else 
 		{: 
 			report_syntax_error("Error in Then Block of If Statement"); 
-			RESULT = new IfBlockImperAST(cond, null, io_action_else);
+			RESULT = new AST.IfBlockImper(cond, null, io_action_else);
 		:}
 	  | if_begin COND:cond error else_begin IO_ACTION:io_action_else 
 		{: 
 			report_syntax_error("Missing \"Then\" in If Statement"); 
-			RESULT = new IfBlockImperAST(cond, null, io_action_else);
+			RESULT = new AST.IfBlockImper(cond, null, io_action_else);
 		:}
 ;
 
 LET_BLOCK_IMPER ::= 
 		let indent LET_STMTS:let_stmts dedent// IO_ACTION:io_action 
 		{:
-			RESULT = new LetBlockImperAST(let_stmts); //, io_action);
+			RESULT = new AST.LetBlockImper(let_stmts); //, io_action);
 		:}
 	  /*| let error dedent // IO_ACTION:io_action
 		{: 
 			report_syntax_error("Error in Let Statements of a Let Block"); 
-			RESULT = new LetBlockImperAST(null); //, io_action);
+			RESULT = new AST.LetBlockImper(null); //, io_action);
 		:}*/
 ;
 // DEF_FUNCT not supported (for now)
@@ -1456,12 +381,12 @@ LET_STMTS ::= LET_STMTS:let_stmts sep DECL_TYPE:decl_type
 				if(decl_type.type.isSubtype("Function")) {
 					report_semantic_error("No Support for Local Functions");
 				}
-				RESULT = new LinkedList<StmtAST>();
+				RESULT = new LinkedList<AST.Stmt>();
 				RESULT.add(decl_type);
 			:}
 			| DEF_VALUE:def_value
 			{:
-				RESULT = new LinkedList<StmtAST>();
+				RESULT = new LinkedList<AST.Stmt>();
 				RESULT.add(def_value);
 			
 			:}
@@ -1473,13 +398,13 @@ LET_STMTS ::= LET_STMTS:let_stmts sep DECL_TYPE:decl_type
  
 FUNCT_PART ::= GLOBAL_STMTS:global_stmts
 			{:
-				RESULT = new FunctPartAST(global_stmts);
+				RESULT = new AST.FunctPart(global_stmts);
 			:}
 ; 
  
 GLOBAL_STMTS ::= /* empty List of Statements section */
 			{:
-				RESULT = new LinkedList<StmtAST>();
+				RESULT = new LinkedList<AST.Stmt>();
 			:}
 			 | GLOBAL_STMTS:global_stmts STMT:stmt sep
 			{:
@@ -1516,29 +441,29 @@ STMT ::= DECL_TYPE:decl_type
 DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			{:
 				Type type = decl_type.type;
-				if (!isLocallyDeclared(id) && !(type.isSubtype("Function") && returnType(type).isSubtype("List"))) {
-					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
+				if (!symTableStack.isLocallyDeclared(id) && !(type.isSubtype("Function") && type.returnType().isSubtype("List"))) {
+					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
-				else if (isLocallyDeclared(id)) {
+				else if (symTableStack.isLocallyDeclared(id)) {
 					report_semantic_error("Multiple Value Declaration (Symbol \"" + id + "\")");
 				}
 				else {
 					report_semantic_error("Lists as a Return Value are not supported");
 				}
-				RESULT = new DeclTypeAST(new Type(type));
+				RESULT = new AST.DeclType(new Type(type));
 			:}
 			| id:id clns TYPE:type
 			{:
-				if (!isLocallyDeclared(id) && !(type.isSubtype("Function") && returnType(type).isSubtype("List"))) {
-					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
+				if (!symTableStack.isLocallyDeclared(id) && !(type.isSubtype("Function") && type.returnType().isSubtype("List"))) {
+					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
-				else if (isLocallyDeclared(id)) {
+				else if (symTableStack.isLocallyDeclared(id)) {
 					report_semantic_error("Multiple Value Declaration (Symbol \"" + id + "\")");
 				}
 				else {
 					report_semantic_error("Lists as a Return Value are not supported");
 				}
-				RESULT = new DeclTypeAST(type);
+				RESULT = new AST.DeclType(type);
 			:}
 ; 
 
@@ -1546,73 +471,73 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 //DEF_VALUE ::= PATTERN eq EXPR
 DEF_VALUE ::= id:id 
 			{:
-				if (isDeclared(id) && isLocallyDeclared(id) && !isAssigned(id)) {
-					SymTableStack.getEntry(id).setIsAssigned(true);
+				if (symTableStack.isDeclared(id) && symTableStack.isLocallyDeclared(id) && !symTableStack.isAssigned(id)) {
+					symTableStack.getEntry(id).setIsAssigned(true);
 				}
 				else {
-					if (!isDeclared(id)) {
+					if (!symTableStack.isDeclared(id)) {
 						report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
 					}
-					else if (!isLocallyDeclared(id)) {
+					else if (!symTableStack.isLocallyDeclared(id)) {
 						report_semantic_error("Value is not Locally Declared (Symbol \"" + id + "\")");
 					}
-					else if (isAssigned(id)) {
+					else if (symTableStack.isAssigned(id)) {
 						report_semantic_error("Multiple Value Assignment (Symbol \"" + id + "\")");
 					}
 				}
 			:}
 			eq EXPR:expr
 			{:
-				if (isDeclared(id) && isLocallyDeclared(id) && isAssigned(id) && !expr.type.isEquivalent(SymTableStack.getEntry(id).getType().getTypeName())) {
+				if (symTableStack.isDeclared(id) && symTableStack.isLocallyDeclared(id) && symTableStack.isAssigned(id) && !expr.type.isEquivalent(symTableStack.getEntry(id).getType().getTypeName())) {
 						report_semantic_error("Mismatching Type on Assignment (Symbol \"" + id + "\")"); 
 				}
-				if (isGlobal(id)) {
+				if (symTableStack.isGlobal(id)) {
 					// Global Values are actually Nullary Functions
 					ArrayList<String> argNames = new ArrayList<>();
 					ArrayList<Type> argTypes = new ArrayList<>();
-					LFormArgAST lformarg = new LFormArgAST(argNames, argTypes, expr.type);
-					RESULT = new DefFunctAST(id, lformarg, expr);
+					AST.LFormArg lformarg = new AST.LFormArg(argNames, argTypes, expr.type);
+					RESULT = new AST.DefFunct(id, lformarg, expr);
 				}
 				else {
-					RESULT = new DefValueAST(id, expr);
+					RESULT = new AST.DefValue(symTableStack.createUniqueId(id), expr);
 				}
 			:}
 ;
 /* no nullary functions */
 DEF_FUNCT ::= id:id {: 
-					if (isDeclared(id) && isLocallyDeclared(id) && !isAssigned(id)) {
-						SymTableStack.getEntry(id).setIsAssigned(true);	
+					if (symTableStack.isDeclared(id) && symTableStack.isLocallyDeclared(id) && !symTableStack.isAssigned(id)) {
+						symTableStack.getEntry(id).setIsAssigned(true);	
 					}
-					else if (!isDeclared(id)) {
+					else if (!symTableStack.isDeclared(id)) {
 						report_semantic_error("Missing Function Declaration (Symbol \"" + id + "\")");
 					}
-					else if (!isLocallyDeclared(id)) {
+					else if (!symTableStack.isLocallyDeclared(id)) {
 						report_semantic_error("Function is not Locally Declared (Symbol \"" + id + "\")");
 					}
-					else if (isAssigned(id)) {
+					else if (symTableStack.isAssigned(id)) {
 						report_semantic_error("Multiple Function Assignment (Symbol \"" + id + "\")");
 					}
-					SymTableStack.pushSymTable();
+					symTableStack.pushSymTable();
 					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable pushed");
 			   :}
 			   LFORMARG:lformarg eq 
 			   EXPR:expr {:
-					Type idTree = null;
-					if (isDeclared(id)){
-						idTree = SymTableStack.getEntry(id).getType();
-						if (idTree != null && !idTree.isSubtype("Function")) {
+					Type idType = null;
+					if (symTableStack.isDeclared(id)){
+						idType = symTableStack.getEntry(id).getType();
+						if (idType != null && !idType.isSubtype("Function")) {
 							report_semantic_error("Not a Function (Symbol \"" + id + "\")");
 						}
-						else if (!hasArity(id, lformarg.argNames.size())) {
+						else if (!idType.hasArity(lformarg.argNames.size())) {
 							report_semantic_error("Mismatching Arity (Symbol \"" + id + "\")");
 						}
-						else if (!expr.type.isEquivalent(returnType(id).getTypeName())) {
+						else if (!expr.type.isEquivalent(idType.returnType().getTypeName())) {
 							report_semantic_error("Return Type is not equivalent to the Expression Type (Symbol \"" + id + "\")");
 						}
 					}
-					SymTableStack.popSymTable();
+					symTableStack.popSymTable();
 					if (debug_mode) System.out.println("DEBUG: Function Declaration - Symtable popped");
-					RESULT = new DefFunctAST(id, lformarg, expr);
+					RESULT = new AST.DefFunct(symTableStack.createUniqueId(id), lformarg, expr);
 			   :}  
 ;
 
@@ -1664,68 +589,68 @@ LPATTERN_CM ::= PATTERN
 LFORMARG ::= LFORMARG:lformarg id:id 
 			{:
 				Type propTree = lformarg.propType;
-				if (!isLocallyDeclared(id) && propTree != null && propTree.isSubtype("Function")) {
+				if (!symTableStack.isLocallyDeclared(id) && propTree != null && propTree.isSubtype("Function")) {
 					Type argTree = new Type(propTree.getTypeParam(0));
-					SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
-					lformarg.argNames.add(id);
+					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
+					lformarg.argNames.add(symTableStack.createUniqueId(id));
 					lformarg.argTypes.add(argTree);
-					RESULT = new LFormArgAST(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
+					RESULT = new AST.LFormArg(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
 				}
-				else if (isLocallyDeclared(id)) {
+				else if (symTableStack.isLocallyDeclared(id)) {
 					report_semantic_error("Multiple Argument Declaration (Symbol \"" + id + "\")");
 					// Error Recovery
-					lformarg.argNames.add(id);
+					lformarg.argNames.add(symTableStack.createUniqueId(id));
 					lformarg.argTypes.add(Type.getType("error"));
-					RESULT = new LFormArgAST(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
+					RESULT = new AST.LFormArg(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
 				}
 				else {
 					report_semantic_error("Mismatching Arity in Function"); 
 					// Error Recovery
-					lformarg.argNames.add(id);
+					lformarg.argNames.add(symTableStack.createUniqueId(id));
 					lformarg.argTypes.add(Type.getType("error"));
-					RESULT = new LFormArgAST(lformarg.argNames, lformarg.argTypes, Type.getType("error"));
+					RESULT = new AST.LFormArg(lformarg.argNames, lformarg.argTypes, Type.getType("error"));
 				}
 			:}
 		   | id:id 
 		   {:
 				String funcName = (String) parser.stack(-2);
-				if (isDeclared(funcName)) {
-					Type type = SymTableStack.getEntry(funcName).getType();
-					if (!isLocallyDeclared(id) && type != null && type.isSubtype("Function")) {
+				if (symTableStack.isDeclared(funcName)) {
+					Type type = symTableStack.getEntry(funcName).getType();
+					if (!symTableStack.isLocallyDeclared(id) && type != null && type.isSubtype("Function")) {
 						Type argTree = new Type(type.getTypeParam(0));
-						SymTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
+						symTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
 						ArrayList<String> argNames = new ArrayList<>();
 						ArrayList<Type> argTypes = new ArrayList<>();
-						argNames.add(id);
+						argNames.add(symTableStack.createUniqueId(id));
 						argTypes.add(argTree);
-						RESULT = new LFormArgAST(argNames, argTypes, type.getTypeParam(1));
+						RESULT = new AST.LFormArg(argNames, argTypes, type.getTypeParam(1));
 					}
-					else if (isLocallyDeclared(id)) {
+					else if (symTableStack.isLocallyDeclared(id)) {
 						report_semantic_error("Multiple Argument Declaration (Symbol \"" + id + "\")");
 						// Error Recovery
 						ArrayList<String> argNames = new ArrayList<>();
 						ArrayList<Type> argTypes = new ArrayList<>();
-						argNames.add(id);
+						argNames.add(symTableStack.createUniqueId(id));
 						argTypes.add(Type.getType("error"));
-						RESULT = new LFormArgAST(argNames, argTypes, type.getTypeParam(1));
+						RESULT = new AST.LFormArg(argNames, argTypes, type.getTypeParam(1));
 					}
 					else {
 						report_semantic_error("Mismatching Arity in Function"); 
 						// Error Recovery
 						ArrayList<String> argNames = new ArrayList<>();
 						ArrayList<Type> argTypes = new ArrayList<>();
-						argNames.add(id);
+						argNames.add(symTableStack.createUniqueId(id));
 						argTypes.add(Type.getType("error"));
-						RESULT = new LFormArgAST(argNames, argTypes, Type.getType("error"));
+						RESULT = new AST.LFormArg(argNames, argTypes, Type.getType("error"));
 					}
 				}
 				else {
 					report_semantic_error("Missing Function Declaration (Symbol \"" + funcName + "\")");
 					ArrayList<String> argNames = new ArrayList<>();
 					ArrayList<Type> argTypes = new ArrayList<>();
-					argNames.add(id);
+					argNames.add(symTableStack.createUniqueId(id));
 					argTypes.add(Type.getType("error"));
-					RESULT = new LFormArgAST(argNames, argTypes, Type.getType("error"));
+					RESULT = new AST.LFormArg(argNames, argTypes, Type.getType("error"));
 				}
 				
 		   :}
@@ -1746,292 +671,292 @@ COND ::= EXPR:expr {:
 EXPR ::= EXPR:expr1 plus EXPR:expr2
 		{:
 			String opType = "+";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(new Type(expr1.type), ExprKind.PLUS, subExpressions);
+				RESULT = new AST.Expr(new Type(expr1.type), AST.ExprKind.PLUS, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.PLUS, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.PLUS, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.PLUS, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.PLUS, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.PLUS, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.PLUS, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 minus EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 minus EXPR:expr2
 	   {:
 			String opType = "-";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(new Type(expr1.type), ExprKind.MINUS, subExpressions);
+				RESULT = new AST.Expr(new Type(expr1.type), AST.ExprKind.MINUS, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.MINUS, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MINUS, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");	
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.MINUS, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MINUS, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.MINUS, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MINUS, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 times EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 times EXPR:expr2
 	   {:
 			String opType = "*";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(new Type(expr1.type), ExprKind.TIMES, subExpressions);		
+				RESULT = new AST.Expr(new Type(expr1.type), AST.ExprKind.TIMES, subExpressions);		
 			}
 			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.TIMES, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.TIMES, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.TIMES, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.TIMES, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.TIMES, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.TIMES, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 div EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 div EXPR:expr2
 	   {:
 			String opType = "/";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Double") && expr2.type.isSubtype("Double") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Double"), ExprKind.DIV, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Double"), AST.ExprKind.DIV, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.DIV, subExpressions); 
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.DIV, subExpressions); 
 			}
 			else if (!expr2.type.isSubtype("Double")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.DIV, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.DIV, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.DIV, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.DIV, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 intdiv EXPR_NOTUNARYOP:expr2 
 	   | EXPR:expr1 intdiv EXPR:expr2 
 	   {:
 			String opType = "div";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Int") && expr2.type.isSubtype("Int") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Int"), ExprKind.INTDIV, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Int"), AST.ExprKind.INTDIV, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.INTDIV, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.INTDIV, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.INTDIV, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.INTDIV, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.INTDIV, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.INTDIV, subExpressions);
 			}
 		:}
 	   | EXPR:expr1 mod EXPR:expr2 
 	   {:
 			String opType = "mod";	
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Int") && expr2.type.isSubtype("Int") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Int"), ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Int"), AST.ExprKind.MOD, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MOD, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MOD, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MOD, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 and EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 and EXPR:expr2
 	   {:
 			String opType = "&&";		
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.AND, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.AND, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.AND, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.AND, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.AND, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.AND, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.AND, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.AND, subExpressions);
 			}
 	   :}
 	   //| EXPR:expr1 or EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 or EXPR:expr2
 	    {:
 			String opType = "||";		
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Bool") && expr2.type.isSubtype("Bool") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.OR, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.OR, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.OR, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.OR, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Bool")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.OR, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.OR, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.OR, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.OR, subExpressions);
 			}
 	   :}
 	   | EXPR:expr1 relnoteq EXPR:expr2
 	    {:
 			String opType = "/=";		
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if ((expr1.type.isSubtype("Char") || expr1.type.isSubtype("Double")) && (expr2.type.isSubtype("Char") || expr2.type.isSubtype("Double")) && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.RELNOTEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.RELNOTEQ, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double") && !expr1.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELNOTEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELNOTEQ, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double") && !expr2.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELNOTEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELNOTEQ, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELNOTEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELNOTEQ, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 releq EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 releq EXPR:expr2
 	    {:
 			String opType = "==";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if ((expr1.type.isSubtype("Char") || expr1.type.isSubtype("Double")) && (expr2.type.isSubtype("Char") || expr2.type.isSubtype("Double")) && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.RELEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.RELEQ, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double") && !expr1.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELEQ, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double") && !expr2.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELEQ, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELEQ, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELEQ, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 relgt EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 relgt EXPR:expr2
 	   {:
 			String opType = ">";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if ((expr1.type.isSubtype("Char") || expr1.type.isSubtype("Double")) && (expr2.type.isSubtype("Char") || expr2.type.isSubtype("Double")) && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.RELGT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.RELGT, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double") && !expr1.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELGT, subExpressions); 
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGT, subExpressions); 
 			}
 			else if (!expr2.type.isSubtype("Double") && !expr2.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELGT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGT, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELGT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGT, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 relge EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 relge EXPR:expr2
 	   {:
 	   		String opType = ">=";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if ((expr1.type.isSubtype("Char") || expr1.type.isSubtype("Double")) && (expr2.type.isSubtype("Char") || expr2.type.isSubtype("Double")) && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.RELGE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.RELGE, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double") && !expr1.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELGE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGE, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double") && !expr2.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELGE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGE, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELGE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGE, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 rellt EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 rellt EXPR:expr2
 	   {:
 			String opType = "<";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if ((expr1.type.isSubtype("Char") || expr1.type.isSubtype("Double")) && (expr2.type.isSubtype("Char") || expr2.type.isSubtype("Double")) && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.RELLT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.RELLT, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double") && !expr1.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELLT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLT, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double") && !expr2.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELLT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLT, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELLT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLT, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 relle EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 relle EXPR:expr2
 	   {:
 			String opType = "<=";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if ((expr1.type.isSubtype("Char") || expr1.type.isSubtype("Double")) && (expr2.type.isSubtype("Char") || expr2.type.isSubtype("Double")) && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.RELLE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.RELLE, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Double") && !expr1.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELLE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLE, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Double") && !expr2.type.isSubtype("Char")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELLE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLE, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.RELLE, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLE, subExpressions);
 			}
 		:}
 	   //| head ACTARG
@@ -2039,30 +964,30 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 	   | length ACTARG:actarg
 	   {:
 			String opType = "length";
-			BasicExprAST[] subExpressions = { actarg };
+			AST.BasicExpr[] subExpressions = { actarg };
 			if (actarg.type.isSubtype("List")) {
-				RESULT = new ExprAST(Type.getType("Int"), ExprKind.LENGTH, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Int"), AST.ExprKind.LENGTH, subExpressions);
 			}
 			else {
 				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.LENGTH, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.LENGTH, subExpressions);
 			}
 	   :}
 	   //| EXPR:expr1 index EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 index EXPR:expr2
 	   {:
 			String opType = "!!";
-			BasicExprAST[] subExpressions = { expr1, expr2 };
+			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("List") && expr2.type.isSubtype("Int")) {
-				RESULT = new ExprAST(new Type(expr1.type.getTypeParam(0)), ExprKind.INDEX, subExpressions);
+				RESULT = new AST.Expr(new Type(expr1.type.getTypeParam(0)), AST.ExprKind.INDEX, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("List")){
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.INDEX, subExpressions); 
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.INDEX, subExpressions); 
 			}
 			else {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.INDEX, subExpressions); 
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.INDEX, subExpressions); 
 			}
 	   :}
 	   //| EXPR cons EXPR_NOTUNARYOP
@@ -2075,52 +1000,52 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 	   | not EXPR:expr  
 	   {:
 			String opType = "not";
-			BasicExprAST[] subExpressions = { expr };
+			AST.BasicExpr[] subExpressions = { expr };
 			if(expr.type.isSubtype("Bool")) {
-				RESULT = new ExprAST(Type.getType("Bool"), ExprKind.NOT, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Bool"), AST.ExprKind.NOT, subExpressions);
 			}
 			else {
 				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.NOT, subExpressions); 
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.NOT, subExpressions); 
 			}
 	   :}
 	   | minus EXPR:expr
 		//| ro minus EXPR:expr rc 
 	   {:
 			String opType = "Unary \"-\"";
-			BasicExprAST[] subExpressions = { expr };
+			AST.BasicExpr[] subExpressions = { expr };
 			if(expr.type.isSubtype("Double")){
-				RESULT = new ExprAST(new Type(expr.type), ExprKind.UMINUS, subExpressions);
+				RESULT = new AST.Expr(new Type(expr.type), AST.ExprKind.UMINUS, subExpressions);
 			}
 			else {
 				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
-				RESULT = new ExprAST(Type.getType("error"), ExprKind.UMINUS, subExpressions); 
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.UMINUS, subExpressions); 
 			}
 	   :} %prec uminus 
 	   | LET_BLOCK_FUNC:let_block_func 
 	   {:
-			BasicExprAST[] subExpressions = { let_block_func };
-			RESULT = new ExprAST(let_block_func.type, ExprKind.LET_BLOCK_FUNC, subExpressions);
+			AST.BasicExpr[] subExpressions = { let_block_func };
+			RESULT = new AST.Expr(let_block_func.type, AST.ExprKind.LET_BLOCK_FUNC, subExpressions);
 	   :}
 	   | IF_BLOCK_FUNC:if_block_func 
 	   {:
-			BasicExprAST[] subExpressions = { if_block_func };
-			RESULT = new ExprAST(if_block_func.type, ExprKind.IF_BLOCK_FUNC, subExpressions);
+			AST.BasicExpr[] subExpressions = { if_block_func };
+			RESULT = new AST.Expr(if_block_func.type, AST.ExprKind.IF_BLOCK_FUNC, subExpressions);
 	   :}
 	   | FUNCT_CALL:funct_call
 	   {:
-			BasicExprAST[] subExpressions = { funct_call };
-			RESULT = new ExprAST(funct_call.type, ExprKind.FUNCT_CALL, subExpressions);
+			AST.BasicExpr[] subExpressions = { funct_call };
+			RESULT = new AST.Expr(funct_call.type, AST.ExprKind.FUNCT_CALL, subExpressions);
 	   :}
 	   | VALUE:value
 	   {:
-			BasicExprAST[] subExpressions = { value };
-			RESULT = new ExprAST(value.type, ExprKind.VALUE, subExpressions);
+			AST.BasicExpr[] subExpressions = { value };
+			RESULT = new AST.Expr(value.type, AST.ExprKind.VALUE, subExpressions);
 	   :}
 	   | EXPR_LIST:expr_list
 	   {:
-			BasicExprAST[] subExpressions = { expr_list };
-			RESULT = new ExprAST(expr_list.type, ExprKind.EXPR_LIST, subExpressions);
+			AST.BasicExpr[] subExpressions = { expr_list };
+			RESULT = new AST.Expr(expr_list.type, AST.ExprKind.EXPR_LIST, subExpressions);
 	   :}
 ;
 
@@ -2129,81 +1054,81 @@ FUNCT_CALL ::= id:id LACTARG:lactarg
 			int nArgs = lactarg.size();
 			Type funcType = null;
 			boolean failedArgsTypeChecking = false;
-			if(isDeclared(id) && isAssigned(id)) {
-				funcType = SymTableStack.getEntry(id).getType();
+			if(symTableStack.isDeclared(id) && symTableStack.isAssigned(id)) {
+				funcType = symTableStack.getEntry(id).getType();
 				//funcType.dumpType(0);
 				// This is a Value Call
 				if (nArgs == 0) {
 					if (funcType != null && !funcType.isSubtype("Function")) { // This is not a Function Call, but a reference to a Value
-						//RESULT = new ExprAST(new Type(funcType));
-						RESULT = new FunctCallAST(new Type(funcType), id, lactarg); 
+						//RESULT = new AST.Expr(new Type(funcType));
+						RESULT = new AST.FunctCall(new Type(funcType), symTableStack.createUniqueId(id), lactarg); 
 					}
 					else {
 						// Error Recovery
 						report_semantic_error("Not a Value (Symbol \"" + id + "\")");
-						//RESULT = new ExprAST(Type.getType("error"));  
-						RESULT = new FunctCallAST(Type.getType("error"), id, lactarg);
+						//RESULT = new AST.Expr(Type.getType("error"));  
+						RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 					}
 				}
 				// This is a Function Call
 				else if (nArgs > 0) {
-					if (funcType != null && funcType.isSubtype("Function") && hasArity(id, nArgs)) {
-						for (ExprAST actarg : lactarg) {
+					if (funcType != null && funcType.isSubtype("Function") && funcType.hasArity(nArgs)) {
+						for (AST.Expr actarg : lactarg) {
 							if (!actarg.type.isEquivalent(funcType.getTypeParam(0)))
 								failedArgsTypeChecking = true;
 							funcType = funcType.getTypeParam(1); //extract the right child of the funcType Tree
 						}
 						if (!failedArgsTypeChecking) {
-							//RESULT = new ExprAST(new Type(funcType));
-							RESULT = new FunctCallAST(new Type(funcType), id, lactarg);
+							//RESULT = new AST.Expr(new Type(funcType));
+							RESULT = new AST.FunctCall(new Type(funcType), symTableStack.createUniqueId(id), lactarg);
 						}	
 						else {
 							// Error Recovery
 							report_semantic_error("Wrong Type in Arguments applied to Function " + id);
-							//RESULT = new ExprAST(Type.getType("error")); 
-							RESULT = new FunctCallAST(Type.getType("error"), id, lactarg);
+							//RESULT = new AST.Expr(Type.getType("error")); 
+							RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 						}
 					}
 					else if (funcType == null || !funcType.isSubtype("Function")) {
 						// Error Recovery
 						report_semantic_error("Not a Function (Symbol \"" + id + "\")");
-						//RESULT = new ExprAST(Type.getType("error")); 
-						RESULT = new FunctCallAST(Type.getType("error"), id, lactarg);
+						//RESULT = new AST.Expr(Type.getType("error")); 
+						RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 					}
-					else if (!hasArity(id, nArgs)) {
+					else if (!funcType.hasArity(nArgs)) {
 						// Error Recovery
 						report_semantic_error("Mismatching Arity (Symbol \"" + id + "\")");
-						//RESULT = new ExprAST(Type.getType("error")); 
-						RESULT = new FunctCallAST(Type.getType("error"), id, lactarg);
+						//RESULT = new AST.Expr(Type.getType("error")); 
+						RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 					}
 				}
 			}
-			else if (!isDeclared(id)){
+			else if (!symTableStack.isDeclared(id)){
 				// Error Recovery
 				report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
-				RESULT = new FunctCallAST(Type.getType("error"), id, lactarg);
+				RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 			}
-			else if (!isAssigned(id)) {
+			else if (!symTableStack.isAssigned(id)) {
 				// Error Recovery
 				report_semantic_error("Value Declared but not Assigned (Symbol \"" + id + "\")");
-				RESULT = new FunctCallAST(Type.getType("error"), id, lactarg);
+				RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 			}
 	   :}
 ;
 
 LET_BLOCK_FUNC ::= 	let indent 
 					{:
-						SymTableStack.pushSymTable();
+						symTableStack.pushSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable pushed");
 					:} 
 					LET_STMTS:let_stmts dedent in EXPR:expr {:
-						SymTableStack.popSymTable();
+						symTableStack.popSymTable();
 						if (debug_mode) System.out.println("DEBUG: Let Statement - Symtable popped");
-						RESULT = new LetBlockFuncAST(new Type(expr.type), let_stmts, expr);
+						RESULT = new AST.LetBlockFunc(new Type(expr.type), let_stmts, expr);
 					:}
 					| let error in EXPR:expr
 					{: report_syntax_error("Error in Statement inside a Let Block"); 
-						RESULT = new LetBlockFuncAST(Type.getType("error"), null, expr);
+						RESULT = new AST.LetBlockFunc(Type.getType("error"), null, expr);
 					:}
 ;
 
@@ -2211,31 +1136,31 @@ LET_BLOCK_FUNC ::= 	let indent
 IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:thenBody else_begin EXPR:elseBody 
 				{:
 					if(thenBody.type.isEquivalent(elseBody.type)) {
-						RESULT = new IfBlockFuncAST(thenBody.type, cond, thenBody, elseBody);
+						RESULT = new AST.IfBlockFunc(thenBody.type, cond, thenBody, elseBody);
 					}
 					else {
 						report_semantic_error("Multiple Return Types for If Statement");
-						RESULT = new IfBlockFuncAST(Type.getType("error"), cond, thenBody, elseBody); 
+						RESULT = new AST.IfBlockFunc(Type.getType("error"), cond, thenBody, elseBody); 
 					}
 				:}
 				| if_begin error else_begin EXPR:elseBody
 				{:  
 					report_syntax_error("Error in Condition inside an If-Then-Else Block");
-					RESULT = new IfBlockFuncAST(Type.getType("error"), null, null, elseBody);
+					RESULT = new AST.IfBlockFunc(Type.getType("error"), null, null, elseBody);
 				:}
 				| if_begin COND:cond then error else_begin EXPR:elseBody
 				{:  
 					report_syntax_error("Error in Then Block of an In-Then-Else Block"); 
-					RESULT = new IfBlockFuncAST(Type.getType("error"), cond, null, elseBody);
+					RESULT = new AST.IfBlockFunc(Type.getType("error"), cond, null, elseBody);
 				:}
 				//| error then EXPR else_begin EXPR
 				//	{: report_syntax_error("Missing 'if' inside an If-Then-Else Block"); 
-				//		RESULT = new IfBlockFuncAST(Type.getType("error"));
+				//		RESULT = new AST.IfBlockFunc(Type.getType("error"));
 				//	:}
 				| if_begin COND:cond error else_begin EXPR:elseBody
 				{: 
 					report_syntax_error("Missing 'then' inside an If-Then-Else Block"); 
-					RESULT = new IfBlockFuncAST(Type.getType("error"), cond, null, elseBody);
+					RESULT = new AST.IfBlockFunc(Type.getType("error"), cond, null, elseBody);
 				:}
 ;
 
@@ -2245,34 +1170,34 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:thenBody else_begin EXPR:elseBody
 ACTARG ::= id:id 
 		{:
 			Type idType;
-			LinkedList<ExprAST> actArgs = new LinkedList<>();
-			FunctCallAST functCall;
-			BasicExprAST[] subExpressions = new BasicExprAST[1];
-			if (isDeclared(id) && isAssigned(id)) {
-				idType = SymTableStack.getEntry(id).getType();
-				functCall = new FunctCallAST(idType, id, actArgs);
+			LinkedList<AST.Expr> actArgs = new LinkedList<>();
+			AST.FunctCall functCall;
+			AST.BasicExpr[] subExpressions = new AST.BasicExpr[1];
+			if (symTableStack.isDeclared(id) && symTableStack.isAssigned(id)) {
+				idType = symTableStack.getEntry(id).getType();
+				functCall = new AST.FunctCall(idType, id, actArgs);
 				subExpressions[0] = functCall;
-				RESULT = new ExprAST(new Type(idType), ExprKind.FUNCT_CALL, subExpressions);
+				RESULT = new AST.Expr(new Type(idType), AST.ExprKind.FUNCT_CALL, subExpressions);
 			} // DA QUI
-			else if (!isDeclared(id)){
+			else if (!symTableStack.isDeclared(id)){
 				report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
 				idType = Type.getType("error");
-				functCall = new FunctCallAST(idType, id, actArgs);
+				functCall = new AST.FunctCall(idType, id, actArgs);
 				subExpressions[0] = functCall;
-				RESULT = new ExprAST(new Type(idType), ExprKind.FUNCT_CALL, subExpressions);
+				RESULT = new AST.Expr(new Type(idType), AST.ExprKind.FUNCT_CALL, subExpressions);
 			}
 			else {
 				report_semantic_error("Value Declared but Not Assigned (Symbol \"" + id + "\")");
 				idType = Type.getType("error");
-				functCall = new FunctCallAST(idType, id, actArgs);
+				functCall = new AST.FunctCall(idType, id, actArgs);
 				subExpressions[0] = functCall;
-				RESULT = new ExprAST(new Type(idType), ExprKind.FUNCT_CALL, subExpressions);
+				RESULT = new AST.Expr(new Type(idType), AST.ExprKind.FUNCT_CALL, subExpressions);
 			}
 		:}
          | VALUE:value
 		{:
-			BasicExprAST[] subExpressions = { value };
-			RESULT = new ExprAST(value.type, ExprKind.VALUE, subExpressions);			
+			AST.BasicExpr[] subExpressions = { value };
+			RESULT = new AST.Expr(value.type, AST.ExprKind.VALUE, subExpressions);			
 		:}
 		 | ro EXPR:expr rc
 		{:
@@ -2283,7 +1208,7 @@ ACTARG ::= id:id
 // list of input arguments for function call
 LACTARG ::= /* empty list of args: we call a Value */
 			{: 
-				RESULT = new LinkedList<ExprAST>();
+				RESULT = new LinkedList<AST.Expr>();
 			:}
 		  | LACTARG:lactarg ACTARG:actarg
 			{:
@@ -2300,7 +1225,7 @@ VALUE ::= VALUE_BASIC:value_basic
 		:}
 		/*| EXPR_LIST:value_list
 		{:
-			RESULT = new ValueAST(value_list.type, value_list.value);
+			RESULT = new Value(value_list.type, value_list.value);
 		:}*/
 //		| VALUE_TUPLE
 ;
@@ -2309,23 +1234,23 @@ VALUE ::= VALUE_BASIC:value_basic
 VALUE_BASIC ::= 
 		val_int:val_int
 			{:
-				RESULT = new ValueAST(Type.getType("Int"), val_int);
+				RESULT = new AST.Value(Type.getType("Int"), val_int);
 			:}
 	  | val_double:val_double
 			{:
-				RESULT = new ValueAST(Type.getType("Double"), val_double);
+				RESULT = new AST.Value(Type.getType("Double"), val_double);
 			:}	  
 	  | val_bool:val_bool
 			{:
-				RESULT = new ValueAST(Type.getType("Bool"), val_bool);
+				RESULT = new AST.Value(Type.getType("Bool"), val_bool);
 			:}
 	  | val_char:val_char
 			{:
-				RESULT = new ValueAST(Type.getType("Char"), val_char);
+				RESULT = new AST.Value(Type.getType("Char"), val_char);
 			:}
 	  | val_string:val_string
 			{:
-				RESULT = new ValueAST(Type.getType("String"), val_string);
+				RESULT = new AST.Value(Type.getType("String"), val_string);
 			:}
 ;
 
@@ -2341,11 +1266,11 @@ EXPR_LIST ::= bo LEXPR:lexpr bc
 
 LEXPR ::= EXPR:expr
 		{:
-			ArrayList<ExprAST> lexpr = new ArrayList<>();
+			ArrayList<AST.Expr> lexpr = new ArrayList<>();
 			lexpr.add(expr);
 			Type type = Type.getType("List");
 			type.setTypeParam(0, expr.type);
-			RESULT = new ExprListAST(lexpr, type);
+			RESULT = new AST.ExprList(lexpr, type);
 		:}
 		| LEXPR:lexpr cm EXPR:expr 
 		{:

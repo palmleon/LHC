@@ -1,5 +1,5 @@
 countTrue :: [Bool] -> Int -> Int -> Int
-countTrue xs i cnt = if i < elem xs
+countTrue xs i cnt = if i < length xs
                      then 
                            if xs !! i
                            then countTrue xs (i+1) (cnt+1)

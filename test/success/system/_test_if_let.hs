@@ -6,8 +6,8 @@ a = if True then
       else 3
      else 5 -- a should be 2
 main = do 
-       let length :: Int 
-           length = let l :: Int
-                        l = a 
+       let len :: Int 
+           len = let l :: Int
+                     l = a 
                     in l
-       print length --length should be 2
+       print len --length should be 2

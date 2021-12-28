@@ -1,12 +1,12 @@
 gcd' :: Int -> Int -> Int
 gcd' x y = 
-          if x == 0 then y else gcd' (mod y x) x
+          if x == 0 then y else gcd' (y mod x) x
 myGCD :: Int -> Int -> Int
 myGCD x y = 
           if x < 0 then myGCD (-x) y else
 		  if y < 0 then myGCD x (-y) else
 		  if y < x then gcd' y x else
-		  gcd x y
+		  gcd' x y
 x, y :: Int		  
 x = 4
 y = 78
