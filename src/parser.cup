@@ -7,9 +7,6 @@ import java.util.Iterator;
 
 parser code {:
 
-//	private String outputFileName;
-
-
 	// Boolean flag that provides additional information for debugging purposes, when raised
 	private boolean debug_mode = true; 
 
@@ -23,6 +20,18 @@ parser code {:
 	
 	/* The fresh code we look for */
 	private LinkedList<String> code;
+		
+	public LinkedList<String> getCode() {
+		return code;
+	}
+	
+	private void setCode(LinkedList<String> code) {
+		this.code = code;
+	}
+	
+	public boolean compileSuccess() {
+		return noCompileErrors;
+	}
 	
 	/* 
 	 * 	Default Cup Function for reporting Syntax Errors
@@ -77,18 +86,6 @@ parser code {:
         return (((Symbol)stack.elementAt(tos+position)).value);
     }
 	
-	public LinkedList<String> getCode() {
-		return code;
-	}
-	
-	private void setCode(LinkedList<String> code) {
-		this.code = code;
-	}
-	
-	public boolean compileSuccess() {
-		return noCompileErrors;
-	}
-	
 :};
 
 action code {:
@@ -103,8 +100,6 @@ action code {:
  *  since such a Type would need too much space inside the typeMap, it is the ONLY Type that is not saved in the typeMap;
  *  so, it must be handled with specific procedures
  *  The "Any" Type acts as a wildcard and represents any possible Type (it represents Type Parameters)
- *  
- *  TODO Aggiungere metodi head, tail, size (per Liste), extract (per Tuple) nella symTable globale
  */
 init with {:
 		
@@ -310,7 +305,7 @@ IO_ACTIONS ::=
 PRINT ::= print ACTARG:actarg
 	{:
 		Type argType = actarg.getType();
-		if (argType.isSubtype("Double") || argType.isSubtype("String") || argType.isSubtype("Bool")) {
+		if (argType.isSubtype("Double") || argType.isSubtype("String") || argType.isSubtype("Char")) {
 			RESULT = new AST.Print(actarg);
 		}
 		else {

@@ -37,7 +37,7 @@ Per ogni insieme di istruzioni LLVM che vogliamo tradurre:
 | ExprListAST      | ArrayList<ExprAST> exprArray                             | foreach expr in exprArray:<br />  exprIndex = expr.codegen()<br />  mountCode(code, expr.code)<br />  indexList.add(exprIndex)<br />listIndex = createList(indexList, this.type)<br />return listIndex |
 | LFormArgAST      | ArrayList<String> argList, ArrayList<Type> typeList      | foreach arg in argList:<br />  createFormArg(arg, arg.type)  |
 
-
+Al momento, le Variabili di Tipo elementare (Int, Double, Bool, Char) sono salvate direttamente in registri, mentre Liste e Stringhe sono allocate nello Stack Frame
 
 ## PROBLEMI:
 
@@ -49,7 +49,7 @@ Per ogni insieme di istruzioni LLVM che vogliamo tradurre:
 
 Gestire le Forward References 
 
-- i Label devono essere stringhe di testo: assicurarsi che i label siano unici per ogni if-then-else: usare un ifCounter che viene incrementato ogni volta che un If-then-else deve essere generato
+- i Label devono essere stringhe di testo: assicurarsi che i label siano unici per ogni if-then-else: usare un ifCounter che viene incrementato ogni volta che un If-then-else deve essere generato OK
 
 #### Altro:
 

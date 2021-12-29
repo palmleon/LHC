@@ -15,7 +15,9 @@ public class AST {
 		
 		abstract String codegen();
 		
-		public LinkedList<String> getCode() { return this.code; }
+		public LinkedList<String> getCode() { 
+			return this.code; 
+		}
 		
 		protected void mountCode(BasicNode otherNode) {
 			this.code.addAll(otherNode.getCode());
@@ -98,9 +100,10 @@ public class AST {
 		
 		@Override
 		String codegen() { 
-			String result = actarg.codegen();
+			String actargIndex = actarg.codegen();
 			mountCode(actarg);
-			code.addAll(LLVM.createPrintCall(result, actarg.getType()));
+			String result = LLVM.createVariable(LLVM.getCounterSSA());
+			code.add(LLVM.createPrintCall(result, actarg.getType(), actargIndex));
 			return null;
 		}
 	}
@@ -138,19 +141,18 @@ public class AST {
 			int ifIndex;
 			String condIndex;
 			ifIndex = LLVM.getCounterIf();
-			LLVM.updateCounterIf();
 			condIndex = cond.codegen();
 			mountCode(cond);
-			code.add(LLVM.createBranchCond(condIndex, "if.then." + ifIndex, "if.else." + ifIndex));
-			code.add(LLVM.createLabel("if.then." + ifIndex));
+			code.add(LLVM.createBranchCond(condIndex, "if.then$" + ifIndex, "if.else$" + ifIndex));
+			code.add(LLVM.createLabel("if.then$" + ifIndex));
 			thenBody.codegen();
 			mountCode(thenBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.else." + ifIndex));
+			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			code.add(LLVM.createLabel("if.else$" + ifIndex));
 			elseBody.codegen();
 			mountCode(elseBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.exit." + ifIndex));
+			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			code.add(LLVM.createLabel("if.exit$" + ifIndex));
 			return null;
 		}
 	}
@@ -257,82 +259,82 @@ public class AST {
 		@Override
 		String codegen() {	// TO BE COMPLETED
 			String[] subExpResults = new String[subExpressions.length];
-			String result = null; // = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+			String result = null; 
 			for (int i = 0; i < subExpressions.length; i++) {
 				subExpResults[i] = subExpressions[i].codegen();
 				mountCode(subExpressions[i]);
 			}
 			switch (exprKind) {
 				case PLUS: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createAdd(result, subExpResults, type);
 					break;
 				case MINUS: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createSub(result, subExpResults, type);
 					break;
 				case TIMES: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createMult(result, subExpResults, type);
 					break;
 				case DIV: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createDiv(result, subExpResults, type);
 					break;
 				case INTDIV: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createIntDiv(result, subExpResults, type);
 					break;
 				case MOD: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createMod(result, subExpResults, type);
 					break;
 				case AND: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createAnd(result, subExpResults, type);
 					break;
 				case OR: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createOr(result, subExpResults, type);
 					break;
 				case RELNOTEQ: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createRelNotEQ(result, subExpResults, type);
 					break;
 				case RELEQ: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createRelEQ(result, subExpResults, type);
 					break;
 				case RELGE: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createRelGE(result, subExpResults, type);
 					break;
 				case RELGT: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createRelGT(result, subExpResults, type);
 					break;
 				case RELLE: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createRelLE(result, subExpResults, type);
 					break;
 				case RELLT: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createRelLT(result, subExpResults, type);
 					break;
 				case LENGTH: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createLength(result, subExpResults, type);
 					break;
 				case INDEX: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createIndex(result, subExpResults, type);
 					break;
 				case NOT: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createNot(result, subExpResults, type);
 					break;
 				case UMINUS: 
-					result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					LLVM.createUMinus(result, subExpResults, type);
 					break;
 				case LET_BLOCK_FUNC: 
@@ -392,21 +394,20 @@ public class AST {
 			final int ifIndex;
 			String condIndex, thenIndex, elseIndex, result;
 			ifIndex = LLVM.getCounterIf();
-			LLVM.updateCounterIf();
 			condIndex = cond.codegen();
 			mountCode(cond);
-			code.add(LLVM.createBranchCond(condIndex, "if.then." + ifIndex, "if.else." + ifIndex));
-			code.add(LLVM.createLabel("if.then." + ifIndex));
+			code.add(LLVM.createBranchCond(condIndex, "if.then$" + ifIndex, "if.else$" + ifIndex));
+			code.add(LLVM.createLabel("if.then$" + ifIndex));
 			thenIndex = thenBody.codegen();
 			mountCode(thenBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.else." + ifIndex));
+			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			code.add(LLVM.createLabel("if.else$" + ifIndex));
 			elseIndex = elseBody.codegen();
 			mountCode(elseBody);
-			code.add(LLVM.createBranchNotCond("if.exit." + ifIndex));
-			code.add(LLVM.createLabel("if.exit." + ifIndex));
-			result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
-			code.add(LLVM.createPHINode(result, this.type, "if.then." + ifIndex, thenIndex, "if.else." + ifIndex, elseIndex));
+			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			code.add(LLVM.createLabel("if.exit$" + ifIndex));
+			result = LLVM.createVariable(LLVM.getCounterSSA());
+			code.add(LLVM.createPHINode(result, this.type, "if.then$" + ifIndex, thenIndex, "if.else$" + ifIndex, elseIndex));
 			return result;
 		}
 	}
@@ -436,11 +437,11 @@ public class AST {
 				mountCode(actarg);
 			}
 			if (id.contains("$")) { // only local values have a '$' appended to their name
-				result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+				result = LLVM.createVariable(LLVM.getCounterSSA());
 				code.add(LLVM.createLoad(result, this.type, id));
 			}
 			else {
-				result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA(); 
+				result = LLVM.createVariable(LLVM.getCounterSSA());
 				code.add(LLVM.createFunctionCall(result, this.type, id, argIds, argTypes));
 			}
 			return result;
@@ -479,10 +480,10 @@ public class AST {
 			// strings need a special treatment to become usable, 
 			// so they actually define some code
 			else if (type.isEquivalent("String")) {
-				String reg = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+				String reg = LLVM.createVariable(LLVM.getCounterSSA());
 				code.add(LLVM.createAlloca(reg, type, ((String) value).length()+1));
 				code.add(LLVM.createStoreConstant(reg, type, value));
-				result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+				result = LLVM.createVariable(LLVM.getCounterSSA());
 				code.addAll(LLVM.createArrayToPtrConversion(result, type, reg, ((String) value).length() + 1));
 			}
 			return result;
@@ -508,13 +509,13 @@ public class AST {
 				subExpResults.add(subExpResult);
 				mountCode(expr);
 			}
-			String reg = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+			String reg = LLVM.createVariable(LLVM.getCounterSSA());
 			code.add(LLVM.createAlloca(reg, type, exprArray.size()));
 			int i = 0;
 			for (String subExp: subExpResults) {
 				code.addAll(LLVM.createStoreArrayElement(reg, type, subExp, i)); 
 			}
-			String result = LLVM.getCounterSSA().toString(); LLVM.updateCounterSSA();
+			String result = LLVM.createVariable(LLVM.getCounterSSA());
 			code.addAll(LLVM.createArrayToPtrConversion(result, type, reg, exprArray.size()));
 			return result;
 		}
