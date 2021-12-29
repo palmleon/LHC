@@ -5,7 +5,6 @@ BIN_DIR = "bin"
 OUTPUT_DIR = "output"
 SRC_DIR = "src"
 TEST_DIR = "test"
-#TEST_SRC = $(wildcard $(TEST_DIR)/$(KIND)/$(LEVEL)/*.hs)
 TEST_SRC := $(shell find $(TEST_DIR)/$(KIND)/$(LEVEL)/ -name '*.hs')
 TEST_OUT := $(patsubst %.hs,%.ll,$(TEST_SRC))
 JAVA = "java"

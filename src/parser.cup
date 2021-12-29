@@ -7,23 +7,22 @@ import java.util.Iterator;
 
 parser code {:
 
-	private String outputFileName;
+//	private String outputFileName;
 
-	public boolean noCompileErrors = true;
+
+	// Boolean flag that provides additional information for debugging purposes, when raised
+	private boolean debug_mode = true; 
+
+	// Flag that is set to true until the first compile-time error is detected
+	private boolean noCompileErrors = true;
 	
 	/* Next Line and Next Column Index (the parser is LALR(1)), so the last symbol scanned is the following one */
-	public int nextLine, nextColumn;
+	private int nextLine, nextColumn;
 	/* Current Line and Column Index (i.e. yyline() and yycolumn() in JFlex) */
-	public int currLine = 0, currColumn = 0;
+	private int currLine = 0, currColumn = 0;
 	
-	/*
-	 *  Define the name of the output file, containing the final Intermediate Representation in LLVM
-	 *	@param: String outputFileName - name of the output file
-	 *	@return: nothing
-	 */
-	public void setOutputFileName(String outputFileName) {
-		this.outputFileName = outputFileName;
-	}
+	/* The fresh code we look for */
+	private LinkedList<String> code;
 	
 	/* 
 	 * 	Default Cup Function for reporting Syntax Errors
@@ -33,16 +32,7 @@ parser code {:
 	public void syntax_error(java_cup.runtime.Symbol current) {
 		report_error(current);
 	}
-	
-	/*
-	 * Function to retrieve values directly from the Stack
-	 * @param: int position - position wrt the top of the Stack
-	 * @return: Object - the corresponding element of the Stack 
-	 */
-    public Object stack(int position) {
-        return (((Symbol)stack.elementAt(tos+position)).value);
-    }
-	
+		
 	/* 
 	 *  Inform the user that a Syntax Error has been raised, and inform them about the nature of the Syntax Error
 	 *	@param: Object info - The last parsed symbol before raising the last Syntax Error
@@ -78,13 +68,31 @@ parser code {:
         //CUP$Parser$actions.symTableStack.dumpSymTableStack();
 	}
 	
+	/*
+	 * Function to retrieve values directly from the Stack
+	 * @param: int position - position wrt the top of the Stack
+	 * @return: Object - the corresponding element of the Stack 
+	 */
+    private Object stack(int position) {
+        return (((Symbol)stack.elementAt(tos+position)).value);
+    }
+	
+	public LinkedList<String> getCode() {
+		return code;
+	}
+	
+	private void setCode(LinkedList<String> code) {
+		this.code = code;
+	}
+	
+	public boolean compileSuccess() {
+		return noCompileErrors;
+	}
+	
 :};
 
 action code {:
 
-	// Boolean flag that provides additional information for debugging purposes, when raised
-	public static boolean debug_mode = true; 
-	
 	private SymTableStack symTableStack = new SymTableStack();
 
 :};
@@ -227,8 +235,10 @@ PROGRAM ::= /* empty program */
 				if (noCompileErrors) {
 					System.out.println("CODE COMPILED SUCCESSFULLY");
 					RESULT = new AST.Program(funct_part, imper_part);
-					//RESULT.codegen();
-					// TODO COPY CODE TO OUTPUT FILE
+					// Code generation
+					RESULT.codegen();
+					// Retrieve the code
+					setCode(RESULT.getCode());
 				}	
 				else {
 					System.out.println("CODE NOT COMPILED: FAILED");
@@ -299,7 +309,7 @@ IO_ACTIONS ::=
 
 PRINT ::= print ACTARG:actarg
 	{:
-		Type argType = actarg.type;
+		Type argType = actarg.getType();
 		if (argType.isSubtype("Double") || argType.isSubtype("String") || argType.isSubtype("Bool")) {
 			RESULT = new AST.Print(actarg);
 		}
@@ -365,7 +375,7 @@ LET_BLOCK_IMPER ::=
 // DEF_FUNCT not supported (for now)
 LET_STMTS ::= LET_STMTS:let_stmts sep DECL_TYPE:decl_type
 			{:
-				if(decl_type.type.isSubtype("Function")) {
+				if(decl_type.getType().isSubtype("Function")) {
 					report_semantic_error("No Support for Local Functions");
 				}
 				RESULT = let_stmts;
@@ -378,7 +388,7 @@ LET_STMTS ::= LET_STMTS:let_stmts sep DECL_TYPE:decl_type
 			:}
 			| DECL_TYPE:decl_type
 			{:
-				if(decl_type.type.isSubtype("Function")) {
+				if(decl_type.getType().isSubtype("Function")) {
 					report_semantic_error("No Support for Local Functions");
 				}
 				RESULT = new LinkedList<AST.Stmt>();
@@ -423,7 +433,7 @@ GLOBAL_STMTS ::= /* empty List of Statements section */
 
 STMT ::= DECL_TYPE:decl_type
 		{: // Global Lists and Functions returning Lists are not supported in this version of the compiler 
-			if (decl_type.type.isSubtype("List")) {
+			if (decl_type.getType().isSubtype("List")) {
 				report_semantic_error("Global Lists not supported");
 			}
 			RESULT = decl_type;
@@ -440,7 +450,7 @@ STMT ::= DECL_TYPE:decl_type
 
 DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			{:
-				Type type = decl_type.type;
+				Type type = decl_type.getType();
 				if (!symTableStack.isLocallyDeclared(id) && !(type.isSubtype("Function") && type.returnType().isSubtype("List"))) {
 					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
 				}
@@ -495,7 +505,7 @@ DEF_VALUE ::= id:id
 					// Global Values are actually Nullary Functions
 					ArrayList<String> argNames = new ArrayList<>();
 					ArrayList<Type> argTypes = new ArrayList<>();
-					AST.LFormArg lformarg = new AST.LFormArg(argNames, argTypes, expr.type);
+					AST.LFormArg lformarg = new AST.LFormArg(argNames, argTypes, expr.getType());
 					RESULT = new AST.DefFunct(id, lformarg, expr);
 				}
 				else {
@@ -528,10 +538,10 @@ DEF_FUNCT ::= id:id {:
 						if (idType != null && !idType.isSubtype("Function")) {
 							report_semantic_error("Not a Function (Symbol \"" + id + "\")");
 						}
-						else if (!idType.hasArity(lformarg.argNames.size())) {
+						else if (!idType.hasArity(lformarg.getArgNames().size())) {
 							report_semantic_error("Mismatching Arity (Symbol \"" + id + "\")");
 						}
-						else if (!expr.type.isEquivalent(idType.returnType().getTypeName())) {
+						else if (!expr.getType().isEquivalent(idType.returnType().getTypeName())) {
 							report_semantic_error("Return Type is not equivalent to the Expression Type (Symbol \"" + id + "\")");
 						}
 					}
@@ -588,27 +598,27 @@ LPATTERN_CM ::= PATTERN
 
 LFORMARG ::= LFORMARG:lformarg id:id 
 			{:
-				Type propTree = lformarg.propType;
-				if (!symTableStack.isLocallyDeclared(id) && propTree != null && propTree.isSubtype("Function")) {
-					Type argTree = new Type(propTree.getTypeParam(0));
+				Type propType = lformarg.getPropType();
+				if (!symTableStack.isLocallyDeclared(id) && propType != null && propType.isSubtype("Function")) {
+					Type argTree = new Type(propType.getTypeParam(0));
 					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
-					lformarg.argNames.add(symTableStack.createUniqueId(id));
-					lformarg.argTypes.add(argTree);
-					RESULT = new AST.LFormArg(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
+					lformarg.getArgNames().add(symTableStack.createUniqueId(id));
+					lformarg.getArgTypes().add(argTree);
+					RESULT = new AST.LFormArg(lformarg.getArgNames(), lformarg.getArgTypes(), propType.getTypeParam(1));
 				}
 				else if (symTableStack.isLocallyDeclared(id)) {
 					report_semantic_error("Multiple Argument Declaration (Symbol \"" + id + "\")");
 					// Error Recovery
-					lformarg.argNames.add(symTableStack.createUniqueId(id));
-					lformarg.argTypes.add(Type.getType("error"));
-					RESULT = new AST.LFormArg(lformarg.argNames, lformarg.argTypes, propTree.getTypeParam(1));
+					lformarg.getArgNames().add(symTableStack.createUniqueId(id));
+					lformarg.getArgTypes().add(Type.getType("error"));
+					RESULT = new AST.LFormArg(lformarg.getArgNames(), lformarg.getArgTypes(), propType.getTypeParam(1));
 				}
 				else {
 					report_semantic_error("Mismatching Arity in Function"); 
 					// Error Recovery
-					lformarg.argNames.add(symTableStack.createUniqueId(id));
-					lformarg.argTypes.add(Type.getType("error"));
-					RESULT = new AST.LFormArg(lformarg.argNames, lformarg.argTypes, Type.getType("error"));
+					lformarg.getArgNames().add(symTableStack.createUniqueId(id));
+					lformarg.getArgTypes().add(Type.getType("error"));
+					RESULT = new AST.LFormArg(lformarg.getArgNames(), lformarg.getArgTypes(), Type.getType("error"));
 				}
 			:}
 		   | id:id 
@@ -1132,7 +1142,6 @@ LET_BLOCK_FUNC ::= 	let indent
 					:}
 ;
 
-
 IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:thenBody else_begin EXPR:elseBody 
 				{:
 					if(thenBody.type.isEquivalent(elseBody.type)) {
@@ -1278,7 +1287,7 @@ LEXPR ::= EXPR:expr
 				report_semantic_error("Wrong Type in List Expression");
 			}
 			RESULT = lexpr;
-			RESULT.exprArray.add(expr);
+			RESULT.getExprArray().add(expr);
 		:}
 		//| error cm EXPR
 		//	{: report_syntax_error("Error in List of Expressions"); :}

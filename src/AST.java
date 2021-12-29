@@ -10,18 +10,21 @@ public class AST {
 	 * Basic 
 	 */
 	public abstract static class BasicNode {
-		LinkedList<String> code = new LinkedList<>();
+		
+		protected LinkedList<String> code = new LinkedList<>();
 		
 		abstract String codegen();
 		
-		void mountCode(BasicNode otherNode) {
-			this.code.addAll(otherNode.code);
+		public LinkedList<String> getCode() { return this.code; }
+		
+		protected void mountCode(BasicNode otherNode) {
+			this.code.addAll(otherNode.getCode());
 		}
 	}
 	 
 	public static class Program extends BasicNode {
-		FunctPart functPart;
-		ImperPart imperPart;
+		private FunctPart functPart;
+		private ImperPart imperPart;
 		
 		Program(FunctPart functPart, ImperPart imperPart) {
 			this.functPart = functPart;
@@ -39,7 +42,7 @@ public class AST {
 	}
 	
 	public static class FunctPart extends BasicNode {
-		LinkedList<Stmt> stmts;
+		private LinkedList<Stmt> stmts;
 		
 		FunctPart(LinkedList<Stmt> stmts) {
 			this.stmts = stmts;
@@ -56,7 +59,7 @@ public class AST {
 	}
 	
 	public static class ImperPart extends BasicNode {
-		IOAction ioAction;
+		private IOAction ioAction;
 		
 		ImperPart(IOAction ioAction) {
 			this.ioAction = ioAction;
@@ -87,7 +90,7 @@ public class AST {
 	public abstract static class IOAction extends DoStmt {}
 	
 	public static class Print extends IOAction {
-		Expr actarg;
+		private Expr actarg;
 		
 		Print(Expr actarg) {
 			this.actarg = actarg;
@@ -97,13 +100,13 @@ public class AST {
 		String codegen() { 
 			String result = actarg.codegen();
 			mountCode(actarg);
-			code.addAll(LLVM.createPrintCall(result, actarg.type));
+			code.addAll(LLVM.createPrintCall(result, actarg.getType()));
 			return null;
 		}
 	}
 	
 	public static class DoBlock extends IOAction {
-		LinkedList<DoStmt> ioActions;
+		private LinkedList<DoStmt> ioActions;
 		
 		DoBlock(LinkedList<DoStmt> ioActions) {
 			this.ioActions = ioActions;
@@ -120,9 +123,9 @@ public class AST {
 	}
 	
 	public static class IfBlockImper extends IOAction{
-		Expr cond;
-		IOAction thenBody;
-		IOAction elseBody;
+		private Expr cond;
+		private IOAction thenBody;
+		private IOAction elseBody;
 		
 		IfBlockImper(Expr cond, IOAction thenBody, IOAction elseBody) {
 			this.cond 	  = cond;
@@ -153,7 +156,7 @@ public class AST {
 	}
 	
 	public static class LetBlockImper extends DoStmt {
-		LinkedList<Stmt> letStmts;
+		private LinkedList<Stmt> letStmts;
 		
 		LetBlockImper(LinkedList<Stmt> letStmts) {
 			this.letStmts = letStmts;
@@ -172,19 +175,21 @@ public class AST {
 	public abstract static class Stmt extends BasicNode {}
 		
 	public static class DeclType extends Stmt {
-		Type type; // Used to propagate Type over multiple Type Declaration on the same line
+		private Type type; // Used to propagate Type over multiple Type Declaration on the same line
 		
 		DeclType (Type type) {
 			this.type = type;
 		}
+		
+		public Type getType() { return this.type; }
 		
 		@Override
 		String codegen() { return null;}
 	}
 	
 	public static class DefValue extends Stmt {
-		String id; // must be a "unique" id
-		Expr expr;
+		private String id; // must be a "unique" id
+		private Expr expr;
 		
 		DefValue(String id, Expr expr) {
 			this.id = id;
@@ -195,16 +200,16 @@ public class AST {
 		String codegen() { 
 			String exprIndex = expr.codegen();
 			mountCode(expr);
-			code.add(LLVM.createAlloca(id, expr.type));
-			code.add(LLVM.createStore(id, exprIndex, expr.type));
+			code.add(LLVM.createAlloca(id, expr.getType()));
+			code.add(LLVM.createStore(id, exprIndex, expr.getType()));
 			return null;
 		}
 	}
 	
 	public static class DefFunct extends Stmt {
-		String id; // must be a "unique" id
-		LFormArg lformarg;
-		Expr expr;
+		private String id; // must be a "unique" id
+		private LFormArg lformarg;
+		private Expr expr;
 		
 		DefFunct(String id, LFormArg lformarg, Expr expr) {
 			this.id = id;
@@ -215,18 +220,20 @@ public class AST {
 		@Override
 		String codegen() { 
 			LLVM.resetCounterSSA();
-			code.add(LLVM.createFunctionDefinition(id, expr.type, lformarg));
+			code.add(LLVM.createFunctionDefinition(id, expr.getType(), lformarg));
 			code.addAll(LLVM.openFunction());
 			String result = expr.codegen();
 			mountCode(expr);
-			code.add(LLVM.createReturn(result, expr.type));
+			code.add(LLVM.createReturn(result, expr.getType()));
 			code.add(LLVM.closeFunction());
 			return null;
 		}
 	}
 	
 	public abstract static class BasicExpr extends BasicNode {
-		Type type;
+		protected Type type;
+		
+		public Type getType() { return this.type; }
 	}
 	
 	public enum ExprKind {
@@ -238,8 +245,8 @@ public class AST {
 	
 	public static class Expr extends BasicExpr {
 		
-		ExprKind exprKind;
-		BasicExpr[] subExpressions; //the subexpressions
+		private ExprKind exprKind;
+		private BasicExpr[] subExpressions; //the subexpressions
 		
 		Expr (Type type, ExprKind exprKind, BasicExpr[] subExpressions) {
 			this.type = type;
@@ -349,8 +356,8 @@ public class AST {
 	}
 	
 	public static class LetBlockFunc extends BasicExpr {
-		LinkedList<Stmt> letStmts;
-		Expr expr;
+		private LinkedList<Stmt> letStmts;
+		private Expr expr;
 		
 		LetBlockFunc(Type type, LinkedList<Stmt> letStmts, Expr expr) {
 			this.type = type;
@@ -371,7 +378,7 @@ public class AST {
 	}
 	
 	public static class IfBlockFunc extends BasicExpr {
-		Expr cond, thenBody, elseBody;
+		private Expr cond, thenBody, elseBody;
 		
 		IfBlockFunc(Type type, Expr cond, Expr thenBody, Expr elseBody) {
 			this.type = type;
@@ -408,8 +415,8 @@ public class AST {
 	 * Includes both global variables and functions
 	 */
 	public static class FunctCall extends BasicExpr {
-		String id; // must be a unique id
-		LinkedList<Expr> actargs;
+		private String id; // must be a unique id
+		private LinkedList<Expr> actargs;
 		
 		FunctCall(Type type, String id, LinkedList<Expr> actargs) {
 			this.type = type;
@@ -444,7 +451,7 @@ public class AST {
 	 *	- Basic type for basic types (Int, Double, Char, String, Bool)
 	 */
 	public static class Value extends BasicExpr{
-		Object value;
+		private Object value;
 		
 		Value (Type type, Object value) {
 			this.type = type;
@@ -483,12 +490,14 @@ public class AST {
 	}	
 	
 	public static class ExprList extends BasicExpr{
-		ArrayList<Expr> exprArray;
+		private ArrayList<Expr> exprArray;
 		
 		ExprList (ArrayList<Expr> exprArray, Type type) {
 			this.exprArray = exprArray;
 			this.type = type;
 		}
+		
+		public ArrayList<Expr> getExprArray() { return this.exprArray; }
 		
 		@Override
 		String codegen() { 
@@ -512,15 +521,19 @@ public class AST {
 	}
 	
 	public static class LFormArg extends BasicNode{
-		Type propType; // used for propagating type over the arguments
-		ArrayList<String> argNames; // must be unique ids
-		ArrayList<Type> argTypes;
+		private Type propType; // used for propagating type over the arguments
+		private ArrayList<String> argNames; // must be unique ids
+		private ArrayList<Type> argTypes;
 		
 		LFormArg (ArrayList<String> argNames, ArrayList<Type> argTypes, Type propType) {
 			this.argNames = argNames;
 			this.argTypes = argTypes;
 			this.propType = propType;
 		}
+		
+		public Type getPropType() { return this.propType; }
+		public ArrayList<String> getArgNames() { return this.argNames; }
+		public ArrayList<Type> getArgTypes() { return this.argTypes; }
 		
 		@Override
 		String codegen() { return null; } //Formal Argument Code is generated when generating code for Function Definition
