@@ -139,9 +139,9 @@ scan with {:
 
 terminal main;
 terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep/*, us */;
-terminal plus, minus, times, div, intdiv, mod, uminus, and, or, not;
+terminal plus, minus, times, div, intdiv, rem, uminus, and, or, not;
 //terminal head, tail, cons, conc; 
-terminal length, index;
+terminal index;
 terminal releq, relnoteq, relge, relgt, relle, rellt;
 terminal indent, dedent;
 //terminal where, pipe;
@@ -198,7 +198,7 @@ precedence left or;
 precedence left and;
 precedence nonassoc releq, relnoteq, relgt, relge, rellt, relle;
 precedence left plus, minus;
-precedence left times, div, intdiv, mod;
+precedence left times, div, intdiv, rem;
 precedence nonassoc index;
 precedence nonassoc not, uminus;
 
@@ -777,24 +777,24 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.INTDIV, subExpressions);
 			}
 		:}
-	   | EXPR:expr1 mod EXPR:expr2 
+	   | EXPR:expr1 rem EXPR:expr2 
 	   {:
-			String opType = "mod";	
+			String opType = "rem";	
 			AST.BasicExpr[] subExpressions = { expr1, expr2 };
 			if (expr1.type.isSubtype("Int") && expr2.type.isSubtype("Int") && expr1.type.isEquivalent(expr2.type.getTypeName())) {
-				RESULT = new AST.Expr(Type.getType("Int"), AST.ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("Int"), AST.ExprKind.REM, subExpressions);
 			}
 			else if (!expr1.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type in LHS of \"" + opType + "\" Expression");
-				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.REM, subExpressions);
 			}
 			else if (!expr2.type.isSubtype("Int")) {
 				report_semantic_error("Wrong Type in RHS of \"" + opType + "\" Expression");
-				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.REM, subExpressions);
 			}
 			else {
 				report_semantic_error("Mismatching Operand Type on \"" + opType + "\" Expression");
-				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MOD, subExpressions);
+				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.REM, subExpressions);
 			}
 		:}
 	   //| EXPR:expr1 and EXPR_NOTUNARYOP:expr2
@@ -964,20 +964,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLE, subExpressions);
 			}
 		:}
-	   //| head ACTARG
-	   //| tail ACTARG
-	   | length ACTARG:actarg
-	   {:
-			String opType = "length";
-			AST.BasicExpr[] subExpressions = { actarg };
-			if (actarg.type.isSubtype("List")) {
-				RESULT = new AST.Expr(Type.getType("Int"), AST.ExprKind.LENGTH, subExpressions);
-			}
-			else {
-				report_semantic_error("Wrong Type in \"" + opType + "\" Expression");
-				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.LENGTH, subExpressions);
-			}
-	   :}
 	   //| EXPR:expr1 index EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 index EXPR:expr2
 	   {:

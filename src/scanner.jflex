@@ -181,7 +181,7 @@ ws = [ \t]
 "*"				{return manageToken(createSymbol(sym.times));}
 "/"				{return manageToken(createSymbol(sym.div));}
 div				{return manageToken(createSymbol(sym.intdiv));}
-mod				{return manageToken(createSymbol(sym.mod));}
+rem				{return manageToken(createSymbol(sym.rem));}
 "&&"			{return manageToken(createSymbol(sym.and));}
 "||"			{return manageToken(createSymbol(sym.or));}
 not				{return manageToken(createSymbol(sym.not));}
@@ -200,7 +200,6 @@ do				{indentEnable = true;
 				 return manageToken(createSymbol(sym.do_begin));}
 //head			{return manageToken(sym.head);}
 //tail			{return manageToken(sym.tail);}
-length			{return manageToken(createSymbol(sym.length));}
 "!!"			{return manageToken(createSymbol(sym.index));}
 if				{return manageToken(createSymbol(sym.if_begin));}
 then			{return manageToken(createSymbol(sym.then));}
