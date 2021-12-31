@@ -1,3 +1,3 @@
 x :: Int
-x = 3
+x = 4 rem 3
 main = print x

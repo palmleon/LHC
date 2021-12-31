@@ -11,7 +11,7 @@ import java.util.Stack;
  */
 public class SymTableStack {
 	
-	private static boolean debug_mode = true;
+	private static boolean debug_mode = false;
 	
 	/* Class for Symbol Table Entry
 	 * All Entries inside any SymTable are instances of this Class

@@ -1,1 +1,1 @@
-main = if True then print "hello" else print "hello"
+main = if True then print "hello1" else print "hello2"

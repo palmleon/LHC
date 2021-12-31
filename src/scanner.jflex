@@ -39,7 +39,7 @@ import java.io.IOException;
 	private boolean endOfCode = false;
 	
 	/* Flag for printing debug info */
-	private boolean debugMode = true;
+	private boolean debugMode = false;
 	
 	public void report_error(String msg) {
 		System.err.print("ERROR: Lexical error");
@@ -218,8 +218,8 @@ String			{return manageToken(createSymbol(sym.type_string));}
 {int}			{return manageToken(createSymbol(sym.val_int, 	 Integer.valueOf(yytext())));}
 {double}		{return manageToken(createSymbol(sym.val_double, Double.valueOf(yytext())));}
 {bool}			{return manageToken(createSymbol(sym.val_bool, 	 Boolean.valueOf(yytext())));}
-{char}			{return manageToken(createSymbol(sym.val_char));}
-{string}		{return manageToken(createSymbol(sym.val_string, yytext()));}
+{char}			{return manageToken(createSymbol(sym.val_char, 	 yytext().charAt(1)));}
+{string}		{return manageToken(createSymbol(sym.val_string, yytext().substring(1, yytext().length()-1)));}
 {id}			{return manageToken(createSymbol(sym.id, 		 yytext().replace('\'', '.')));}
 {ws}			{;}
 {nl}			{foundNewline = true;}

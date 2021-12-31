@@ -9,7 +9,7 @@ TEST_SRC := $(shell find $(TEST_DIR)/$(KIND)/$(LEVEL)/ -name '*.hs')
 TEST_OUT := $(patsubst %.hs,%.ll,$(TEST_SRC))
 JAVA = "java"
 
-.PHONY: install clean build test run
+.PHONY: install clean build cleantest test run
 
 install:
 	cd $(SRC_DIR)/ && $(MAKE)
@@ -20,16 +20,19 @@ clean:
 	cd $(SRC_DIR) && make clean
 	rm -vfr $(BIN_DIR)/*.class
 	rm -vfr $(SRC_DIR)/*.*~
+
+cleantest:
+	rm -f $(TEST_OUT)
 	
-test: $(TEST_OUT)
+test: cleantest $(TEST_OUT)
 	
 %.ll: %.hs
 	cd $(BIN_DIR)/ ; java Main ../$< ../$@
 
 build:
-	cd $(BIN_DIR)/ ; java Main ../$(PROGRAM_DIR)/$(FILE).hs $(FILE).ll
+	cd $(BIN_DIR)/ ; java Main ../$(PROGRAM_DIR)/$(FILE).hs ../$(PROGRAM_DIR)/$(FILE).ll
 	
 run: build
-	lli $(FILE).ll 
+	lli ../$(PROGRAM_DIR)/$(FILE).ll 
 	
 

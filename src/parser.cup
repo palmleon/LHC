@@ -8,7 +8,7 @@ import java.util.Iterator;
 parser code {:
 
 	// Boolean flag that provides additional information for debugging purposes, when raised
-	private boolean debug_mode = true; 
+	private boolean debug_mode = false; 
 
 	// Flag that is set to true until the first compile-time error is detected
 	private boolean noCompileErrors = true;
@@ -213,7 +213,11 @@ PROGRAM ::= /* empty program */
 				if (noCompileErrors) {
 				System.out.println("CODE COMPILED SUCCESSFULLY");
 				}
-				RESULT = new AST.Program(null, null);
+				RESULT = new AST.Program(new AST.FunctPart(), new AST.ImperPart(null));
+				// Code generation
+				RESULT.codegen();
+				// Retrieve the code
+				setCode(RESULT.getCode());
 			:}
 		  | indent
 			{:	// push the top-level symtable
@@ -1165,21 +1169,21 @@ ACTARG ::= id:id
 			AST.BasicExpr[] subExpressions = new AST.BasicExpr[1];
 			if (symTableStack.isDeclared(id) && symTableStack.isAssigned(id)) {
 				idType = symTableStack.getEntry(id).getType();
-				functCall = new AST.FunctCall(idType, id, actArgs);
+				functCall = new AST.FunctCall(idType, symTableStack.createUniqueId(id), actArgs);
 				subExpressions[0] = functCall;
 				RESULT = new AST.Expr(new Type(idType), AST.ExprKind.FUNCT_CALL, subExpressions);
 			} // DA QUI
 			else if (!symTableStack.isDeclared(id)){
 				report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
 				idType = Type.getType("error");
-				functCall = new AST.FunctCall(idType, id, actArgs);
+				functCall = new AST.FunctCall(idType, symTableStack.createUniqueId(id), actArgs);
 				subExpressions[0] = functCall;
 				RESULT = new AST.Expr(new Type(idType), AST.ExprKind.FUNCT_CALL, subExpressions);
 			}
 			else {
 				report_semantic_error("Value Declared but Not Assigned (Symbol \"" + id + "\")");
 				idType = Type.getType("error");
-				functCall = new AST.FunctCall(idType, id, actArgs);
+				functCall = new AST.FunctCall(idType, symTableStack.createUniqueId(id), actArgs);
 				subExpressions[0] = functCall;
 				RESULT = new AST.Expr(new Type(idType), AST.ExprKind.FUNCT_CALL, subExpressions);
 			}

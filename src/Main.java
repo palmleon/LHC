@@ -17,7 +17,9 @@ public class Main {
 				PrintWriter writer = new PrintWriter(new FileWriter(argv[1]));
 				for (String line: parser.getCode()) { writer.println(line); }
 				writer.close();
+				System.out.println("Output code successfully stored in " + argv[1]);
 			}
+			System.out.println("Exit the program by closing the window...");
         } catch (Exception e) {
             e.printStackTrace();
         }

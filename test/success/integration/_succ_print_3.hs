@@ -1,1 +1,1 @@
-main = print True
+main = print "True"

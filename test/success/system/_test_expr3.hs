@@ -2,7 +2,7 @@ a,b,c :: Int
 a = 3; b = 4; c = 5
 d :: Int
 e :: Int
-d = a mod b
+d = a rem b
 e = a div b
 main = do
        let judge :: Bool
