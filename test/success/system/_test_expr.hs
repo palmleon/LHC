@@ -11,5 +11,5 @@ res = if (x == 0) then
        if (y > 0 && z >= 0) then True else False
 	   else False
 main = if (z >= y && x >= y || not True)
-        then print "z >= y and x > y" -- shouldn't print this
+        then print "z >= y and x >= y" -- shouldn't print this
 		else print "z < y or x < y" -- should print this

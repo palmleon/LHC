@@ -13,10 +13,20 @@ public class AST {
 		
 		protected LinkedList<String> code = new LinkedList<>();
 		
+		protected static String basicBlock;
+		
 		abstract String codegen();
 		
 		public LinkedList<String> getCode() { 
 			return this.code; 
+		}
+		
+		protected static void setBasicBlock(String basicBlock){
+			BasicNode.basicBlock = basicBlock;
+		}
+		
+		protected static String getBasicBlock(){
+			return basicBlock;
 		}
 		
 		protected void mountCode(BasicNode otherNode) {
@@ -79,6 +89,7 @@ public class AST {
 			code.addAll(LLVM.createPrintFormatStrings());
 			code.add(LLVM.createMainDefinition());
 			code.addAll(LLVM.openFunction());
+			setBasicBlock("entry");
 			if (ioAction != null) {
 				ioAction.codegen();
 				mountCode(ioAction);
@@ -145,20 +156,26 @@ public class AST {
 		@Override
 		String codegen() {
 			int ifIndex;
-			String condIndex;
+			String condIndex, thenLabel, elseLabel, exitLabel;
 			ifIndex = LLVM.getCounterIf();
 			condIndex = cond.codegen();
 			mountCode(cond);
 			code.add(LLVM.createBranchCond(condIndex, "if.then$" + ifIndex, "if.else$" + ifIndex));
-			code.add(LLVM.createLabel("if.then$" + ifIndex));
+			thenLabel = "if.then$" + ifIndex;
+			code.add(LLVM.createLabel(thenLabel));
+			setBasicBlock(thenLabel);
 			thenBody.codegen();
 			mountCode(thenBody);
 			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			elseLabel = "if.else$" + ifIndex;
 			code.add(LLVM.createLabel("if.else$" + ifIndex));
+			setBasicBlock(elseLabel);
 			elseBody.codegen();
 			mountCode(elseBody);
 			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			exitLabel = "if.exit$" + ifIndex;
 			code.add(LLVM.createLabel("if.exit$" + ifIndex));
+			setBasicBlock(exitLabel);
 			return null;
 		}
 	}
@@ -229,6 +246,7 @@ public class AST {
 			LLVM.resetCounterSSA();
 			code.add(LLVM.createFunctionDefinition(id, expr.getType(), lformarg));
 			code.addAll(LLVM.openFunction());
+			setBasicBlock("entry");
 			String result = expr.codegen();
 			mountCode(expr);
 			code.add(LLVM.createReturn(result, expr.getType()));
@@ -403,22 +421,30 @@ public class AST {
 		@Override
 		String codegen() { 
 			final int ifIndex;
-			String condIndex, thenIndex, elseIndex, result;
+			String condIndex, thenIndex, elseIndex, thenLabel, elseLabel, exitLabel, thenBB, elseBB, result;
 			ifIndex = LLVM.getCounterIf();
 			condIndex = cond.codegen();
 			mountCode(cond);
 			code.add(LLVM.createBranchCond(condIndex, "if.then$" + ifIndex, "if.else$" + ifIndex));
+			thenLabel = "if.then$" + ifIndex;
 			code.add(LLVM.createLabel("if.then$" + ifIndex));
+			setBasicBlock(thenLabel);
 			thenIndex = thenBody.codegen();
 			mountCode(thenBody);
+			thenBB = getBasicBlock();
 			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			elseLabel = "if.else$" + ifIndex;
 			code.add(LLVM.createLabel("if.else$" + ifIndex));
+			setBasicBlock(elseLabel);
 			elseIndex = elseBody.codegen();
 			mountCode(elseBody);
+			elseBB = getBasicBlock();
 			code.add(LLVM.createBranchNotCond("if.exit$" + ifIndex));
+			exitLabel = "if.exit$" + ifIndex;
 			code.add(LLVM.createLabel("if.exit$" + ifIndex));
+			setBasicBlock(exitLabel);
 			result = LLVM.createVariable(LLVM.getCounterSSA());
-			code.add(LLVM.createPHINode(result, this.type, "if.then$" + ifIndex, thenIndex, "if.else$" + ifIndex, elseIndex));
+			code.add(LLVM.createPHINode(result, this.type, thenBB, thenIndex, elseBB, elseIndex));
 			return result;
 		}
 	}
