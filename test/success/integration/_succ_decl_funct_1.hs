@@ -1,3 +1,4 @@
+y :: Bool; y = True
 x :: Char -> Char -> Char
-x y z = y
+x z y = y
 main = print "hello"

@@ -11,14 +11,14 @@ import java.util.Stack;
  */
 public class SymTableStack {
 	
-	private static boolean debug_mode = false;
+	private final static boolean debug_mode = false;
 	
 	/* Class for Symbol Table Entry
 	 * All Entries inside any SymTable are instances of this Class
 	 * Fields: Type type - type of the value/function
 	 *		   boolean isAssigned - flag that checks whether the value/function has been assigned or not
 	 */
-	public static class SymTableEntry {
+	public class SymTableEntry {
 		
 		private Type type;
 		private boolean isAssigned;
@@ -188,11 +188,10 @@ public class SymTableStack {
 	 * @return: int - the level in the SymTable Stack
 	 */
 	public int getLevel(String id) {
-		Iterator<HashMap<String, SymTableEntry>> iterator = symTableStack.listIterator(0);
+		Iterator<HashMap<String, SymTableEntry>> symTables = symTableStack.listIterator(0);
 		int entryLevel = -1, level = symTableStack.size()-1;
-		while (iterator.hasNext()) {
-			HashMap<String, SymTableEntry> currentSymTable = iterator.next();
-			if (currentSymTable.containsKey(id)) entryLevel = level;
+		while (symTables.hasNext() && entryLevel == -1) {
+			if (symTables.next().containsKey(id)) entryLevel = level;
 			level--;
 		}
 		return entryLevel;

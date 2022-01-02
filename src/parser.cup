@@ -8,7 +8,7 @@ import java.util.Iterator;
 parser code {:
 
 	// Boolean flag that provides additional information for debugging purposes, when raised
-	private boolean debug_mode = false; 
+	private final boolean debug_mode = false; 
 
 	// Flag that is set to true until the first compile-time error is detected
 	private boolean noCompileErrors = true;
@@ -451,7 +451,7 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			{:
 				Type type = decl_type.getType();
 				if (!symTableStack.isLocallyDeclared(id) && !(type.isSubtype("Function") && type.returnType().isSubtype("List"))) {
-					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
+					symTableStack.putEntry(id, symTableStack.new SymTableEntry(type));
 				}
 				else if (symTableStack.isLocallyDeclared(id)) {
 					report_semantic_error("Multiple Value Declaration (Symbol \"" + id + "\")");
@@ -464,7 +464,7 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			| id:id clns TYPE:type
 			{:
 				if (!symTableStack.isLocallyDeclared(id) && !(type.isSubtype("Function") && type.returnType().isSubtype("List"))) {
-					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(type));
+					symTableStack.putEntry(id, symTableStack.new SymTableEntry(type));
 				}
 				else if (symTableStack.isLocallyDeclared(id)) {
 					report_semantic_error("Multiple Value Declaration (Symbol \"" + id + "\")");
@@ -600,7 +600,7 @@ LFORMARG ::= LFORMARG:lformarg id:id
 				Type propType = lformarg.getPropType();
 				if (!symTableStack.isLocallyDeclared(id) && propType != null && propType.isSubtype("Function")) {
 					Type argTree = new Type(propType.getTypeParam(0));
-					symTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
+					symTableStack.putEntry(id, symTableStack.new SymTableEntry(argTree, true));
 					lformarg.getArgNames().add(symTableStack.createUniqueId(id));
 					lformarg.getArgTypes().add(argTree);
 					RESULT = new AST.LFormArg(lformarg.getArgNames(), lformarg.getArgTypes(), propType.getTypeParam(1));
@@ -627,7 +627,7 @@ LFORMARG ::= LFORMARG:lformarg id:id
 					Type type = symTableStack.getEntry(funcName).getType();
 					if (!symTableStack.isLocallyDeclared(id) && type != null && type.isSubtype("Function")) {
 						Type argTree = new Type(type.getTypeParam(0));
-						symTableStack.putEntry(id, new SymTableStack.SymTableEntry(argTree, true));
+						symTableStack.putEntry(id, symTableStack.new SymTableEntry(argTree, true));
 						ArrayList<String> argNames = new ArrayList<>();
 						ArrayList<Type> argTypes = new ArrayList<>();
 						argNames.add(symTableStack.createUniqueId(id));

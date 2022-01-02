@@ -1,23 +1,4 @@
-SEMANTIC ANALYSIS
-
-## SymTableStack:
-
-* Tutti i metodi :
-  - public static boolean containsEntry(String id)		OK
-  - public static SymTableEntry getEntry(String id)		OK
-  - public static TypeTree getEntryTypeTree(String id) 		OK
-  - public static Boolean getEntryAssignFlag(String id)		OK
-  - public void dumpSymTableStack()				OK
-
-- UNIT TESTING:
-  - Utilizzare Equivalence Class Partitioning sulla singola Regola di Produzione
-  - Se i test ottenuti non sono sufficienti, raggiungere Decision Coverage al 100% con test addizionali
-- INTEGRATION TESTING:
-  - Definire Programmi che lavorano con porzioni del linguaggio
-- SYSTEM TESTING:
-  - Definire Programmi generali che testano tutta la grammatica
-
-
+# SEMANTIC ANALYSIS
 
 ## Semantic Rules:
 
@@ -57,7 +38,7 @@ SEMANTIC ANALYSIS
 |                  | EXPR times EXPR                                   | _test_expr, _test_list                                       |
 |                  | EXPR div EXPR                                     | _test_expr, _test_expr2                                      |
 |                  | EXPR intdiv EXPR                                  | _test_expr, _test_expr3                                      |
-|                  | EXPR mod EXPR                                     | _test_expr, _test_expr3                                      |
+|                  | EXPR rem EXPR                                     | _test_expr, _test_expr3                                      |
 |                  | EXPR and EXPR                                     | _test_expr, _test_expr2                                      |
 |                  | EXPR or EXPR                                      | _test_expr, _test_expr3, _test_expr5                         |
 |                  | EXPR releq EXPR                                   | _test_expr, _test_list_2                                     |
@@ -66,7 +47,6 @@ SEMANTIC ANALYSIS
 |                  | EXPR relge EXPR                                   | _test_expr, _test_expr2                                      |
 |                  | EXPR rellt EXPR                                   | _test_expr, _test_funct, _test_list_2, _test_expr2           |
 |                  | EXPR relle EXPR                                   | _test_expr, _test_expr5                                      |
-|                  | elem ACTARG                                       | _test_funct, _test_list_2                                    |
 |                  | EXPR index EXPR                                   | _test_funct, _test_list, _test_list_2, _test_list_char       |
 |                  | ro EXPR rc                                        | _test_expr, _test_expr4, _test_expr5                         |
 |                  | not EXPR                                          | _test_expr, _test_expr4, _test_expr5                         |
@@ -673,7 +653,7 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 | T               | T               | T                     | F                     | Invalid       | x :: Int<br/>x = 4 div "hello"<br/>main = print "hello" | _fail_sem_expr_intdiv_2     |
 | T               | T               | T                     | T                     | Valid         | x :: Int <br/>x = 4 div 3<br/>main = print "hello"      | _succ_expr_intdiv_1         |
 
-#### EXPR ::= EXPR mod EXPR
+#### EXPR ::= EXPR rem EXPR
 
 | Condition             | Value |
 | --------------------- | ----- |
@@ -688,11 +668,11 @@ Unit Testing can regard either the Grammar or the Semantic of the Rule.
 
 | EXPR_1 compiles | EXPR_2 compiles | EXPR_1 is of Type Int | EXPR_2 is of Type Int | Valid/Invalid | Test case                                               | Program                  |
 | --------------- | --------------- | --------------------- | --------------------- | ------------- | ------------------------------------------------------- | ------------------------ |
-| F               | *               | *                     | *                     | Invalid       | x :: Int<br/>x = jl mod 4<br/>main = print "hello"      | _fail_grammar_expr_mod_1 |
-| T               | F               | *                     | *                     | Invalid       | x :: Int<br/>x = 4 mod jl<br/>main = print "hello"      | _fail_grammar_expr_mod_2 |
-| T               | T               | F                     | *                     | Invalid       | x :: Int<br/>x = "hello" mod 4<br/>main = print "hello" | _fail_sem_expr_mod_1     |
-| T               | T               | T                     | F                     | Invalid       | x :: Int<br/>x = 4 mod "hello"<br/>main = print "hello" | _fail_sem_expr_mod_2     |
-| T               | T               | T                     | T                     | Valid         | x :: Int <br/>x =4 mod 3<br/>main = print "hello"       | _succ_expr_mod_1         |
+| F               | *               | *                     | *                     | Invalid       | x :: Int<br/>x = jl rem 4<br/>main = print "hello"      | _fail_grammar_expr_rem_1 |
+| T               | F               | *                     | *                     | Invalid       | x :: Int<br/>x = 4 rem jl<br/>main = print "hello"      | _fail_grammar_expr_rem_2 |
+| T               | T               | F                     | *                     | Invalid       | x :: Int<br/>x = "hello" rem 4<br/>main = print "hello" | _fail_sem_expr_rem_1     |
+| T               | T               | T                     | F                     | Invalid       | x :: Int<br/>x = 4 rem "hello"<br/>main = print "hello" | _fail_sem_expr_rem_2     |
+| T               | T               | T                     | T                     | Valid         | x :: Int <br/>x =4 rem 3<br/>main = print "hello"       | _succ_expr_rem_1         |
 
 #### EXPR ::= EXPR and EXPR
 

@@ -19,7 +19,7 @@ public class Main {
 				writer.close();
 				System.out.println("Output code successfully stored in " + argv[1]);
 			}
-			System.out.println("Exit the program by closing the window...");
+			System.out.println("Exit the program by closing the GUI...");
         } catch (Exception e) {
             e.printStackTrace();
         }
