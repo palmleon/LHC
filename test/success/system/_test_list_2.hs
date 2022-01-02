@@ -8,5 +8,6 @@ countTrue xs i cnt length = if i < length
 main = do  
        let list :: [Bool]
            list = [True, False, True, False] 
+       print "Output should be 2"
        print (countTrue list 0 0 4) 
 -- should print 2

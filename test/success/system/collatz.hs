@@ -7,6 +7,8 @@ collatz n i = if (n < 1) then -1 else
 			   if (isEven n) then (collatz (n div 2) (i+1)) else (collatz (3*n + 1) (i+1))
 
 main = do
+
+       print "Output should be 23"
        print "Applying the Collatz Procedure to 25 needs"
        print (collatz x' 0)
        print "steps"

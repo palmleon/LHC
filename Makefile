@@ -14,12 +14,15 @@ JAVA = "java"
 install:
 	cd $(SRC_DIR)/ && $(MAKE)
 	javac -d $(BIN_DIR)/ $(SRC_DIR)/*.java
+	
+uninstall: clean
 
 clean:
 	#rm -fr $(SRC_DIR)/parser.java $(SRC_DIR)/scanner.java $(SRC_DIR)/sym.java
 	cd $(SRC_DIR) && make clean
 	rm -vfr $(BIN_DIR)/*.class
 	rm -vfr $(SRC_DIR)/*.*~
+	find . -name \*.ll -type f -delete
 
 cleantest:
 	rm -f $(TEST_OUT)
@@ -30,9 +33,9 @@ test: cleantest $(TEST_OUT)
 	cd $(BIN_DIR)/ ; java Main ../$< ../$@
 
 build:
-	cd $(BIN_DIR)/ ; java Main ../$(PROGRAM_DIR)/$(FILE).hs ../$(PROGRAM_DIR)/$(FILE).ll
+	cd $(BIN_DIR)/ ; java Main ../$(PROGRAM_DIR)/$(FILE).hs ../$(OUTPUT_DIR)/$(FILE).ll
 	
 run: build
-	lli ../$(PROGRAM_DIR)/$(FILE).ll 
+	lli $(OUTPUT_DIR)/$(FILE).ll 
 	
 

@@ -39,7 +39,7 @@ import java.io.IOException;
 	private boolean endOfCode = false;
 	
 	/* Flag for printing debug info */
-	private boolean debugMode = false;
+	private final boolean debugMode = false;
 	
 	public void report_error(String msg) {
 		System.err.print("ERROR: Lexical error");

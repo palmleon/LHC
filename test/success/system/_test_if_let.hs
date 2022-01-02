@@ -10,4 +10,5 @@ main = do
            len = let l :: Int
                      l = a 
                     in l
+       print "Output should be 2"
        print len --length should be 2

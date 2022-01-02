@@ -53,7 +53,7 @@ public class LLVM {
 	public static LinkedList<String> openFunction() { 
 		LinkedList<String> code = new LinkedList<>();
 		code.add("{");
-		code.add(LLVM.createLabel("entry"));
+		code.add(createLabel("entry"));
 		return code; 
 	} 
 	public static String closeFunction() { return "}"; } 
@@ -64,7 +64,7 @@ public class LLVM {
 		else if (argType.isEquivalent("Double")) { code += "Double"; }
 		else if (argType.isEquivalent("Char")) { code += "Char"; }
 		else if (argType.isEquivalent("String")) { code += "String"; }
-		code += ", i32 0, i32 0), " + LLVM.writeType(argType) + " " + actarg + ")";
+		code += ", i32 0, i32 0), " + writeType(argType) + " " + actarg + ")";
 		return code; 
 	} 
 	public static String createBranchCond(String condIndex, String thenLabel, String elseLabel) {
@@ -78,58 +78,58 @@ public class LLVM {
 		String code;
 		ArrayList<String> argNames = lformarg.getArgNames();
 		ArrayList<Type> argTypes = lformarg.getArgTypes();
-		code = "define " + LLVM.writeType(type) + " @" + id + "(";
+		code = "define " + writeType(type) + " @" + id + "(";
 		for (int i = 0; i < argNames.size(); i++) {
 			if (i > 0) code += ", "; 
-			code += LLVM.writeType(argTypes.get(i)) + " %" + argNames.get(i);
+			code += writeType(argTypes.get(i)) + " " + createVariable(argNames.get(i));
 		}
 		code += ")";
 		return code;
 	}
 	public static String createReturn(String result, Type type) {
-		return "ret " + LLVM.writeType(type) + " " + result;
+		return "ret " + writeType(type) + " " + result;
 	}
-	// TODO ADD ALL METHODS	BELOW
+	
 	public static String createBitcast(String result, String input, Type resultType, Type inputType) {
-		return result + " = bitcast " + LLVM.writeType(inputType) + " " + input + " to " + LLVM.writeType(resultType);
+		return result + " = bitcast " + writeType(inputType) + " " + input + " to " + writeType(resultType);
 	}
 	public static String createBitcastArrayToPtr(String result, String reg, Type type, Integer length) {
-		return result + " = bitcast [" + length + " x " + LLVM.writeType(type.getTypeParam(0)) + "]* " + reg + " to " + LLVM.writeType(type);
+		return result + " = bitcast [" + length + " x " + writeType(type.getTypeParam(0)) + "]* " + reg + " to " + writeType(type);
 	}
 	public static String createAlloca(String result, Type type) {
-		return result + " = alloca " + LLVM.writeType(type) + ", align " + LLVM.writeAlignment(type);
+		return result + " = alloca " + writeType(type) + ", align " + writeAlignment(type);
 	} 
 	public static String createAlloca(String result, Type type, Integer length) {
-		return result + " = alloca [" + length + " x " + LLVM.writeType(type.getTypeParam(0)) + "], align " + LLVM.writeAlignment(type);
+		return result + " = alloca [" + length + " x " + writeType(type.getTypeParam(0)) + "], align " + writeAlignment(type);
 	} 
 	public static String createStore(String ptr, String reg, Type type) {
-		return "store " + LLVM.writeType(type) + " " + reg + ", " + LLVM.writeType(type) + "* " + ptr + ", align " + LLVM.writeAlignment(type);
+		return "store " + writeType(type) + " " + reg + ", " + writeType(type) + "* " + ptr + ", align " + writeAlignment(type);
 	}
 	public static String createStoreArray(String dest, Type type, Object value) {
 		String code = new String();
 		if (type.isEquivalent("String")) {
 			String string = (String) value;
-			code += "store [" + (string.length() + 1) + " x " + LLVM.writeType(type.getTypeParam(0)) + "] ";
-			code += "c\"" + string + "\\00\", [" + (string.length() + 1) + " x " + LLVM.writeType(type.getTypeParam(0)) + "]* " + dest + ", align " + LLVM.writeAlignment(type.getTypeParam(0));
+			code += "store [" + (string.length() + 1) + " x " + writeType(type.getTypeParam(0)) + "] ";
+			code += "c\"" + string + "\\00\", [" + (string.length() + 1) + " x " + writeType(type.getTypeParam(0)) + "]* " + dest + ", align " + writeAlignment(type.getTypeParam(0));
 		}
 		return code;
 	} 
 	public static String createLoad(String result, Type type, String ptr) {
-		return result + " = load " + LLVM.writeType(type) + ", " + LLVM.writeType(type) + "* " + ptr + ", align " + LLVM.writeAlignment(type);
+		return result + " = load " + writeType(type) + ", " + writeType(type) + "* " + ptr + ", align " + writeAlignment(type);
 	} 
 	public static String createGEP(String result, String ptr, Type ptrType, String index) {
-		return result + " = getelementptr inbounds " + LLVM.writeType(ptrType.getTypeParam(0)) + ", " + LLVM.writeType(ptrType)
+		return result + " = getelementptr inbounds " + writeType(ptrType.getTypeParam(0)) + ", " + writeType(ptrType)
 		              + " " + ptr + ", i32 " + index;
 	}
 	public static String createSItoFP(String result, String input, Type resultType, Type inputType) {
-		return result + " = sitofp " + LLVM.writeType(inputType) + " " + input + " to " + LLVM.writeType(resultType);
+		return result + " = sitofp " + writeType(inputType) + " " + input + " to " + writeType(resultType);
 	}
 	public static String createAdd(String result, String[] intermResults, Type type) {
 		String code = new String();
 		code += result + " = ";
 		if (type.isEquivalent("Int")) code += "add ";
 		if (type.isEquivalent("Double")) code += "fadd ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	} 
 	public static String createSub(String result, String[] intermResults, Type type) {
@@ -137,7 +137,7 @@ public class LLVM {
 		code += result + " = ";
 		if (type.isEquivalent("Int")) code += "sub ";
 		if (type.isEquivalent("Double")) code += "fsub ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createMult(String result, String[] intermResults, Type type) {
@@ -145,42 +145,42 @@ public class LLVM {
 		code += result + " = ";
 		if (type.isEquivalent("Int")) code += "mul ";
 		if (type.isEquivalent("Double")) code += "fmul ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createDiv(String result, String[] intermResults, Type type) {
 		String code = new String();
 		code += result + " = ";
 		code += "fdiv ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createIntDiv(String result, String[] intermResults, Type type) {
 		String code = new String();
 		code += result + " = ";
 		code += "sdiv ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createRem(String result, String[] intermResults, Type type) {
 		String code = new String();
 		code += result + " = ";
 		code += "srem ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createAnd(String result, String[] intermResults, Type type) {
 		String code = new String();
 		code += result + " = ";
 		code += "and ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createOr(String result, String[] intermResults, Type type) {
 		String code = new String();
 		code += result + " = ";
 		code += "or ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(type) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	} 
 	public static String createRelNotEQ(String result, String[] intermResults, Type argType) {
@@ -188,7 +188,7 @@ public class LLVM {
 		code += result + " = ";
 		if (argType.isEquivalent("Int") || argType.isEquivalent("Char")) code += "icmp ne ";
 		if (argType.isEquivalent("Double")) code += "fcmp one ";
-		code += LLVM.writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createRelEQ(String result, String[] intermResults, Type argType) {
@@ -196,7 +196,7 @@ public class LLVM {
 		code += result + " = ";
 		if (argType.isEquivalent("Int") || argType.isEquivalent("Char")) code += "icmp eq ";
 		if (argType.isEquivalent("Double")) code += "fcmp oeq ";
-		code += LLVM.writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createRelGE(String result, String[] intermResults, Type argType) {
@@ -204,7 +204,7 @@ public class LLVM {
 		code += result + " = ";
 		if (argType.isEquivalent("Int") || argType.isEquivalent("Char")) code += "icmp sge ";
 		if (argType.isEquivalent("Double")) code += "fcmp oge ";
-		code += LLVM.writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createRelGT(String result, String[] intermResults, Type argType) {
@@ -212,7 +212,7 @@ public class LLVM {
 		code += result + " = ";
 		if (argType.isEquivalent("Int") || argType.isEquivalent("Char")) code += "icmp sgt ";
 		if (argType.isEquivalent("Double")) code += "fcmp ogt ";
-		code += LLVM.writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createRelLE(String result, String[] intermResults, Type argType) {
@@ -220,7 +220,7 @@ public class LLVM {
 		code += result + " = ";
 		if (argType.isEquivalent("Int") || argType.isEquivalent("Char")) code += "icmp sle ";
 		if (argType.isEquivalent("Double")) code += "fcmp ole ";
-		code += LLVM.writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createRelLT(String result, String[] intermResults, Type argType) {
@@ -228,14 +228,14 @@ public class LLVM {
 		code += result + " = ";
 		if (argType.isEquivalent("Int") || argType.isEquivalent("Char")) code += "icmp slt ";
 		if (argType.isEquivalent("Double")) code += "fcmp olt ";
-		code += LLVM.writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
+		code += writeType(argType) + " " + intermResults[0] + ", " + intermResults[1];
 		return code;
 	}
 	public static String createNot(String result, String[] intermResults, Type type) {
 		String code = new String();
 		code += result + " = ";
 		code += "xor ";
-		code += LLVM.writeType(type) + " " + intermResults[0] + ", true";
+		code += writeType(type) + " " + intermResults[0] + ", true";
 		return code;
 	}
 	public static String createUMinus(String result, String[] intermResults, Type type) {
@@ -243,21 +243,21 @@ public class LLVM {
 		code += result + " = ";
 		if (type.isEquivalent("Int")) code += "sub ";
 		if (type.isEquivalent("Double")) code += "fsub ";
-		code += LLVM.writeType(type);
+		code += writeType(type);
 		if (type.isEquivalent("Int")) code += " 0";
 		if (type.isEquivalent("Double")) code += " 0.0";
 		code += ", " + intermResults[0];
 		return code;
 	}
 	public static String createPHINode(String result, Type type, String thenLabel, String thenIndex, String elseLabel, String elseIndex) {
-		return result + " = phi " + LLVM.writeType(type) + " [ " + thenIndex + ", " + LLVM.createVariable(thenLabel) + " ], "
-		              + "[ " + elseIndex + ", " + LLVM.createVariable(elseLabel) + " ]";
+		return result + " = phi " + writeType(type) + " [ " + thenIndex + ", " + createVariable(thenLabel) + " ], "
+		              + "[ " + elseIndex + ", " + createVariable(elseLabel) + " ]";
 	}
 	public static String createFunctionCall(String result, Type type, String id, ArrayList<String> argIds, ArrayList<Type> argTypes) {
-		String code = result + " = call " + LLVM.writeType(type) + " @" + id + "(";
+		String code = result + " = call " + writeType(type) + " @" + id + "(";
 		for (int i = 0; i < argIds.size(); i++) {
 			if (i > 0) code += ", ";
-			code += LLVM.writeType(argTypes.get(i)) + " " + argIds.get(i);
+			code += writeType(argTypes.get(i)) + " " + argIds.get(i);
 		}
 		code += ")";
 		return code;

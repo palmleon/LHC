@@ -8,7 +8,10 @@ myGCD x y =
 		  if y < x then gcd' y x else
 		  gcd' x y
 x, y :: Int		  
-x = 4
-y = 78
-main = do print "GCD between 4 and 78 is"
+x = 41028
+y = 5443074
+main = do print "Numbers to compute GCD from:"
+          print x
+          print y
+          print "Their GCD is"
           print (gcd' x y)

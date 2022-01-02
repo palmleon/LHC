@@ -7,7 +7,7 @@ import java.util.Iterator;
 public class AST {
 
 	/*
-	 * Basic 
+	 * Basic Node of the AST
 	 */
 	public abstract static class BasicNode {
 		
