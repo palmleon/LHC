@@ -5,7 +5,7 @@
 - Il codice viene generato solo se non ci sono Compile Errors
 - Ogni nodo dell'AST ha due elementi principali: un blocco di codice (Lista di Stringhe) e un metodo codegen()
 - In generale, il metodo codegen() chiamerà ricorsivamente il metodo codegen() dei blocchi sottostanti per generare il loro codice. Inoltre:
-	- il metodo ritorna la stringa contenete il valore o il registro ritornato dal blocco (se il metodo non ritorna valori, ritorna null)
+	- il metodo ritorna la stringa contenente il valore o il registro ritornato dal blocco (se il metodo non ritorna valori, ritorna null)
 	- il metodo deve tenere traccia dell'indice incrementale delle variabili senza nome
 	- il metodo scrive su un blocco di stringhe su cui scrivere il codice
 
@@ -43,13 +43,11 @@ Al momento, le Variabili di Tipo elementare (Int, Double, Bool, Char) sono salva
 
 #### IR-Language Independent
 
-- Trasformare le Definizioni di Valore globali in Definizioni di Funzione per semplificare l'IR code generation OK
+
 
 #### IR-Language Dependent
 
-Gestire le Forward References 
 
-- i Label devono essere stringhe di testo: assicurarsi che i label siano unici per ogni if-then-else: usare un ifCounter che viene incrementato ogni volta che un If-then-else deve essere generato OK
 
 #### Altro:
 
