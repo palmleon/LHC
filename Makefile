@@ -18,11 +18,10 @@ install:
 uninstall: clean
 
 clean:
-	#rm -fr $(SRC_DIR)/parser.java $(SRC_DIR)/scanner.java $(SRC_DIR)/sym.java
 	cd $(SRC_DIR) && make clean
 	rm -vfr $(BIN_DIR)/*.class
 	rm -vfr $(SRC_DIR)/*.*~
-	find . -name \*.ll -type f -delete
+	rm -fr $(BIN_DIR)
 
 cleantest:
 	rm -f $(TEST_OUT)
@@ -31,11 +30,5 @@ test: cleantest $(TEST_OUT)
 	
 %.ll: %.hs
 	cd $(BIN_DIR)/ ; java Main ../$< ../$@
-
-build:
-	cd $(BIN_DIR)/ ; java Main ../$(PROGRAM_DIR)/$(FILE).hs ../$(OUTPUT_DIR)/$(FILE).ll
-	
-run: build
-	lli $(OUTPUT_DIR)/$(FILE).ll 
 	
 
