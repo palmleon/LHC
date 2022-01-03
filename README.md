@@ -5,8 +5,9 @@
 <p align="center">
  <img alt="Languages" src="https://img.shields.io/badge/Language-Java-orange">
  <img alt="development" src="https://img.shields.io/badge/development-suspended-orange"/>   
- <img alt="version" src="https://img.shields.io/badge/version-1.0.0-brightgreen"/>
+ <img alt="version" src="https://img.shields.io/badge/version-1.0-brightgreen"/>
 </p>
+
 
 
 A Little Haskell Compiler, 
