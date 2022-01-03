@@ -94,16 +94,16 @@ Currently, LHC supports the following subset of Haskell:
 
 LHC is compatible with:
 
-* Linux 20.04 LTS (but it should work with less recent versions, too).
+* Ubuntu 20.04 LTS (but it should work with less recent versions or other Linux distributions, too).
 
-#### Prerequisites:
+#### Prerequisites
 
 * JDK (Java Development Kit) - Version 16 or above (successfully tested with JDK 16, but may work with less recent releases, too)
 * [JFlex](https://www.jflex.de/)
 * [Cup](https://www.skenz.it/compilers/install_linux_bash) - This is NOT the original implementation of Cup, but an enhanced one that implements a graphical representation of the Parse Tree (it will be removed in the future); follow the instruction in the *"Download CUP"* paragraph to install the tool 
 * LLVM (use  `sudo apt install llvm` to install the package) - Version 10 or above (less recent may work, too)
 
-#### Installation and usage:
+#### Installation and usage
 
 After cloning the Project and entering into the main folder, you can use the following commands to play with the compiler:
 
