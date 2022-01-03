@@ -9,9 +9,12 @@
 </p>
 
 
-
 A Little Haskell Compiler, 
 born as an Assignment for the *"Formal Languages and Compilers"* course (A.Y. 2020/2021). 
+
+## Team
+
+- <img alt="avatar" src="https://github.com/palmleon.png" width="20px" height="20px"> **Leonardo Palmucci** - [palmleon](https://github.com/palmleon) 
 
 ## Introduction
 
