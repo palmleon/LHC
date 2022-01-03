@@ -1,1 +1,0 @@
-main = print 6.0

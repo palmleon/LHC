@@ -1,1 +1,0 @@
-main = if 1 then print "hello" else print "hello"

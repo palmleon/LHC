@@ -1,2 +1,0 @@
-x ::
-main = print "hello"

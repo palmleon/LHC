@@ -1,1 +1,0 @@
-main = if True then print "hello" else print jil
