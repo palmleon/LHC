@@ -1,6 +1,6 @@
 gcd :: Int -> Int -> Int
 gcd x y = 
-          if x == 0 then y else gcd (mod y x) x
+          if x == 0 then y else gcd (y rem x) x
 myGCD :: Int -> Int -> Int
 myGCD x y = 
           if x < 0 then myGCD (-x) y else

@@ -18,7 +18,7 @@ parser code {:
 	/* Current Line and Column Index (i.e. yyline() and yycolumn() in JFlex) */
 	private int currLine = 0, currColumn = 0;
 	
-	/* The fresh code we look for */
+	/* The fresh code we look for, together with its getter and setter*/
 	private LinkedList<String> code;
 		
 	public LinkedList<String> getCode() {
@@ -29,6 +29,7 @@ parser code {:
 		this.code = code;
 	}
 	
+	/* Used by the Main class to check the result of the compilation process */
 	public boolean compileSuccess() {
 		return noCompileErrors;
 	}
@@ -70,11 +71,15 @@ parser code {:
 		System.err.println(msg);
 	}
 	
+	/* 
+	 *  Inform the user that a Semantic Error has been raised, and inform them about its nature
+	 *	@param: String msg - The additional message describing the kind of Syntax Error
+	 *	@return: nothing
+	 */
 	public void report_semantic_error(String msg) {
 		noCompileErrors = false;
 		System.err.print("ERROR: Semantic error");
         System.err.println(" (line "+currLine+", column "+currColumn+"): " + msg);
-        //CUP$Parser$actions.symTableStack.dumpSymTableStack();
 	}
 	
 	/*
@@ -90,25 +95,16 @@ parser code {:
 
 action code {:
 
+	/* The Symbol Table Stack to be used */
 	private SymTableStack symTableStack = new SymTableStack();
 
 :};
 
-/*  In the Initialization Section, the typeMap (i.e. the list containing all declared types) is filled 
- *  with all the main Basic and Compound Types. 
- *  The only exception are Tuples, whose Type corresponds to the combination of the types of its elements;
- *  since such a Type would need too much space inside the typeMap, it is the ONLY Type that is not saved in the typeMap;
- *  so, it must be handled with specific procedures
- *  The "Any" Type acts as a wildcard and represents any possible Type (it represents Type Parameters)
- */
 init with {:
 		
-		// Create the Table containing all Types and their Types
-		Type.createTypeMap();
-		
-		//Type.dumpTypeMap();
-		//Type.testType();
-		//SymTableStack.testSymTableStack();
+	// Create the Table containing all Types and their Types
+	Type.createTypeMap();
+	
 :}
 
 /* Because of a bug in JavaCupMainDrawTree, the "scan with" directive does not substitute the default call to next_token as expected.
@@ -138,13 +134,11 @@ scan with {:
 /// ///////////////////////// ///
 
 terminal main;
-terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep/*, us */;
+terminal eq, clns, cm, ro, rc, bo, bc, arrow, sep;
 terminal plus, minus, times, div, intdiv, rem, uminus, and, or, not;
-//terminal head, tail, cons, conc; 
 terminal index;
 terminal releq, relnoteq, relge, relgt, relle, rellt;
 terminal indent, dedent;
-//terminal where, pipe;
 terminal do_begin, if_begin, then, else_begin, let, in, print;
 terminal Integer val_int;
 terminal Double val_double;
@@ -167,11 +161,9 @@ non terminal AST.Print PRINT;
 non terminal AST.Expr COND, EXPR;
 non terminal AST.ExprList EXPR_LIST, LEXPR;
 non terminal AST.FunctCall FUNCT_CALL;
-//non terminal Expr EXPR_NOTUNARYOP;
 non terminal AST.Expr ACTARG;
 non terminal LinkedList<AST.Expr> LACTARG;
 non terminal AST.LFormArg LFORMARG;
-//non terminal WHERE, WHERE_STMTS, GUARDS, GUARD;
 non terminal LinkedList<AST.Stmt> LET_STMTS, GLOBAL_STMTS;
 non terminal AST.DoBlock DO_BLOCK;
 non terminal AST.LetBlockFunc LET_BLOCK_FUNC;
@@ -183,17 +175,12 @@ non terminal AST.Stmt DEF_VALUE;
 non terminal AST.DefFunct DEF_FUNCT;
 non terminal AST.DeclType DECL_TYPE;
 non terminal Type TYPE, TYPE_VALUE, TYPE_FUNC, TYPE_LIST, TYPE_BASIC;
-//non terminal LinkedList<Type> TTYPE_VALUE;
 non terminal AST.Value VALUE, VALUE_BASIC;
-//non terminal PATTERN, LPATTERN_CM, LPATTERN_CONS;
-//non terminal PATTERN_LIST, PATTERN_TUPLE;
 
 /// ///////////////////////// ///
 ///    PRECEDENCE RULES		  ///
 /// ///////////////////////// ///
 
-//precedence left conc;
-//precedence right cons;
 precedence left or;
 precedence left and;
 precedence nonassoc releq, relnoteq, relgt, relge, rellt, relle;
@@ -345,33 +332,28 @@ IF_BLOCK_IMPER ::=
 		:}
 	  | if_begin error then IO_ACTION:io_action_then else_begin IO_ACTION:io_action_else 
 		{: 
-			report_syntax_error("Error in Condition of If Statement"); 
+			report_syntax_error("Error in Condition of If-Then-Else"); 
 			RESULT = new AST.IfBlockImper(null, io_action_then, io_action_else);
 		:}
 	  | if_begin COND:cond then error else_begin IO_ACTION:io_action_else 
 		{: 
-			report_syntax_error("Error in Then Block of If Statement"); 
+			report_syntax_error("Error in Then Block of If-Then-Else"); 
 			RESULT = new AST.IfBlockImper(cond, null, io_action_else);
 		:}
 	  | if_begin COND:cond error else_begin IO_ACTION:io_action_else 
 		{: 
-			report_syntax_error("Missing \"Then\" in If Statement"); 
+			report_syntax_error("Missing 'then' in If-Then-Else"); 
 			RESULT = new AST.IfBlockImper(cond, null, io_action_else);
 		:}
 ;
 
 LET_BLOCK_IMPER ::= 
-		let indent LET_STMTS:let_stmts dedent// IO_ACTION:io_action 
+		let indent LET_STMTS:let_stmts dedent
 		{:
-			RESULT = new AST.LetBlockImper(let_stmts); //, io_action);
+			RESULT = new AST.LetBlockImper(let_stmts);
 		:}
-	  /*| let error dedent // IO_ACTION:io_action
-		{: 
-			report_syntax_error("Error in Let Statements of a Let Block"); 
-			RESULT = new AST.LetBlockImper(null); //, io_action);
-		:}*/
 ;
-// DEF_FUNCT not supported (for now)
+// DEF_FUNCT for LET_STMTS not supported 
 LET_STMTS ::= LET_STMTS:let_stmts sep DECL_TYPE:decl_type
 			{:
 				if(decl_type.getType().isSubtype("Function")) {
@@ -476,8 +458,6 @@ DECL_TYPE ::= id:id cm DECL_TYPE:decl_type
 			:}
 ; 
 
-/* pattern and expr should be of the same type */
-//DEF_VALUE ::= PATTERN eq EXPR
 DEF_VALUE ::= id:id 
 			{:
 				if (symTableStack.isDeclared(id) && symTableStack.isLocallyDeclared(id) && !symTableStack.isAssigned(id)) {
@@ -550,51 +530,6 @@ DEF_FUNCT ::= id:id {:
 			   :}  
 ;
 
-/* GUARDS ::= GUARDS sep GUARD
-         | GUARD
-;
-
-   GUARD ::= pipe COND eq EXPR
-; */
-
-/* WHERE ::= // no where section 
-        | where indent WHERE_STMTS dedent
-; 
-
-   WHERE_STMTS ::= WHERE_STMTS sep DECL 
-			  | DECL
-;*/
-
-///  PATTERN MATCHING   ///
-
-/*LFORMARG ::= LFORMARG PATTERN
-		   | PATTERN
-;
-
-PATTERN ::= PATTERN_LIST
-		  | PATTERN_TUPLE
-		  | VALUE_BASIC
-		  | us
-		  | id
-;
-
-PATTERN_LIST ::= ro PATTERN cons LPATTERN_CONS rc // value constructor pattern
-			   | bo LPATTERN_CM bc	// value pattern
-			   | bo bc
-;
-
-LPATTERN_CONS ::= PATTERN
-				| PATTERN cons LPATTERN_CONS
-;
-
-PATTERN_TUPLE ::= ro PATTERN cm LPATTERN_CM rc
-				| ro rc
-;
-
-LPATTERN_CM ::= PATTERN
-			  | PATTERN cm LPATTERN_CM
-; */
-
 LFORMARG ::= LFORMARG:lformarg id:id 
 			{:
 				Type propType = lformarg.getPropType();
@@ -666,17 +601,17 @@ LFORMARG ::= LFORMARG:lformarg id:id
 ;
 
 /* special expression management for boolean conditions */
-COND ::= EXPR:expr {:
-					if (!expr.type.isEquivalent("Bool")) {
-						report_semantic_error("Wrong Type in Condition (Expected Type: Bool)");
-					}
-					RESULT = expr;
-			   :}
+COND ::= EXPR:expr 
+		{:
+			if (!expr.type.isEquivalent("Bool")) {
+				report_semantic_error("Wrong Type in Condition (Expected Type: Bool)");
+			}
+			RESULT = expr;
+	    :}
 ;
 
 ///   EXPRESSIONS   ///
 
-//EXPR ::= //EXPR:expr1 plus EXPR_NOTUNARYOP:expr2
 EXPR ::= EXPR:expr1 plus EXPR:expr2
 		{:
 			String opType = "+";
@@ -697,7 +632,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.PLUS, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 minus EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 minus EXPR:expr2
 	   {:
 			String opType = "-";
@@ -718,7 +652,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.MINUS, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 times EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 times EXPR:expr2
 	   {:
 			String opType = "*";
@@ -739,7 +672,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.TIMES, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 div EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 div EXPR:expr2
 	   {:
 			String opType = "/";
@@ -760,7 +692,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.DIV, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 intdiv EXPR_NOTUNARYOP:expr2 
 	   | EXPR:expr1 intdiv EXPR:expr2 
 	   {:
 			String opType = "div";
@@ -801,7 +732,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.REM, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 and EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 and EXPR:expr2
 	   {:
 			String opType = "&&";		
@@ -822,7 +752,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.AND, subExpressions);
 			}
 	   :}
-	   //| EXPR:expr1 or EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 or EXPR:expr2
 	    {:
 			String opType = "||";		
@@ -863,7 +792,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELNOTEQ, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 releq EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 releq EXPR:expr2
 	    {:
 			String opType = "==";
@@ -884,7 +812,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELEQ, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 relgt EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 relgt EXPR:expr2
 	   {:
 			String opType = ">";
@@ -905,7 +832,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGT, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 relge EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 relge EXPR:expr2
 	   {:
 	   		String opType = ">=";
@@ -926,7 +852,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELGE, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 rellt EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 rellt EXPR:expr2
 	   {:
 			String opType = "<";
@@ -947,7 +872,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLT, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 relle EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 relle EXPR:expr2
 	   {:
 			String opType = "<=";
@@ -968,7 +892,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.RELLE, subExpressions);
 			}
 		:}
-	   //| EXPR:expr1 index EXPR_NOTUNARYOP:expr2
 	   | EXPR:expr1 index EXPR:expr2
 	   {:
 			String opType = "!!";
@@ -985,13 +908,10 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 				RESULT = new AST.Expr(Type.getType("error"), AST.ExprKind.INDEX, subExpressions); 
 			}
 	   :}
-	   //| EXPR cons EXPR_NOTUNARYOP
-	   //| EXPR conc EXPR_NOTUNARYOP
 	   | ro EXPR:expr rc
 	   {:
 			RESULT = expr;
 	   :}
-	   //| ro not EXPR:expr rc
 	   | not EXPR:expr  
 	   {:
 			String opType = "not";
@@ -1005,7 +925,6 @@ EXPR ::= EXPR:expr1 plus EXPR:expr2
 			}
 	   :}
 	   | minus EXPR:expr
-		//| ro minus EXPR:expr rc 
 	   {:
 			String opType = "Unary \"-\"";
 			AST.BasicExpr[] subExpressions = { expr };
@@ -1051,17 +970,14 @@ FUNCT_CALL ::= id:id LACTARG:lactarg
 			boolean failedArgsTypeChecking = false;
 			if(symTableStack.isDeclared(id) && symTableStack.isAssigned(id)) {
 				funcType = symTableStack.getEntry(id).getType();
-				//funcType.dumpType(0);
 				// This is a Value Call
 				if (nArgs == 0) {
 					if (funcType != null && !funcType.isSubtype("Function")) { // This is not a Function Call, but a reference to a Value
-						//RESULT = new AST.Expr(new Type(funcType));
 						RESULT = new AST.FunctCall(new Type(funcType), symTableStack.createUniqueId(id), lactarg); 
 					}
 					else {
 						// Error Recovery
 						report_semantic_error("Not a Value (Symbol \"" + id + "\")");
-						//RESULT = new AST.Expr(Type.getType("error"));  
 						RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 					}
 				}
@@ -1074,26 +990,22 @@ FUNCT_CALL ::= id:id LACTARG:lactarg
 							funcType = funcType.getTypeParam(1); //extract the right child of the funcType Tree
 						}
 						if (!failedArgsTypeChecking) {
-							//RESULT = new AST.Expr(new Type(funcType));
 							RESULT = new AST.FunctCall(new Type(funcType), symTableStack.createUniqueId(id), lactarg);
 						}	
 						else {
 							// Error Recovery
 							report_semantic_error("Wrong Type in Arguments applied to Function " + id);
-							//RESULT = new AST.Expr(Type.getType("error")); 
 							RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 						}
 					}
 					else if (funcType == null || !funcType.isSubtype("Function")) {
 						// Error Recovery
 						report_semantic_error("Not a Function (Symbol \"" + id + "\")");
-						//RESULT = new AST.Expr(Type.getType("error")); 
 						RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 					}
 					else if (!funcType.hasArity(nArgs)) {
 						// Error Recovery
 						report_semantic_error("Mismatching Arity (Symbol \"" + id + "\")");
-						//RESULT = new AST.Expr(Type.getType("error")); 
 						RESULT = new AST.FunctCall(Type.getType("error"), symTableStack.createUniqueId(id), lactarg);
 					}
 				}
@@ -1133,7 +1045,7 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:thenBody else_begin EXPR:elseBody
 						RESULT = new AST.IfBlockFunc(thenBody.type, cond, thenBody, elseBody);
 					}
 					else {
-						report_semantic_error("Multiple Return Types for If Statement");
+						report_semantic_error("Multiple Return Types for If-Then-Else");
 						RESULT = new AST.IfBlockFunc(Type.getType("error"), cond, thenBody, elseBody); 
 					}
 				:}
@@ -1147,10 +1059,6 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:thenBody else_begin EXPR:elseBody
 					report_syntax_error("Error in Then Block of an In-Then-Else Block"); 
 					RESULT = new AST.IfBlockFunc(Type.getType("error"), cond, null, elseBody);
 				:}
-				//| error then EXPR else_begin EXPR
-				//	{: report_syntax_error("Missing 'if' inside an If-Then-Else Block"); 
-				//		RESULT = new AST.IfBlockFunc(Type.getType("error"));
-				//	:}
 				| if_begin COND:cond error else_begin EXPR:elseBody
 				{: 
 					report_syntax_error("Missing 'then' inside an If-Then-Else Block"); 
@@ -1158,7 +1066,6 @@ IF_BLOCK_FUNC ::= if_begin COND:cond then EXPR:thenBody else_begin EXPR:elseBody
 				:}
 ;
 
-// DA QUI
 ///    args for function call   ///
 
 ACTARG ::= id:id 
@@ -1172,7 +1079,7 @@ ACTARG ::= id:id
 				functCall = new AST.FunctCall(idType, symTableStack.createUniqueId(id), actArgs);
 				subExpressions[0] = functCall;
 				RESULT = new AST.Expr(new Type(idType), AST.ExprKind.FUNCT_CALL, subExpressions);
-			} // DA QUI
+			}
 			else if (!symTableStack.isDeclared(id)){
 				report_semantic_error("Missing Value Declaration (Symbol \"" + id + "\")");
 				idType = Type.getType("error");
@@ -1217,11 +1124,6 @@ VALUE ::= VALUE_BASIC:value_basic
 		{: 
 			RESULT = value_basic;
 		:}
-		/*| EXPR_LIST:value_list
-		{:
-			RESULT = new Value(value_list.type, value_list.value);
-		:}*/
-//		| VALUE_TUPLE
 ;
 
 // VALUE_BASIC represents constants
@@ -1255,9 +1157,6 @@ EXPR_LIST ::= bo LEXPR:lexpr bc
 		:}
 ;
 
-//VALUE_TUPLE ::= ro TEXPR rc
-//;
-
 LEXPR ::= EXPR:expr
 		{:
 			ArrayList<AST.Expr> lexpr = new ArrayList<>();
@@ -1274,13 +1173,7 @@ LEXPR ::= EXPR:expr
 			RESULT = lexpr;
 			RESULT.getExprArray().add(expr);
 		:}
-		//| error cm EXPR
-		//	{: report_syntax_error("Error in List of Expressions"); :}
 ;
-
-//TEXPR ::= EXPR cm EXPR
-//		| TEXPR cm EXPR
-//;
 
 ///   TYPES   ///
 
@@ -1291,7 +1184,6 @@ TYPE ::= TYPE_VALUE:type_value {: RESULT = type_value; :}
 // both basic types and compound
 TYPE_VALUE ::= TYPE_LIST:type_list {: RESULT = type_list; :}
 			 | TYPE_BASIC:type_basic {: RESULT = type_basic; :}
-//			 | TYPE_TUPLE
 ;
 
 TYPE_BASIC ::= type_int {: RESULT = Type.getType("Int"); :}
@@ -1309,9 +1201,6 @@ TYPE_LIST ::= bo TYPE_BASIC:type_basic bc
 		| type_string {: RESULT = Type.getType("String"); :}
 ;
 
-//TYPE_TUPLE ::= ro TTYPE_VALUE rc
-//;
-
 // no higher order functions
 TYPE_FUNC ::= TYPE_VALUE:type_value arrow TYPE_FUNC:type_func
 		{:
@@ -1327,16 +1216,7 @@ TYPE_FUNC ::= TYPE_VALUE:type_value arrow TYPE_FUNC:type_func
 			type.setTypeParam(1, type_valueR);
 			RESULT = type;
 		:}
-			//| error arrow TYPE_VALUE
-		//{: report_syntax_error("Error in Argument Type of Function"); :}
-			//| error arrow TYPE_FUNC
-		//{: report_syntax_error("Error in Argument Type of Function"); :}
 ;
-
-// 0-Tuple are not allowed
-//TTYPE_VALUE ::= TYPE_VALUE cm TYPE_VALUE
-//			  | TTYPE_VALUE cm TYPE_VALUE
-//;
 
 
 
