@@ -21,13 +21,8 @@ import java.io.IOException;
 		return new Symbol(id, yyline+1, yycolumn+1, value);
 	}
 	
-	/* All scanned tokens pass through a tokenQueue, which allows to store multiple symbols at a single scan; */
 	private LinkedList<Symbol> tokenQueue = new LinkedList<>();
 	
-	/* Data structure to implement Indentation-based Parsing:
-     * the an Indent Stack contains all the current open indents, i.e. the nested block which have not been closed yet;
-	 *   each entry of the Stack contains the column index related to that indentation level;
-	 */
 	private Stack<Integer> indentStack = new Stack<>();
 	
 	/* Flags that prepares the lexer for scanning an Indent or a Dedent:
@@ -46,11 +41,6 @@ import java.io.IOException;
 	/* Flag for printing debug info */
 	private final boolean debugMode = false;
 	
-	/* 
-	 *  Inform the user that a Lexical Error has been raised, and inform them about its nature
-	 *	@param: String msg - The additional message describing the kind of Syntax Error
-	 *	@return: nothing
-	 */
 	public void report_error(String msg) {
 		System.err.print("ERROR: Lexical error");
 		System.err.print(" (line " + (yyline+1) + ", column " + (yycolumn+1) + "): " + msg);
@@ -66,6 +56,8 @@ import java.io.IOException;
 	 */
 	public Symbol next_token_custom() throws IOException{
 		// if the token Queue is not empty, extract its content
+		//System.out.println("Scanning a token");
+		//System.out.println("Current TokenQueue size: " + tokenQueue.size());
 		if (this.tokenQueue.size() > 0) {
 			return this.tokenQueue.remove();
 		}
@@ -83,13 +75,13 @@ import java.io.IOException;
 	 */
 	private Symbol manageToken(Symbol... symbols) {
 		Integer indentColumn, dedentColumn;
-		// scan an Indent
 		if (!endOfCode && scanIndent) {
 			indentColumn = yycolumn+1;
 			if (indentStack.size() == 0 || indentColumn > indentStack.peek()) {
 				indentStack.push(indentColumn);
 				if (debugMode) System.out.println("SCANNER DEBUG: indent at " + indentColumn);
 				tokenQueue.add(createSymbol(sym.indent));
+				//System.out.println("Indent added (column " + indentColumn + ")");
 			}
 			else {
 				report_error("Nested block is not indented further in than the enclosing expression");
@@ -137,13 +129,18 @@ import java.io.IOException;
 
 %eofval{
 	endOfCode = true;
-	return manageToken(createSymbol(sym.EOF));
+	return this.manageToken(createSymbol(sym.EOF));
 %eofval}
 
 /* Indentation-based Parsing
  * Indent: symbol to recognize the starting point of an inner block
  * Dedent: symbol to recognize the end point of an inner block
- * The Grammar must ensure that for each Indent there is a corresponding Dedent
+ * The Grammar must ensure that, for each Indent there is a corresponding Dedent
+ * Data structures to deal with Indent/Dedent:
+ * - an Indent Stack, containing all the indents to consider so far;
+ *   each entry of the Stack contains the column index related to that
+ * 	 indentation level;
+ * - a tokenQueue, to allow multiple symbols at a single scan;
  * Concept: when a block requiring implicit indentation is recognized, i.e. its keyword is scanned
  *			 (let, do), the next Token will define the indentation column and an Indent 
  *			 will be scanned and saved into the Stack; 
@@ -169,12 +166,15 @@ ws = [ \t]
 %%
 
 "="				{return manageToken(createSymbol(sym.eq));}
+//":"				{return manageToken(sym.cons);}
 "::"			{return manageToken(createSymbol(sym.clns));}
 ","				{return manageToken(createSymbol(sym.cm));}
+//"|"			{return manageToken(sym.pipe);}
 "("				{return manageToken(createSymbol(sym.ro));}
 ")"				{return manageToken(createSymbol(sym.rc));}
 "["				{return manageToken(createSymbol(sym.bo));}
 "]"				{return manageToken(createSymbol(sym.bc));}
+//"_"			{return manageToken(sym.us);}
 "->"			{return manageToken(createSymbol(sym.arrow));}
 "+"				{return manageToken(createSymbol(sym.plus));}
 "-"				{return manageToken(createSymbol(sym.minus));}
@@ -191,18 +191,24 @@ not				{return manageToken(createSymbol(sym.not));}
 ">"				{return manageToken(createSymbol(sym.relgt));}
 "<="			{return manageToken(createSymbol(sym.relle));}
 "<"				{return manageToken(createSymbol(sym.rellt));}
+//"++"			{return manageToken(sym.conc);}
 ";"				{return manageToken(createSymbol(sym.sep));}
 in				{dedentForce = true;
 				 return manageToken(createSymbol(sym.in));}
 main			{return manageToken(createSymbol(sym.main));}
 do				{indentEnable = true;
 				 return manageToken(createSymbol(sym.do_begin));}
+//head			{return manageToken(sym.head);}
+//tail			{return manageToken(sym.tail);}
 "!!"			{return manageToken(createSymbol(sym.index));}
 if				{return manageToken(createSymbol(sym.if_begin));}
 then			{return manageToken(createSymbol(sym.then));}
 else			{return manageToken(createSymbol(sym.else_begin));}
 let				{indentEnable = true;
 				 return manageToken(createSymbol(sym.let));}
+/*where			{dedentEnable = false;
+				 indentEnableNextToken = true;
+				 return manageToken(sym.where);}*/
 print			{return manageToken(createSymbol(sym.print));}
 Int				{return manageToken(createSymbol(sym.type_int));}
 Double			{return manageToken(createSymbol(sym.type_double));}
@@ -214,8 +220,7 @@ String			{return manageToken(createSymbol(sym.type_string));}
 {bool}			{return manageToken(createSymbol(sym.val_bool, 	 Boolean.valueOf(yytext())));}
 {char}			{return manageToken(createSymbol(sym.val_char, 	 yytext().charAt(1)));}
 {string}		{return manageToken(createSymbol(sym.val_string, yytext().substring(1, yytext().length()-1)));}
-//LLVM does not support the single quote as a valid character for identifiers, while dots are: for this reason, every single tick is replaced with a dot
-{id}			{return manageToken(createSymbol(sym.id, 		 yytext().replace('\'', '.')));} 
+{id}			{return manageToken(createSymbol(sym.id, 		 yytext().replace('\'', '.')));}
 {ws}			{;}
 {nl}			{foundNewline = true;}
 

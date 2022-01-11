@@ -119,7 +119,7 @@ public class AST {
 		String codegen() { 
 			String actargIndex = actarg.codegen();
 			mountCode(actarg);
-			String result = LLVM.createRegister(LLVM.getCounterSSA());
+			String result = LLVM.createVariable(LLVM.getCounterSSA());
 			code.add(LLVM.createPrintCall(result, actarg.getType(), actargIndex));
 			return null;
 		}
@@ -225,9 +225,7 @@ public class AST {
 		String codegen() { 
 			String exprIndex = expr.codegen();
 			mountCode(expr);
-			code.add(LLVM.createAlloca(LLVM.createRegister(id), expr.getType()));
-			code.add(LLVM.createStore(LLVM.createRegister(id), exprIndex, expr.getType()));
-			//code.add(LLVM.createBitcast(LLVM.createRegister(id), exprIndex, expr.getType(), expr.getType()));
+			code.add(LLVM.createBitcast(LLVM.createVariable(id), exprIndex, expr.getType(), expr.getType()));
 			return null;
 		}
 	}
@@ -245,18 +243,10 @@ public class AST {
 		
 		@Override
 		String codegen() { 
-			ArrayList<String> argNames = lformarg.getArgNames(); //NEW
-			ArrayList<Type> argTypes = lformarg.getArgTypes(); //NEW
 			LLVM.resetCounterSSA();
 			code.add(LLVM.createFunctionDefinition(id, expr.getType(), lformarg));
 			code.addAll(LLVM.openFunction());
 			setBasicBlock("entry");
-			for (int i = 0; i < argNames.size(); i++) { //NEW from here
-				code.add(LLVM.createAlloca(LLVM.createRegister(argNames.get(i)), argTypes.get(i)));
-				code.add(LLVM.createStore(LLVM.createRegister(argNames.get(i)), LLVM.createRegister(i), argTypes.get(i)));
-				LLVM.getCounterSSA(); //update the register index
-			}
-			// To here
 			String result = expr.codegen();
 			mountCode(expr);
 			code.add(LLVM.createReturn(result, expr.getType()));
@@ -299,15 +289,15 @@ public class AST {
 			}
 			switch (exprKind) {
 				case PLUS: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createAdd(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case MINUS: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createSub(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case TIMES: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createMult(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case DIV: 
@@ -315,65 +305,65 @@ public class AST {
 					for (int i = 0; i < subExpressions.length; i++) {
 						oldExpResults[i] = subExpResults[i];
 						if (subExpressions[i].getType().isEquivalent("Int")) {
-							subExpResults[i] = LLVM.createRegister(LLVM.getCounterSSA());
+							subExpResults[i] = LLVM.createVariable(LLVM.getCounterSSA());
 							code.add(LLVM.createSItoFP(subExpResults[i], oldExpResults[i], type, subExpressions[i].getType()));
 						}
 					}
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createDiv(result, subExpResults, type));
 					break;
 				case INTDIV: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createIntDiv(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case REM: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createRem(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case AND: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createAnd(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case OR: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createOr(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case RELNOTEQ: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createRelNotEQ(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case RELEQ: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createRelEQ(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case RELGE: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createRelGE(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case RELGT: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createRelGT(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case RELLE: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createRelLE(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case RELLT: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createRelLT(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case INDEX: 
-					String elemPtr = LLVM.createRegister(LLVM.getCounterSSA());
+					String elemPtr = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createGEP(elemPtr, subExpResults[0], subExpressions[0].getType(), subExpResults[1]));
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createLoad(result, type, elemPtr));
 					break;
 				case NOT: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createNot(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case UMINUS: 
-					result = LLVM.createRegister(LLVM.getCounterSSA());
+					result = LLVM.createVariable(LLVM.getCounterSSA());
 					code.add(LLVM.createUMinus(result, subExpResults, subExpressions[0].getType()));
 					break;
 				case LET_BLOCK_FUNC: 
@@ -453,7 +443,7 @@ public class AST {
 			exitLabel = "if.exit$" + ifIndex;
 			code.add(LLVM.createLabel("if.exit$" + ifIndex));
 			setBasicBlock(exitLabel);
-			result = LLVM.createRegister(LLVM.getCounterSSA());
+			result = LLVM.createVariable(LLVM.getCounterSSA());
 			code.add(LLVM.createPHINode(result, this.type, thenBB, thenIndex, elseBB, elseIndex));
 			return result;
 		}
@@ -484,12 +474,10 @@ public class AST {
 				mountCode(actarg);
 			}
 			if (id.contains("$")) { // only local values have a '$' appended to their name
-				//result = LLVM.createRegister(id);
-				result = LLVM.createRegister(LLVM.getCounterSSA());
-				code.add(LLVM.createLoad(result, this.type, LLVM.createRegister(id)));
+				result = LLVM.createVariable(id);
 			}
 			else {
-				result = LLVM.createRegister(LLVM.getCounterSSA());
+				result = LLVM.createVariable(LLVM.getCounterSSA());
 				code.add(LLVM.createFunctionCall(result, this.type, id, argIds, argTypes));
 			}
 			return result;
@@ -528,10 +516,10 @@ public class AST {
 			// strings need a special treatment to become usable, 
 			// so they actually define some code
 			else if (type.isEquivalent("String")) {
-				String reg = LLVM.createRegister(LLVM.getCounterSSA());
+				String reg = LLVM.createVariable(LLVM.getCounterSSA());
 				code.add(LLVM.createAlloca(reg, type, ((String) value).length()+1));
 				code.add(LLVM.createStoreArray(reg, type, (String) value));
-				result = LLVM.createRegister(LLVM.getCounterSSA());
+				result = LLVM.createVariable(LLVM.getCounterSSA());
 				code.add(LLVM.createBitcastArrayToPtr(result, reg, type, ((String) value).length() + 1));
 			}
 			return result;
@@ -557,13 +545,13 @@ public class AST {
 				subExpResults.add(subExpResult);
 				mountCode(expr);
 			}
-			String reg = LLVM.createRegister(LLVM.getCounterSSA());
+			String reg = LLVM.createVariable(LLVM.getCounterSSA());
 			code.add(LLVM.createAlloca(reg, type, exprArray.size()));
-			String result = LLVM.createRegister(LLVM.getCounterSSA());
+			String result = LLVM.createVariable(LLVM.getCounterSSA());
 			code.add(LLVM.createBitcastArrayToPtr(result, reg, type, exprArray.size()));
 			int i = 0;
 			for (String subExp: subExpResults) {
-				elemPtr = LLVM.createRegister(LLVM.getCounterSSA());
+				elemPtr = LLVM.createVariable(LLVM.getCounterSSA());
 				code.add(LLVM.createGEP(elemPtr, result, type, Integer.toString(i)));
 				code.add(LLVM.createStore(elemPtr, subExp, type.getTypeParam(0)));
 				i++;

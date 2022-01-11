@@ -258,4 +258,47 @@ public class SymTableStack {
 			level--;
 		}
 	}
+		
+	/* 
+	 * Being the project not originally developed using an IDE, using JUnit is not the best option
+	 * It would be ideal to move testing there (TODO)
+	 */
+	public void testSymTableStack() {
+		SymTableStack symTableStack = new SymTableStack();
+		symTableStack.pushSymTable();
+		Type type = Type.getType("Int");
+		symTableStack.putEntry("x", new SymTableEntry(type));
+		symTableStack.putEntry("y", new SymTableEntry(type));
+		if (symTableStack.containsEntry("x")) 
+			System.out.println ("TEST SYMTABLE STACK 1: PASSED");
+		else
+			System.out.println ("TEST SYMTABLE STACK 1: FAILED");
+		if (!symTableStack.containsEntry("xx")) 
+			System.out.println ("TEST SYMTABLE STACK 2: PASSED");
+		else
+			System.out.println ("TEST SYMTABLE STACK 2: FAILED");
+		if (symTableStack.getEntry("x") != null)
+			System.out.println ("TEST SYMTABLE STACK 3: PASSED");
+		else
+			System.out.println ("TEST SYMTABLE STACK 3: FAILED");
+		if (symTableStack.getEntry("xx") == null) 
+			System.out.println ("TEST SYMTABLE STACK 4: PASSED");
+		else
+			System.out.println ("TEST SYMTABLE STACK 4: FAILED");
+		boolean isPresent = symTableStack.getEntry("x").getIsAssigned();
+		if (!isPresent)
+			System.out.println ("TEST SYMTABLE STACK 5: PASSED");
+		else
+			System.out.println ("TEST SYMTABLE STACK 5: FAILED");
+		symTableStack.pushSymTable();
+		Type xTree = Type.getType("Double");
+		symTableStack.putEntry("x", new SymTableEntry(xTree));
+		SymTableEntry entry = symTableStack.getEntry("x");
+		if (entry != null && entry.getType().isEquivalent("Double"))
+			System.out.println ("TEST SYMTABLE STACK 6: PASSED");
+		else
+			System.out.println ("TEST SYMTABLE STACK 6: FAILED");
+ 		symTableStack.popSymTable();
+	}
+
 }

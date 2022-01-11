@@ -34,8 +34,8 @@ public class LLVM {
 		return alignment;
 	}
 	
-	public static String createRegister(Integer varIndex) {	return "%" + varIndex; }
-	public static String createRegister(String varName) { return "%" + varName; }
+	public static String createVariable(Integer varIndex) {	return "%" + varIndex; }
+	public static String createVariable(String varName) { return "%" + varName; }
 	public static String createPrintDeclaration() {
 		return "declare i32 @printf(i8*, ...)"; 
 	}
@@ -81,7 +81,7 @@ public class LLVM {
 		code = "define " + writeType(type) + " @" + id + "(";
 		for (int i = 0; i < argNames.size(); i++) {
 			if (i > 0) code += ", "; 
-			code += writeType(argTypes.get(i)) ;
+			code += writeType(argTypes.get(i)) + " " + createVariable(argNames.get(i));
 		}
 		code += ")";
 		return code;
@@ -250,8 +250,8 @@ public class LLVM {
 		return code;
 	}
 	public static String createPHINode(String result, Type type, String thenLabel, String thenIndex, String elseLabel, String elseIndex) {
-		return result + " = phi " + writeType(type) + " [ " + thenIndex + ", " + createRegister(thenLabel) + " ], "
-		              + "[ " + elseIndex + ", " + createRegister(elseLabel) + " ]";
+		return result + " = phi " + writeType(type) + " [ " + thenIndex + ", " + createVariable(thenLabel) + " ], "
+		              + "[ " + elseIndex + ", " + createVariable(elseLabel) + " ]";
 	}
 	public static String createFunctionCall(String result, Type type, String id, ArrayList<String> argIds, ArrayList<Type> argTypes) {
 		String code = result + " = call " + writeType(type) + " @" + id + "(";
