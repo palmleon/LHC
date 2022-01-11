@@ -5,21 +5,18 @@ import java.util.Stack;
 import java.util.Iterator;
 
 /* 
-	 * Class for the Type Tree
-	 * The following Class defines the Type structure
-	 * Fields: String typeName - unique name for the Type
-	 * 		   Type[] - list containing all the subtypes for an instance of a compound type 
-	 *				(useful for functions, lists, tuples and any additional compound type) 
-	 *		   Hashmap<String, Type> typeMap - a map containg, for any typeName, the corresponding standard Type
-	 *				(initialized at Parser initialization time)
-	 */
+ * Class for the Type Tree
+ * The following Class defines the Type structure
+ */
 	 
-
-
 public class Type {
 		
+	/* unique name for the Type */
 	private String typeName;
-	private Type[] typeParams; //better than an ArrayList because its size it's fixed
+	/* list containing all the subtypes for an instance of a compound type 
+	 *				(useful for functions, lists and any additional compound type) 
+	 * better than an ArrayList because its size it's fixed */
+	private Type[] typeParams;
 	
 	// Static TypeMap that contains all the declared Types (allows to define custom Data Types)
 	private static HashMap<String, Type> typeMap = new HashMap<>();
@@ -192,15 +189,6 @@ public class Type {
 		// special error type for propagating type checking errors
 		type = new Type("error", new Type[0]);
 		Type.addType(type.getTypeName(), type);
-		// Min Arity for Tuples = 2, Max Arity for Tuples = 10
-		/*for (int i = 2; i <= 10; i++) {
-			typeArray = new Type[i];
-			for (int j = 0; j < i; j++) {
-				typeArray[j] = new Type(anyType);
-			}	
-			type = new Type("Tuple" + i, typeArray); 
-			Type.addType(type.getTypeName(), type);
-		}*/
 	}
 	
 	/* 
@@ -261,34 +249,6 @@ public class Type {
 		for (int i = 0; i < this.getTypeParams().length; i++) {
 			this.getTypeParam(i).dumpType(level+1);
 		}
-	}
-	
-	/* 
-	 * Being the project not originally developed using an IDE, using JUnit is not the best option
-	 * It would be ideal to move testing there (TODO)
-	 */
-	public static void testType() {
-		// Check Type(Type type)
-		// 		 isEquivalent, isSubtype
-		Type type1 = Type.getType("List");
-		Type type2 = new Type(type1);
-		if (type1.isEquivalent(type2.getTypeName()))
-			System.out.println("TEST TYPE TREE 1: PASSED");
-		else
-			System.out.println("TEST TYPE TREE 1: FAILED");
-		// Check isSubtype, setTypeParam, getType
-		Type type3 = Type.getType("List");
-		type3.setTypeParam(0, Type.getType("Int"));
-		if (type3.isSubtype("List"))
-			System.out.println("TEST TYPE TREE 2: PASSED");
-		else
-			System.out.println("TEST TYPE TREE 2: FAILED");
-		Type type4 = Type.getType("Int");
-		Type type5 = Type.getType("Double");
-		if (type4.isSubtype(type5.getTypeName()) && !type5.isSubtype(type4.getTypeName()))
-			System.out.println("TEST TYPE TREE 3: PASSED");
-		else
-			System.out.println("TEST TYPE TREE 3: FAILED");
 	}
 
 }

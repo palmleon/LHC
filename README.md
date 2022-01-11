@@ -109,7 +109,7 @@ LHC is compatible with:
 
 #### Installation and usage
 
-After cloning the Project and entering into the main folder, you can use the following commands to play with the compiler:
+After entering into the main folder, you can use the following commands to play with the compiler:
 
 - **make install**: Install everything
 - **make uninstall**: uninstall everything
